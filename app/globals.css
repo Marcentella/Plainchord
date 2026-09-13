@@ -2,6 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 :root {
   --background: #f1f3f0;
   --foreground: #1c2320;
@@ -64,5 +72,16 @@ body {
   }
 }
 .glossary-fade-hold {
+  /* ponytail: kept in sync by hand with GLOSSARY_LOOP_DUR in
+     components/Fretboard.tsx — a CSS literal and a JS export can't share
+     one source without a build step; upgrade path is generating this value
+     from that constant if it ever drifts. */
   animation: glossary-fade-hold 2.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glossary-fade-hold {
+    animation: none;
+    opacity: 1;
+  }
 }

@@ -1,6 +1,8 @@
 // Shared fretboard geometry + grid, so every diagram (chord library, and now
 // glossary position animations) draws the same strings/frets instead of each
 // component reimplementing its own.
+export const GLOSSARY_LOOP_DUR = "2.4s";
+
 export const FRETBOARD = {
   W: 120,
   H: 150,

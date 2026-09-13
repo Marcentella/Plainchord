@@ -46,10 +46,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             priority
           />
           <nav className="flex gap-4 text-sm">
-            <Link href="/" className="hover:text-accent">
+            <Link href="/" className="transition-colors hover-fine:text-accent">
               {t("nav.chords")}
             </Link>
-            <Link href="/glosario" className="hover:text-accent">
+            <Link href="/glosario" className="transition-colors hover-fine:text-accent">
               {t("nav.glossary")}
             </Link>
           </nav>

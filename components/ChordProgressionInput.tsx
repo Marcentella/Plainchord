@@ -22,7 +22,7 @@ const SHARED = "w-full rounded-lg border px-4 py-2 text-lg";
 const GHOST_ONLY =
   "border-transparent pointer-events-none absolute inset-0 whitespace-pre overflow-hidden";
 const INPUT_ONLY =
-  "border-line bg-transparent relative focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2";
+  "border-line bg-transparent relative transition-colors focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2";
 
 export default function ChordProgressionInput({
   id,
@@ -128,7 +128,7 @@ export default function ChordProgressionInput({
             type="button"
             onClick={acceptOrCycle}
             aria-label={t("home.acceptSuggestionAria", { name: suggestion.name })}
-            className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
+            className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
           >
             ⇥ {suggestion.name}
           </button>
