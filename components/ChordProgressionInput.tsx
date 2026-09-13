@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { suggestChords } from "@/lib/chordSuggest";
 import { pickDefaultIndex } from "@/lib/chordRank";
 import type { Chord } from "@/lib/chords";
@@ -37,6 +37,10 @@ export default function ChordProgressionInput({
 }) {
   const initial = splitLastToken(value);
   const beforeRef = useRef(initial.before);
+  // What this component itself last handed to onChange — lets the effect
+  // below tell "the parent echoed our own edit back" apart from "the
+  // parent changed `value` on its own" (e.g. a "common progressions" pill).
+  const lastEmittedRef = useRef(value);
   const [suggestions, setSuggestions] = useState<Chord[]>(() =>
     suggestChords(initial.token),
   );
@@ -44,6 +48,7 @@ export default function ChordProgressionInput({
     pickDefaultIndex(suggestChords(initial.token), initial.token),
   );
   const [cycling, setCycling] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const { before, token } = splitLastToken(value);
   const suggestion = suggestions[index];
@@ -52,6 +57,12 @@ export default function ChordProgressionInput({
   // ghost suffix is empty then, so this underline is the only visible sign
   // there's still something to Tab/tap through.
   const tokenIsExactMatch = suggestion !== undefined && ghost === "";
+  // Only the in-input ghost hides on blur — e.g. right after picking a
+  // suggested progression ending in "C", nobody typed anything, so a
+  // phantom "C(7)" sitting there unasked is just confusing. The hint row
+  // and chip button below stay put; they're an explicit control, not a
+  // stray artifact.
+  const showGhostInInput = focused;
 
   function retarget(nextValue: string) {
     const { before, token } = splitLastToken(nextValue);
@@ -62,10 +73,29 @@ export default function ChordProgressionInput({
     setCycling(false);
   }
 
+  /** Every edit this component makes goes through here, so the resync
+   * effect below can recognize its own changes coming back as `value`. */
+  function applyChange(next: string) {
+    lastEmittedRef.current = next;
+    onChange(next);
+  }
+
+  // If `value` changes without us having emitted it (picking a suggested
+  // progression, clearing the field from elsewhere, etc.), our suggestion
+  // state is for the OLD text — resync it, instead of leaving a stale chip
+  // like "C7" showing after the value no longer even ends in "c".
+  useEffect(() => {
+    if (value !== lastEmittedRef.current) {
+      retarget(value);
+      lastEmittedRef.current = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
   function commit(i: number, nextCycling: boolean) {
     const picked = suggestions[i];
     if (!picked) return;
-    onChange(beforeRef.current + picked.name);
+    applyChange(beforeRef.current + picked.name);
     setIndex(i);
     setCycling(nextCycling);
   }
@@ -95,23 +125,27 @@ export default function ChordProgressionInput({
           <span className="invisible">{before}</span>
           <span
             className={
-              tokenIsExactMatch
+              showGhostInInput && tokenIsExactMatch
                 ? "border-b-2 border-accent/50 text-transparent"
                 : "invisible"
             }
           >
             {token}
           </span>
-          <span className="text-muted">{ghost}</span>
+          <span className="text-muted">
+            {showGhostInInput ? ghost : ""}
+          </span>
         </div>
         <input
           id={id}
           value={value}
           onChange={(e) => {
-            onChange(e.target.value);
+            applyChange(e.target.value);
             retarget(e.target.value);
           }}
           onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={placeholder}
           className={`${SHARED} ${INPUT_ONLY}`}
           autoComplete="off"
