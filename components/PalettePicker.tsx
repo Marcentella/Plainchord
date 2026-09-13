@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { flashThemeTransition } from "@/lib/flashThemeTransition";
 import { t } from "@/i18n";
 
 // Both light AND dark variants of each palette's accent (see
@@ -116,6 +117,7 @@ export default function PalettePicker() {
   // MutationObserver above once this mutates the DOM, so there's one
   // source of truth instead of two copies that could drift apart.
   function select(id: PaletteId) {
+    flashThemeTransition();
     setOpen(false);
     if (id === "azul") {
       document.documentElement.removeAttribute("data-theme");

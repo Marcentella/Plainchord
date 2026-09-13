@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { flashThemeTransition } from "@/lib/flashThemeTransition";
 import { t } from "@/i18n";
 
 export default function ThemeToggle() {
@@ -17,6 +18,7 @@ export default function ThemeToggle() {
 
   function toggle() {
     const next = !dark;
+    flashThemeTransition();
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
