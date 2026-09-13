@@ -153,21 +153,31 @@ export default function ChordProgressionInput({
         />
       </div>
 
-      {suggestion && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted">{t("home.tabHint")}</span>
-          {/* Tab has no equivalent on a mobile keyboard, so tapping this
-              does the exact same accept-or-cycle as pressing Tab. */}
-          <button
-            type="button"
-            onClick={acceptOrCycle}
-            aria-label={t("home.acceptSuggestionAria", { name: suggestion.name })}
-            className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
-          >
-            ⇥ {suggestion.name}
-          </button>
-        </div>
-      )}
+      {/* Always mounted — its height is reserved in the layout at all times.
+          Only `visibility` toggles, so nothing below has to shift up/down
+          every time typing changes whether there's a match. `visibility`
+          (not `opacity`) also removes it from hit-testing and the tab
+          order for free while hidden, with no extra `pointer-events`/
+          `tabIndex` handling needed. */}
+      <div
+        className={`flex items-center gap-2 ${suggestion ? "visible" : "invisible"}`}
+      >
+        <span className="text-xs text-muted">{t("home.tabHint")}</span>
+        {/* Tab has no equivalent on a mobile keyboard, so tapping this
+            does the exact same accept-or-cycle as pressing Tab. */}
+        <button
+          type="button"
+          onClick={acceptOrCycle}
+          aria-label={
+            suggestion
+              ? t("home.acceptSuggestionAria", { name: suggestion.name })
+              : undefined
+          }
+          className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+        >
+          ⇥ {suggestion?.name ?? ""}
+        </button>
+      </div>
     </div>
   );
 }
