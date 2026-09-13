@@ -1,14 +1,11 @@
 import type { PositionVisual } from "@/lib/glossary";
-import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
+import { FRETBOARD, FretboardGrid, fretY, GLOSSARY_LOOP_DUR } from "@/components/Fretboard";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 const { W, H, STRING_X, DOT_R } = FRETBOARD;
 
-// One loop length for all four kinds — native SVG SMIL <animate>, no JS
-// timers. Each kind below is keyed so the value at t=1 always matches the
-// value at t=0, so the indefinite repeat has no visible jump at the seam.
-const DUR = "2.4s";
-
 export default function PositionAnimation({ visual }: { visual: PositionVisual }) {
+  const reduced = usePrefersReducedMotion();
   const cx = STRING_X[visual.string];
   const cyTo = fretY(visual.toFret);
   const cyFrom = visual.fromFret != null ? fretY(visual.fromFret) : undefined;
@@ -30,13 +27,17 @@ export default function PositionAnimation({ visual }: { visual: PositionVisual }
           <circle cx={cx} cy={cyFrom} r={DOT_R} fill="var(--accent)" />
           {/* hammered note: appears and stays for the rest of the loop */}
           <circle cx={cx} cy={cyTo} r={DOT_R} fill="var(--accent)">
-            <animate
-              attributeName="opacity"
-              keyTimes="0;0.35;0.45;1"
-              values="0;0;1;1"
-              dur={DUR}
-              repeatCount="indefinite"
-            />
+            {!reduced && (
+              <animate
+                attributeName="opacity"
+                keyTimes="0;0.35;0.45;1"
+                values="0;0;1;1"
+                calcMode="spline"
+                keySplines="0 0 1 1;0.23 1 0.32 1;0 0 1 1"
+                dur={GLOSSARY_LOOP_DUR}
+                repeatCount="indefinite"
+              />
+            )}
           </circle>
         </>
       )}
@@ -47,47 +48,73 @@ export default function PositionAnimation({ visual }: { visual: PositionVisual }
           <circle cx={cx} cy={cyTo} r={DOT_R} fill="var(--accent)" />
           {/* origin note: present, then released */}
           <circle cx={cx} cy={cyFrom} r={DOT_R} fill="var(--accent)">
-            <animate
-              attributeName="opacity"
-              keyTimes="0;0.35;0.45;1"
-              values="1;1;0;0"
-              dur={DUR}
-              repeatCount="indefinite"
-            />
+            {!reduced && (
+              <animate
+                attributeName="opacity"
+                keyTimes="0;0.35;0.45;1"
+                values="1;1;0;0"
+                calcMode="spline"
+                keySplines="0 0 1 1;0.23 1 0.32 1;0 0 1 1"
+                dur={GLOSSARY_LOOP_DUR}
+                repeatCount="indefinite"
+              />
+            )}
           </circle>
         </>
       )}
 
       {visual.kind === "slide" && cyFrom !== undefined && (
-        <circle cx={cx} cy={cyFrom} r={DOT_R} fill="var(--accent)">
+        <circle
+          cx={cx}
+          cy={reduced ? cyTo : cyFrom}
+          r={DOT_R}
+          fill="var(--accent)"
+          opacity={reduced ? 1 : undefined}
+        >
           {/* single continuous move, faded out during the reset jump */}
-          <animate
-            attributeName="cy"
-            keyTimes="0;0.05;0.5;1"
-            values={`${cyFrom};${cyFrom};${cyTo};${cyTo}`}
-            dur={DUR}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="opacity"
-            keyTimes="0;0.03;0.9;0.95;1"
-            values="0;1;1;0;0"
-            dur={DUR}
-            repeatCount="indefinite"
-          />
+          {!reduced && (
+            <animate
+              attributeName="cy"
+              keyTimes="0;0.05;0.5;1"
+              values={`${cyFrom};${cyFrom};${cyTo};${cyTo}`}
+              calcMode="spline"
+              keySplines="0 0 1 1;0.77 0 0.175 1;0 0 1 1"
+              dur={GLOSSARY_LOOP_DUR}
+              repeatCount="indefinite"
+            />
+          )}
+          {!reduced && (
+            <animate
+              attributeName="opacity"
+              keyTimes="0;0.03;0.9;0.95;1"
+              values="0;1;1;0;0"
+              dur={GLOSSARY_LOOP_DUR}
+              repeatCount="indefinite"
+            />
+          )}
         </circle>
       )}
 
       {visual.kind === "tapping" && (
-        <circle cx={cx} cy={cyTo} r={DOT_R} fill="var(--accent)">
+        <circle
+          cx={cx}
+          cy={cyTo}
+          r={DOT_R}
+          fill="var(--accent)"
+          opacity={reduced ? 1 : undefined}
+        >
           {/* pops in with no origin dot, holds, releases */}
-          <animate
-            attributeName="opacity"
-            keyTimes="0;0.3;0.4;0.85;0.95;1"
-            values="0;0;1;1;0;0"
-            dur={DUR}
-            repeatCount="indefinite"
-          />
+          {!reduced && (
+            <animate
+              attributeName="opacity"
+              keyTimes="0;0.3;0.4;0.85;0.95;1"
+              values="0;0;1;1;0;0"
+              calcMode="spline"
+              keySplines="0 0 1 1;0.23 1 0.32 1;0 0 1 1;0.23 1 0.32 1;0 0 1 1"
+              dur={GLOSSARY_LOOP_DUR}
+              repeatCount="indefinite"
+            />
+          )}
         </circle>
       )}
     </svg>

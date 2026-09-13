@@ -25,7 +25,7 @@ export default function Glosario() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("glossary.searchPlaceholder")}
-          className="w-full rounded-lg border border-line bg-transparent px-4 py-2 text-lg focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
+          className="w-full rounded-lg border border-line bg-transparent px-4 py-2 text-lg transition-colors focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
         />
       </div>
 
@@ -39,7 +39,7 @@ export default function Glosario() {
             <button
               key={entry.name}
               onClick={() => setSelectedName(entry.name)}
-              className={`rounded-full border px-3 py-1 text-sm hover:border-accent ${
+              className={`rounded-full border px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out ${
                 entry.name === selectedName
                   ? "border-accent text-accent"
                   : "border-line"

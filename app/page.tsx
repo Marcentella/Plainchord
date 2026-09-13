@@ -60,7 +60,7 @@ export default function Home() {
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={() => setShowSuggestions((v) => !v)}
-            className="text-xs text-muted underline hover:text-accent"
+            className="text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out"
           >
             {showSuggestions
               ? t("home.hideSuggestions")
@@ -68,7 +68,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setShowDifficulty((v) => !v)}
-            className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
+            className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
           >
             {showDifficulty
               ? t("home.hideDifficulty")
@@ -84,7 +84,7 @@ export default function Home() {
                   setInput(p);
                   setShowSuggestions(false);
                 }}
-                className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
+                className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
               >
                 {p}
               </button>
