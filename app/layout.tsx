@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
+import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import Footer from "@/components/Footer";
+import { t } from "@/i18n";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,9 +45,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             className="dark:invert h-9 w-auto"
             priority
           />
+          <nav className="flex gap-4 text-sm">
+            <Link href="/" className="transition-colors hover-fine:text-accent">
+              {t("nav.chords")}
+            </Link>
+            <Link href="/glosario" className="transition-colors hover-fine:text-accent">
+              {t("nav.glossary")}
+            </Link>
+          </nav>
           <ThemeToggle />
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
+        <Footer />
       </body>
     </html>
   );

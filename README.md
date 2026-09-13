@@ -1,38 +1,65 @@
 # Omnifret
 
-Aplicación web gratuita de aprendizaje visual de guitarra. Centraliza en una sola pantalla lo que hoy está disperso entre múltiples sitios: diagramas de acordes, notación técnica de tablatura, y qué tan difícil es cada transición entre acordes.
+**Aprendizaje visual de guitarra, centralizado y gratuito.**
+
+Omnifret centraliza en una sola pantalla lo que hoy está disperso entre múltiples sitios: diagramas de acordes, notación técnica de tablatura, y qué tan difícil es cada transición entre acordes. Sin cuentas obligatorias, sin muros de pago para lo esencial.
+
+> Proyecto de Título — Ingeniería en Informática, INACAP. Desarrollado individualmente.
+
+---
 
 ## El problema
 
-Aprender guitarra por cuenta propia implica saltar entre fuentes no coordinadas: acordes en un sitio, tablaturas en otro, técnica explicada (o no) en YouTube. La notación técnica suele explicarse en teoría, pero no en ejecución física real (ej. cómo poner la mano en un acorde con cejilla).
+Aprender guitarra por cuenta propia implica saltar entre fuentes no coordinadas: acordes en un sitio, tablaturas en otro, técnica explicada (o no) en video. La notación técnica suele explicarse en teoría, pero no en ejecución física real. Esto genera abandono — confirmado tanto por un levantamiento de información propio como por literatura académica existente sobre el tema ([Ruismäki, Juvonen & Lehtonen, 2012](https://www.sciencedirect.com/science/article/pii/S1877042812023105)).
+
+## Qué incluye
+
+- **Biblioteca de acordes** — ingresa una progresión, obtén todos los diagramas de digitación a la vez, generados desde datos estructurados.
+- **Glosario de notación técnica** — explica símbolos de tablatura combinando definición simple con ejecución física real, no solo teoría.
+- **Sistema de dificultad de transiciones** — clasificación objetiva de qué tan difícil es pasar de un acorde a otro.
+- **Import de tablaturas propias** — el usuario trae su propia tablatura (texto plano o archivo Guitar Pro); Omnifret la visualiza, no la aloja ni la distribuye.
+- **Modo claro/oscuro y paletas de color** predefinidas.
+- **Modelo freemium** — todo lo anterior es gratuito. Funciones generativas (detección de acordes por audio) se ofrecen bajo un plan premium, actualmente marcado "próximamente".
 
 ## Filosofía de producto
 
-Omnifret es una **referencia objetiva tipo wiki, no una app adaptativa/gamificada tipo Duolingo**. La dificultad de una transición entre acordes es una propiedad fija (cuánto se mueven los dedos, cambio de posición, etc.), no algo personalizado por usuario. No hay progreso individual rastreado ni "el sistema aprende de ti": el usuario ve el dato objetivo y decide qué practicar.
-
-## Alcance del MVP
-
-1. **Biblioteca de acordes** — el usuario ingresa una progresión (ej. "G - D - Em - C") y la app genera automáticamente los diagramas de digitación de todos los acordes en una sola vista.
-2. **Glosario de notación técnica** — explica símbolos de tablatura (bend, hammer-on, pull-off, slide, pinch harmonic, etc.) con definición simple + consejo de ejecución física concreta.
-3. **Sistema de dificultad de transiciones** — etiqueta objetiva (fácil/media/difícil) para cada par de acordes consecutivos.
-4. **Freemium** — todo lo anterior es 100% gratis. Existe una página de planes con un tier "Premium — próximamente" (sin cobro real todavía).
-
-Fuera de alcance por ahora: cuentas obligatorias, procesamiento de pagos real, personalización por usuario, guía de tono/amplificador, contribución comunitaria vía backend.
-
-## Componente exploratorio (I+D)
-
-Detección automática de acordes a partir de audio, usando **Meyda** para extracción de chroma features vía Web Audio API, procesado enteramente en el navegador (sin backend, sin subir audio a un servidor).
+Omnifret es una referencia objetiva, tipo wiki bien diseñada — no una aplicación adaptativa o gamificada. La dificultad de una transición es una propiedad fija de esa transición, no una recomendación personalizada. El usuario ve el dato y decide qué practicar.
 
 ## Stack técnico
 
-- **Next.js (React + TypeScript)**
-- **Tailwind CSS**
-- **Datos como JSON estructurado**, sin base de datos externa
-- **Vercel** para despliegue
-- **Meyda** para el componente de audio
+| Capa | Tecnología | Por qué |
+|---|---|---|
+| Frontend | Next.js (React + TypeScript) | Routing incluido, integración nativa con Vercel |
+| Estilos | Tailwind CSS | Bajo overhead de setup para un desarrollo solo |
+| Datos | JSON estructurado | Sin base de datos externa que mantener ni pagar |
+| Hosting | Vercel | Despliegue con configuración mínima |
+| Audio (exploratorio) | Meyda + Web Audio API | Procesamiento 100% en el navegador — privacidad y cero backend |
+| Persistencia local | IndexedDB | Tablaturas importadas y preferencias, sin necesidad de cuenta |
 
-## Contexto
+## Empezar a desarrollar
 
-Proyecto de Título individual — Ingeniería en Informática, INACAP - Sede Maipú.
+```bash
+git clone <url-del-repo>
+cd omnifret
+npm install
+npm run dev
+```
 
-Más detalle de producto, historias de usuario y decisiones en `CONTEXT.md` (no versionado).
+Abre [http://localhost:3000](http://localhost:3000).
+
+## Sobre el contenido y derechos de autor
+
+Omnifret no aloja, indexa ni distribuye tablaturas de canciones protegidas por derechos de autor. Cualquier tablatura visualizada en la aplicación es importada voluntariamente por el propio usuario, bajo su responsabilidad — ver [Términos de Servicio](/terminos). La biblioteca de acordes y el glosario de notación son teoría musical básica (hechos, no expresión creativa) y no están sujetos a esta restricción.
+
+## Estado del proyecto
+
+En desarrollo activo. Ver `FEATURES.md` (no incluido en este repositorio público) para el detalle de fases y decisiones de alcance.
+
+## Licencia
+
+_Por definir._
+
+## Documentos relacionados
+
+- [Términos de Servicio](/terminos)
+- [Política de Privacidad](/privacidad)

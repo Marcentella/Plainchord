@@ -2,12 +2,25 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 :root {
   --background: #f1f3f0;
   --foreground: #1c2320;
   --accent: #2b4f44;
   --line: #d6d9d2;
   --muted: #5b6058;
+  /* Darker/more saturated than the dark-mode pastels below — on the light
+     background, true pastels fail WCAG AA (~2:1); these hold ~5:1+. */
+  --difficulty-facil: #2a7345;
+  --difficulty-media: #7c5e0f;
+  --difficulty-dificil: #a83f2e;
 }
 
 .dark {
@@ -16,6 +29,10 @@
   --accent: #8cb1ff;
   --line: #33372c;
   --muted: #9a9c8e;
+  /* True pastels — the near-black background gives them ~8-10:1 contrast. */
+  --difficulty-facil: #8fd9a8;
+  --difficulty-media: #e6c675;
+  --difficulty-dificil: #f0a08c;
 }
 
 @theme inline {
@@ -24,6 +41,9 @@
   --color-accent: var(--accent);
   --color-line: var(--line);
   --color-muted: var(--muted);
+  --color-difficulty-facil: var(--difficulty-facil);
+  --color-difficulty-media: var(--difficulty-media);
+  --color-difficulty-dificil: var(--difficulty-dificil);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -32,4 +52,69 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Shared "appear, hold, reset" loop for glossary markers that live outside
+   SVG (so SMIL <animate> isn't available) — same timing shape as the SMIL
+   position/distortion animations, so every marker on a card stays in sync. */
+@keyframes glossary-fade-hold {
+  0%,
+  35% {
+    opacity: 0;
+  }
+  45%,
+  90% {
+    opacity: 1;
+  }
+  95%,
+  100% {
+    opacity: 0;
+  }
+}
+.glossary-fade-hold {
+  /* ponytail: kept in sync by hand with GLOSSARY_LOOP_DUR in
+     components/Fretboard.tsx — a CSS literal and a JS export can't share
+     one source without a build step; upgrade path is generating this value
+     from that constant if it ever drifts. */
+  animation: glossary-fade-hold 2.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glossary-fade-hold {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Chord library cards (app/page.tsx): fade + rise in on mount, fade + sink
+   on removal. Same ease-out curve as the glossary's own appear/disappear
+   SMIL animations (plans/004-smil-easing-duration-token.md). */
+.chord-card {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 280ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 280ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@starting-style {
+  .chord-card {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Applied by app/page.tsx while a removed card is kept mounted for the
+   exit transition (see EXIT_MS there) — same values as @starting-style
+   above so entry and exit are symmetric. */
+.chord-card-exiting {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chord-card {
+    /* Drop the transform-based motion, keep the fade. */
+    transition-property: opacity;
+  }
 }

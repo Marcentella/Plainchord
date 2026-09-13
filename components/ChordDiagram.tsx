@@ -1,15 +1,8 @@
 import type { Chord } from "@/lib/chords";
+import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
+import { t } from "@/i18n";
 
-const W = 120;
-const H = 150;
-const MARGIN_X = 20;
-const NUT_Y = 26;
-const FRET_H = 20;
-const FRETS = 4;
-const STRING_X = Array.from(
-  { length: 6 },
-  (_, i) => MARGIN_X + i * ((W - MARGIN_X * 2) / 5),
-);
+const { W, H, NUT_Y, STRING_X, DOT_R } = FRETBOARD;
 
 export default function ChordDiagram({ chord }: { chord: Chord }) {
   return (
@@ -20,7 +13,7 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
         height={(110 * H) / W}
         className="text-foreground"
         role="img"
-        aria-label={`Diagrama del acorde ${chord.name}`}
+        aria-label={t("chordDiagram.ariaLabel", { name: chord.name })}
       >
         {/* open/muted markers above the nut */}
         {chord.frets.map((f, i) =>
@@ -38,39 +31,15 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
           ) : null,
         )}
 
-        {/* strings */}
-        {STRING_X.map((x, i) => (
-          <line
-            key={`string-${i}`}
-            x1={x}
-            y1={NUT_Y}
-            x2={x}
-            y2={NUT_Y + FRETS * FRET_H}
-            stroke="currentColor"
-            strokeWidth={1}
-          />
-        ))}
-
-        {/* frets (nut is thicker) */}
-        {Array.from({ length: FRETS + 1 }, (_, f) => (
-          <line
-            key={`fret-${f}`}
-            x1={STRING_X[0]}
-            y1={NUT_Y + f * FRET_H}
-            x2={STRING_X[5]}
-            y2={NUT_Y + f * FRET_H}
-            stroke="currentColor"
-            strokeWidth={f === 0 ? 3 : 1}
-          />
-        ))}
+        <FretboardGrid />
 
         {/* finger positions */}
         {chord.frets.map((f, i) => {
           if (f <= 0) return null;
-          const cy = NUT_Y + (f - 0.5) * FRET_H;
+          const cy = fretY(f);
           return (
             <g key={`dot-${i}`}>
-              <circle cx={STRING_X[i]} cy={cy} r={7} fill="var(--accent)" />
+              <circle cx={STRING_X[i]} cy={cy} r={DOT_R} fill="var(--accent)" />
               {chord.fingers[i] > 0 && (
                 <text
                   x={STRING_X[i]}
