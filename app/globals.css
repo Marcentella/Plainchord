@@ -85,3 +85,36 @@ body {
     opacity: 1;
   }
 }
+
+/* Chord library cards (app/page.tsx): fade + rise in on mount, fade + sink
+   on removal. Same ease-out curve as the glossary's own appear/disappear
+   SMIL animations (plans/004-smil-easing-duration-token.md). */
+.chord-card {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 280ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 280ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@starting-style {
+  .chord-card {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Applied by app/page.tsx while a removed card is kept mounted for the
+   exit transition (see EXIT_MS there) — same values as @starting-style
+   above so entry and exit are symmetric. */
+.chord-card-exiting {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chord-card {
+    /* Drop the transform-based motion, keep the fade. */
+    transition-property: opacity;
+  }
+}

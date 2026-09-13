@@ -1,15 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
 import TransitionBadge from "@/components/TransitionBadge";
 import { findChord, parseProgression } from "@/lib/chords";
+import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { t } from "@/i18n";
 
 const CHORD_LIMIT = 16;
+
+// ponytail: kept in sync by hand with .chord-card's transition-duration in
+// app/globals.css — a JS timeout and a CSS literal can't share one source
+// without a build step (same tradeoff as GLOSSARY_LOOP_DUR in
+// components/Fretboard.tsx).
+const EXIT_MS = 280;
 
 // Literal, curated progressions — no transposition, no matching logic (see
 // FEATURES.md's "evaluado y pausado" note on why the dynamic version isn't
@@ -30,11 +37,131 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const allTokens = useMemo(() => parseProgression(input), [input]);
-  const tokens = allTokens.slice(0, CHORD_LIMIT);
   const truncated = allTokens.length > CHORD_LIMIT;
+  // Only the first CHORD_LIMIT chords are ever rendered — see slotIdsRef's
+  // comment for why an edit anywhere in the list can still affect what
+  // falls inside vs outside this window.
+  const tokens = allTokens.slice(0, CHORD_LIMIT);
+
+  // Removed cards stay mounted (rendered as their own trailing group,
+  // "exiting") for EXIT_MS so they can fade+sink out instead of vanishing
+  // instantly — see .chord-card-exiting in globals.css.
+  //
+  // Every real chord — not just visible ones — gets a permanent numeric
+  // id, assigned once and never reused, kept in `slotIdsRef` index-aligned
+  // with the FULL `allTokens` (not the truncated `tokens`). A chord and its
+  // later exiting-tail entry share that SAME id/key, so:
+  //   - going real -> exiting is a class change on the SAME DOM node (an
+  //     actual transition) instead of a remount already born in the
+  //     exited end-state (no transition to play).
+  //   - a real chord typed while an earlier one is still fading always
+  //     gets a BRAND NEW id, so it can never land on the still-exiting
+  //     item's key and hijack its DOM node.
+  //   - `diffTokens` finds exactly where an edit happened (not just
+  //     whether the count grew or shrank), so ids are inserted/removed at
+  //     the true position — a chord edited in the middle of the
+  //     progression gets ITS OWN id treatment, not whichever slot happens
+  //     to be last. The tradeoff from keying by slot at all: React still
+  //     reconciles by position for whatever DIDN'T change identity, so a
+  //     chord that shifts slots because of a nearby insert/delete just
+  //     snaps to its new spot instantly rather than sliding — intentional,
+  //     see the "different hell" conversation on why animating that slide
+  //     is a much bigger feature than this.
+  //   - tracking the FULL list (not just the visible 16) means a chord
+  //     pushed past CHORD_LIMIT by an edit elsewhere is treated exactly
+  //     like a deletion (it fades out) instead of silently vanishing, and
+  //     a chord that newly slides under the limit plays a normal entrance
+  //     the first time it's ever rendered — no extra logic needed for
+  //     that direction, since a slot that was never rendered before is
+  //     indistinguishable from a brand-new one.
+  const [exitingTail, setExitingTail] = useState<
+    { id: number; token: string }[]
+  >([]);
+  const nextIdRef = useRef(0);
+  const slotIdsRef = useRef<number[]>([]);
+  // Starts empty (not `allTokens`) so the very first render is itself just
+  // an "insert everything" diff — no separate mount-only case needed.
+  const prevAllTokensRef = useRef<string[]>([]);
+
+  // Synchronous, same-render adjustment (React's documented "adjusting
+  // state while rendering" pattern) — NOT a useEffect. A shrink detected in
+  // an effect fires one commit *after* the one that already removed the
+  // card from `tokens`, so the card unmounts in commit 1 and a NEW node
+  // remounts in commit 2 — no visible animation, plus a one-frame layout
+  // blip as the grid loses and regains that slot. Doing it here means the
+  // shrink and the exit-tail addition land in the SAME commit.
+  if (prevAllTokensRef.current !== allTokens) {
+    const prevAllTokens = prevAllTokensRef.current;
+    prevAllTokensRef.current = allTokens;
+
+    // Snapshot id -> token before mutating slotIdsRef, so any id that ends
+    // up exiting (whether truly deleted or just pushed past CHORD_LIMIT)
+    // can still recover what it used to show.
+    const oldIdToToken = new Map(
+      slotIdsRef.current.map((id, i) => [id, prevAllTokens[i]]),
+    );
+    const oldVisibleIds = slotIdsRef.current.slice(0, CHORD_LIMIT);
+
+    const { at, removedCount, insertedCount } = diffTokens(
+      prevAllTokens,
+      allTokens,
+    );
+    const insertedIds = Array.from(
+      { length: insertedCount },
+      () => nextIdRef.current++,
+    );
+    slotIdsRef.current.splice(at, removedCount, ...insertedIds);
+
+    // Anything visible before that isn't visible now — whether it was
+    // actually deleted, or just shifted past CHORD_LIMIT by an edit
+    // elsewhere in the list — fades out the same way. (The reverse
+    // direction, a chord newly sliding under the limit, needs no matching
+    // check here: it just renders for the first time below and gets a
+    // normal entrance.)
+    const stillVisible = new Set(slotIdsRef.current.slice(0, CHORD_LIMIT));
+    const newlyExiting = oldVisibleIds
+      .filter((id) => !stillVisible.has(id))
+      .map((id) => ({ id, token: oldIdToToken.get(id)! }));
+
+    if (newlyExiting.length > 0) {
+      // Prepend (not replace) — a second chord leaving before the first
+      // one finishes fading must not cut the first one's animation short;
+      // both ride out on one shared, restarted timer (see the effect
+      // below), at the cost of the earlier one getting a little bonus
+      // fade time when they overlap.
+      setExitingTail((tail) => [...newlyExiting, ...tail]);
+    }
+  }
+
+  useEffect(() => {
+    if (exitingTail.length === 0) return;
+    const timer = setTimeout(() => setExitingTail([]), EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [exitingTail]);
+
+  // One combined array, mapped once below — see the key comment on the
+  // card div for why this can't be two separate `.map()` calls. Filters
+  // out any ghost whose id has already become visible again (a real slot
+  // returning always wins) — possible in principle if a chord is pushed
+  // past CHORD_LIMIT and then un-pushed again before its fade finishes.
+  const visibleIds = new Set(slotIdsRef.current.slice(0, tokens.length));
+  const cardSlots = [
+    ...tokens.map((token, i) => ({
+      id: slotIdsRef.current[i],
+      token,
+      exiting: false,
+    })),
+    ...exitingTail
+      .filter((item) => !visibleIds.has(item.id))
+      .map((item) => ({
+        id: item.id,
+        token: item.token,
+        exiting: true,
+      })),
+  ];
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-10 px-6 py-12">
+    <div className="flex flex-1 flex-col items-center gap-4 px-6 py-12">
       <div className="w-full max-w-xl flex flex-col gap-2">
         <label htmlFor="progression" className="text-sm font-medium">
           {t("home.progressionLabel")}
@@ -97,36 +224,126 @@ export default function Home() {
           column count — flex-wrap packs each row greedily by cumulative
           width, and the last bundle (no trailing badge) is narrower than
           the rest, so it would randomly squeeze an extra item onto its row
-          while identical-width bundles elsewhere don't. */}
-      <div className="w-full grid justify-center gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fit,190px)]">
-        {tokens.map((token, i) => {
-          const chord = findChord(token);
+          while identical-width bundles elsewhere don't.
+
+          Left-aligned (justify-start, grid's own default — not
+          justify-center): with auto-fit's unused columns collapsed,
+          `justify-center` treats the occupied columns as one block and
+          re-centers it whenever the count changes. Since a card is kept
+          mounted for EXIT_MS after being removed (see exitingTail above),
+          that recompute fires TWICE for every deletion — once instantly
+          when the real chord leaves `tokens`, and again ~280ms later when
+          the ghost's own node finally leaves the DOM — each one snapping
+          every other card sideways to stay centered. Left-aligned, adding
+          or removing a card only ever grows/shrinks the row's right edge;
+          nothing else has a "center" to recompute, so that second jump
+          can't happen, and the actual fade reads clearly instead of being
+          drowned out by it.
+
+          Capped at 4 columns' width and centered like the input box above
+          it — same `w-full max-w-[...]` pattern, so on a wide screen the
+          row wraps at 4 chords instead of stretching edge-to-edge, and the
+          first chord roughly lines up under the input bar rather than
+          hugging the page's far-left edge. The row inside stays
+          left-aligned (justify-start) — this box's own width is a
+          constant, never derived from how many chords are currently
+          rendered, so it can't reintroduce the re-centering jump above.
+
+          Columns are sized to the 110px DIAGRAM alone, not the ~155px
+          diagram+badge — the badge is positioned absolutely (see below),
+          which takes it out of layout entirely. Sizing columns to include
+          the badge (the original 190px) made the LAST card's column just
+          as wide whether or not it actually had a badge — and it usually
+          doesn't (nothing follows the final chord) — so the visible
+          diagrams read as shifted left inside a box centered around
+          invisible reserved badge-space that often wasn't there. Basing
+          the box's width on diagrams alone means what's actually visible
+          is what gets centered, at the cost of the badge sometimes poking
+          out past the box's own edge (see the card's className below for
+          why the gap has to be wide enough for that to not overlap the
+          next chord instead). 4×110px + 3×48px gaps = 584px.
+
+          max-w is TIERED (110/268/426/584px = 1/2/3/4 columns), not one
+          fixed 584px cap — `auto-fit` only picks a column count based on
+          how many 110+48px columns fit in the box's OWN width, and with a
+          single smooth `max-w-[584px]`, `w-full` fills the box out to
+          whatever's actually available on screen, which is rarely an
+          exact multiple of a column's width. That mismatch is what caused
+          the narrow-screen bug: at some widths the box is much wider than
+          however many columns actually fit (a wide dead strip on the
+          right), and at others it's just barely too narrow for one more
+          column (the badge overflowing the box's own edge by a few px).
+          Snapping max-w to an exact column-count width at each breakpoint
+          means the box is NEVER wider than its content needs and NEVER so
+          tight the badge has nowhere to go — each breakpoint is exactly
+          110px/48px per gap, and the amount added on top (24px padding
+          per side = 48px total, from the page wrapper's px-6) is why
+          these don't line up with round numbers. */}
+      <div className="w-full max-w-[110px] min-[316px]:max-w-[268px] min-[474px]:max-w-[426px] min-[632px]:max-w-[584px] mt-6 grid justify-start gap-x-12 gap-y-6 [grid-template-columns:repeat(auto-fit,110px)]">
+        {cardSlots.map((slot, i) => {
+          const chord = findChord(slot.token);
           // Bundled with the OUTGOING transition (to i+1), not the incoming
           // one — so when the grid wraps to a new row, the badge stays
           // glued to the chord it's leaving, instead of drifting to the
           // start of the next row where it reads as unrelated.
+          //
+          // An exiting slot is a fading picture of a chord that's already
+          // gone from the progression, not a real member of it anymore —
+          // it must never appear on either side of a difficulty
+          // computation. Without this guard, deleting a chord and
+          // immediately retyping it (or just typing fast) would briefly
+          // show a real transition badge computed against the ghost, e.g.
+          // "C -> C" while the old C is still mid-fade — a difficulty
+          // reading for a transition that doesn't exist in the current
+          // progression, which this app's whole premise (an objective,
+          // fixed fact about the CURRENT progression) can't afford even
+          // for 280ms.
+          const nextSlot = cardSlots[i + 1];
           const nextChord =
-            i < tokens.length - 1 ? findChord(tokens[i + 1]) : undefined;
+            nextSlot && !nextSlot.exiting
+              ? findChord(nextSlot.token)
+              : undefined;
 
           return (
             <div
-              key={`${token}-${i}`}
-              // gap-7 (28px), not gap-4 — with a fixed 190px cell, a 110px
-              // diagram, and the grid's own 16px column gap, that's what
-              // centers the badge between this chord and the next one
-              // instead of it hugging the left chord (96px total slack,
-              // badge ~38-41px wide, (96-40)/2 ≈ 28px either side).
-              className="flex items-center justify-start gap-7"
+              // Slot's permanent id (see slotIdsRef/cardSlots above), not
+              // `${token}-${i}` or a plain index. Two things depend on
+              // this: (1) the token's live text changes every keystroke
+              // while it's being typed, so keying on the text would
+              // remount the card (and re-play its entrance) on every
+              // keystroke; (2) real and exiting cards MUST come from one
+              // combined array mapped ONCE — React reconciles each
+              // separate `.map()` call independently even when both
+              // render into the same parent, so a key that "moves" from a
+              // real-tokens map to a separate exiting-tail map is NOT
+              // recognized as the same element and gets torn down and
+              // rebuilt anyway (silently, since the content happens to
+              // match) — which is what quietly broke the transition again
+              // after the id scheme was first introduced.
+              key={slot.id}
+              // relative: the badge below is positioned absolutely against
+              // THIS card, not the grid — see the grid container's comment
+              // for why (badge shouldn't count toward the column's width).
+              className={`chord-card relative flex items-center justify-start ${
+                slot.exiting ? "chord-card-exiting" : ""
+              }`}
             >
               {chord ? (
                 <ChordDiagram chord={chord} />
               ) : (
-                <ChordNotFound name={token} />
+                <ChordNotFound name={slot.token} />
               )}
-              {showDifficulty && chord && nextChord && (
-                <TransitionBadge
-                  difficulty={transitionDifficulty(chord, nextChord)}
-                />
+              {showDifficulty && !slot.exiting && chord && nextChord && (
+                // Absolute + left-full: starts right where the 110px
+                // diagram ends, extending into the grid's own 48px column
+                // gap (badge is ~37px wide, ml-2 leaves ~3px clearance
+                // before the next chord's diagram) without adding to this
+                // card's own width — see the grid container's comment.
+                <div className="absolute left-full top-1/2 ml-2 -translate-y-1/2">
+                  <TransitionBadge
+                    difficulty={transitionDifficulty(chord, nextChord)}
+                  />
+                </div>
               )}
             </div>
           );
