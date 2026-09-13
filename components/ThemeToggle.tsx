@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { t } from "@/i18n";
 
 export default function ThemeToggle() {
-  // Lazy init reads the class the inline theme script already set on <html>.
-  // Server render has no DOM, so it starts false there — suppressHydrationWarning
-  // below covers the one-time mismatch against the client's real value.
-  const [dark, setDark] = useState(
-    () =>
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("dark"),
-  );
+  // Starts false on both server and client so hydration always matches —
+  // no mismatch means no stale label. Synced to the real value (set by the
+  // inline theme script in layout.tsx) right after mount, which is a normal
+  // client render and so is guaranteed to update the DOM text.
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
 
   function toggle() {
     const next = !dark;
@@ -22,11 +24,10 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label="Cambiar tema claro/oscuro"
-      suppressHydrationWarning
+      aria-label={t("themeToggle.ariaLabel")}
       className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
     >
-      {dark ? "☀️ Claro" : "🌙 Oscuro"}
+      {dark ? t("themeToggle.toLight") : t("themeToggle.toDark")}
     </button>
   );
 }
