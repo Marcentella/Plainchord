@@ -192,25 +192,31 @@ body {
 
 /* An element that already had its own color transition (transition-colors'
    150ms on the nav links, the pill buttons' 160ms — tuned for a snappy
-   HOVER response) keeps using that duration for the base rule above too,
+   HOVER response) keeps using its own values for the base rule above too,
    since it's more specific/higher-layer. That's correct for hover, but
    the SAME property change also fires when a theme/palette switch flips
-   the underlying CSS variables — with no way for a `transition-duration`
-   to know WHY the value changed, those elements finish fading in half the
-   time as everything else, visibly out of sync with the page around them.
+   the underlying CSS variables, with no way for a transition to know WHY
+   the value changed. Matching just the DURATION wasn't enough on its
+   own — Tailwind's `transition-colors` uses `cubic-bezier(0.4, 0, 0.2, 1)`
+   (near-zero velocity at the start, so it visibly lags for the first part
+   of the transition even at an identical total duration), while the base
+   rule uses plain `ease`, which has real velocity from t=0. Same start,
+   same end, different curve in between — briefly forcing BOTH the
+   duration and the timing function keeps every element moving in lockstep
+   for the switch, not just arriving together.
    lib/flashThemeTransition.ts adds this class right before ThemeToggle or
    PalettePicker mutates the DOM, and removes it 0.3s later (matching the
-   duration below) — for exactly that window, EVERY element's transition
-   duration is forced to match the ambient fade, hover-tuned or not; once
-   removed, hover goes back to its normal, snappier speed. Deliberately
-   left UNLAYERED (unlike the base rule above) — that's what lets a plain
-   class selector here outrank `@layer utilities`' own duration utilities
-   for the few hundred ms it's present, the same cascade-layers behavior
-   that had to be worked around for the base rule, now used on purpose. */
+   duration below); once removed, hover goes back to its normal, snappier
+   speed and curve. Deliberately left UNLAYERED (unlike the base rule
+   above) — that's what lets a plain class selector here outrank `@layer
+   utilities`' own transition utilities for the few hundred ms it's
+   present, the same cascade-layers behavior that had to be worked around
+   for the base rule, now used on purpose. */
 .theme-transitioning *,
 .theme-transitioning *::before,
 .theme-transitioning *::after {
   transition-duration: 0.3s;
+  transition-timing-function: ease;
 }
 
 /* Shared "appear, hold, reset" loop for glossary markers that live outside
