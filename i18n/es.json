@@ -1,7 +1,10 @@
 {
   "themeToggle.ariaLabel": "Cambiar tema claro/oscuro",
-  "themeToggle.toDark": "🌙 Oscuro",
-  "themeToggle.toLight": "☀️ Claro",
+  "paletteToggle.ariaLabel": "Cambiar paleta de color",
+  "paletteToggle.azul": "Paleta azul",
+  "paletteToggle.salmon": "Paleta salmón",
+  "paletteToggle.pink": "Paleta rosa",
+  "paletteToggle.green": "Paleta verde",
   "home.progressionLabel": "Progresión de acordes",
   "home.progressionHint": "Sepáralos con espacios o guiones (ej. \"G D Em C\" o \"G - D - Em - C\").",
   "home.chordLimit": "Se muestran los primeros {limit} acordes; el resto de la progresión no se renderiza.",

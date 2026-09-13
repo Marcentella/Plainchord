@@ -10,26 +10,122 @@
   }
 }
 
+/* "azul" (default, no data-theme attribute — see the palette blocks
+   below). Genuinely blue in both modes: background and accent are the
+   same cool blue hue family in light AND dark, unlike the values this
+   replaced (a green-tinted background paired with a blue dark-mode
+   accent — internally inconsistent, and the reason the palette swatch
+   for "azul" didn't actually read as blue). The old green identity moves
+   to its own [data-theme="green"] palette below, values unchanged. */
 :root {
-  --background: #f1f3f0;
-  --foreground: #1c2320;
-  --accent: #2b4f44;
-  --line: #d6d9d2;
-  --muted: #5b6058;
+  --background: #eff3f8;
+  --foreground: #1a212e;
+  --accent: #2f5fa0;
+  --line: #d7dee8;
+  --muted: #5b6675;
   /* Darker/more saturated than the dark-mode pastels below — on the light
      background, true pastels fail WCAG AA (~2:1); these hold ~5:1+. */
   --difficulty-facil: #2a7345;
   --difficulty-media: #7c5e0f;
   --difficulty-dificil: #a83f2e;
+  /* Finger-number text on a chord diagram's dot (ChordDiagram.tsx) — NOT
+     --background. It reads as a "cutout" through the dot, so it needs to
+     contrast against --accent, not the page. Every palette's light-mode
+     accent is dark enough that plain white beats --background here (5.0-
+     9.1:1 vs 4.5-8.2:1 measured across all 4 palettes) — one shared value
+     works for all of them, no per-palette tuning needed. */
+  --dot-text: #ffffff;
 }
 
 .dark {
+  --background: #131826;
+  --foreground: #e8ecf5;
+  --accent: #8cb1ff;
+  --line: #2a3142;
+  --muted: #8b96ab;
+  /* True pastels — the near-black background gives them ~8-10:1 contrast. */
+  --difficulty-facil: #8fd9a8;
+  --difficulty-media: #e6c675;
+  --difficulty-dificil: #f0a08c;
+  /* Same reasoning as :root's --dot-text — every palette's dark-mode
+     accent is light enough that plain black beats --background here
+     (8.1-9.9:1 vs 7.0-8.3:1). */
+  --dot-text: #000000;
+}
+
+/* Palette axis, independent from dark/light — no [data-theme="azul"]
+   block needed, since azul is just what :root/.dark already are ("no
+   attribute" = azul, the default). [data-theme="salmon"] has the same
+   specificity as :root, so it must come after :root (it does) to win in
+   light mode; .dark[data-theme="salmon"] outranks .dark alone regardless
+   of order (two selectors vs. one). */
+[data-theme="salmon"] {
+  --background: #fdf1ec;
+  --foreground: #3a211b;
+  --accent: #b8492a;
+  --line: #e8d4c8;
+  --muted: #8a6a5c;
+  --difficulty-facil: #3d7a3f;
+  --difficulty-media: #8a5a12;
+  --difficulty-dificil: #9c3a2a;
+}
+
+.dark[data-theme="salmon"] {
+  --background: #201512;
+  --foreground: #f5e4da;
+  --accent: #ff8c69;
+  --line: #3d2b24;
+  --muted: #b09082;
+  --difficulty-facil: #a8d9a0;
+  --difficulty-media: #f0cf8a;
+  --difficulty-dificil: #e8735c;
+}
+
+[data-theme="pink"] {
+  --background: #fdf0f5;
+  --foreground: #3a1a2b;
+  --accent: #c23b7a;
+  --line: #ecd6e2;
+  --muted: #8a6178;
+  --difficulty-facil: #3d7a4a;
+  --difficulty-media: #8a5a2e;
+  --difficulty-dificil: #b23a3a;
+}
+
+.dark[data-theme="pink"] {
+  --background: #201018;
+  --foreground: #f5dde8;
+  --accent: #ff6fa5;
+  --line: #3d2430;
+  --muted: #b08a9c;
+  --difficulty-facil: #a0d9ae;
+  --difficulty-media: #f0d08a;
+  --difficulty-dificil: #f0748a;
+}
+
+/* The original default's values, unchanged — moved here rather than
+   invented fresh, since light mode was already internally consistent
+   (green-tinted background + green accent) even though "azul" mislabeled
+   it. Only the dark accent is new (green, not the old blue) — the old
+   dark background/foreground/line/muted were already green-tinted and
+   fit a green accent correctly; blue was the one mismatched piece. */
+[data-theme="green"] {
+  --background: #f1f3f0;
+  --foreground: #1c2320;
+  --accent: #2b4f44;
+  --line: #d6d9d2;
+  --muted: #5b6058;
+  --difficulty-facil: #2a7345;
+  --difficulty-media: #7c5e0f;
+  --difficulty-dificil: #a83f2e;
+}
+
+.dark[data-theme="green"] {
   --background: #171a16;
   --foreground: #ecead0;
-  --accent: #8cb1ff;
+  --accent: #5fb98a;
   --line: #33372c;
   --muted: #9a9c8e;
-  /* True pastels — the near-black background gives them ~8-10:1 contrast. */
   --difficulty-facil: #8fd9a8;
   --difficulty-media: #e6c675;
   --difficulty-dificil: #f0a08c;
@@ -44,6 +140,7 @@
   --color-difficulty-facil: var(--difficulty-facil);
   --color-difficulty-media: var(--difficulty-media);
   --color-difficulty-dificil: var(--difficulty-dificil);
+  --color-dot-text: var(--dot-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -52,6 +149,45 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Smooths every dark/light and palette switch (both just swap CSS custom
+   properties, not classes-with-their-own-transition) so colors fade
+   instead of snapping. Universal selector, but LOW specificity — any
+   element with its own transition utility (the `hover-fine:border-accent
+   active:scale-[0.97] duration-[160ms]` pill-button pattern used
+   throughout, `.chord-card`'s opacity/transform transition, etc.) should
+   win the cascade for its own declared properties, so this only fills in
+   colors that would otherwise change instantly, never overriding an
+   already-tuned interaction transition. `fill`/`stroke` cover SVG (chord
+   diagrams use `fill="var(--accent)"` directly). No reduced-motion gate:
+   per this project's own established rule (see .chord-card-exiting and
+   the SMIL reduced-motion branches), a pure color fade with no movement
+   is exactly the "gentler, not zero" case reduced motion is meant to
+   keep.
+
+   Explicitly in Tailwind's own `base` layer, NOT left unlayered — Tailwind
+   v4 emits its utilities (`transition`, `duration-[160ms]`, etc.) inside
+   `@layer utilities`, and per the CSS cascade-layers spec, ANY unlayered
+   rule beats ANY layered rule regardless of specificity. Left unlayered,
+   this universal selector would have silently overridden every button's
+   tuned interaction duration with 0.3s instead of deferring to it —
+   `base` sits below `utilities` in Tailwind's own layer order, so normal
+   specificity rules (a utility class beats a universal selector) apply
+   between this rule and Tailwind's utilities, same as they would with no
+   layers involved at all. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease,
+      outline-color 0.3s ease,
+      fill 0.3s ease,
+      stroke 0.3s ease;
+  }
 }
 
 /* Shared "appear, hold, reset" loop for glossary markers that live outside

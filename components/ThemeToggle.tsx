@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { t } from "@/i18n";
 
 export default function ThemeToggle() {
@@ -21,13 +22,19 @@ export default function ThemeToggle() {
     localStorage.setItem("theme", next ? "dark" : "light");
   }
 
+  const Icon = dark ? Sun : Moon;
+
+  // Icon-only, no text label — sun/moon is understood without one (same
+  // call HeySpinner and most other apps make), and it keeps this button a
+  // fixed size regardless of screen width instead of needing a responsive
+  // show/hide breakpoint.
   return (
     <button
       onClick={toggle}
       aria-label={t("themeToggle.ariaLabel")}
-      className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+      className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
     >
-      {dark ? t("themeToggle.toLight") : t("themeToggle.toDark")}
+      <Icon size={16} aria-hidden />
     </button>
   );
 }

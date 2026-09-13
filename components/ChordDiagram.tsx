@@ -24,6 +24,7 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
               y={NUT_Y - 10}
               textAnchor="middle"
               fontSize={13}
+              fontWeight="bold"
               fill="currentColor"
             >
               {f === 0 ? "o" : "x"}
@@ -46,7 +47,8 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
                   y={cy + 4}
                   textAnchor="middle"
                   fontSize={9}
-                  style={{ fill: "var(--background)" }}
+                  fontWeight="bold"
+                  style={{ fill: "var(--dot-text)" }}
                 >
                   {chord.fingers[i]}
                 </text>
