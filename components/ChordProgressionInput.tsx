@@ -120,19 +120,19 @@ export default function ChordProgressionInput({
       </div>
 
       {suggestion && (
-        <>
-          <p className="text-xs text-muted">{t("home.tabHint")}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted">{t("home.tabHint")}</span>
           {/* Tab has no equivalent on a mobile keyboard, so tapping this
               does the exact same accept-or-cycle as pressing Tab. */}
           <button
             type="button"
             onClick={acceptOrCycle}
             aria-label={t("home.acceptSuggestionAria", { name: suggestion.name })}
-            className="self-start rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
+            className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent"
           >
             ⇥ {suggestion.name}
           </button>
-        </>
+        </div>
       )}
     </div>
   );
