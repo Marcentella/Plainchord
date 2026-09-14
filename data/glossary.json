@@ -2,68 +2,68 @@
   {
     "name": "Bend",
     "symbol": "b",
-    "definicion": "Estirar la cuerda hacia arriba o abajo sin soltar el traste, para elevar la altura de la nota sin tocar otro traste.",
-    "ejecucion": "Empuja la cuerda con el dedo que la pisa, apoyando los dedos vecinos para sumar fuerza, hasta llegar al tono indicado. En las cuerdas graves suele empujarse hacia abajo; en las agudas, hacia arriba.",
+    "definicion": "Es subir la altura de una nota empujando la cuerda hacia un lado, sin moverte del mismo traste. La cuerda se estira, la tensión sube, y el sonido se desliza hacia arriba como si te acercaras a otra nota sin llegar a tocarla.",
+    "ejecucion": "Pisa la nota con firmeza y empuja la cuerda hacia el lado, apoyando los dedos vecinos para sumar fuerza (rara vez alcanza con uno solo). En las cuerdas graves normalmente se empuja hacia abajo, hacia el suelo; en las agudas, hacia arriba, hacia el techo. El error más común es soltar presión a mitad de camino, así que mantén el dedo bien pegado al traste durante todo el trayecto, no solo al empezar.",
     "visualType": "distorsion",
     "visual": { "kind": "bend", "string": 2, "fret": 3 }
   },
   {
     "name": "Hammer-on",
     "symbol": "h",
-    "definicion": "Tocar una nota más aguda en la misma cuerda golpeando el traste con otro dedo, sin volver a pulsar con la púa.",
-    "ejecucion": "Pulsa la primera nota y luego deja caer con fuerza otro dedo sobre un traste más alto de la misma cuerda; el golpe seco es lo que genera el sonido, no la púa.",
+    "definicion": "Permite pasar a una nota más aguda en la misma cuerda sin volver a pulsar con la púa. El sonido nuevo lo genera el golpe del dedo contra el traste, no la mano que rasguea.",
+    "ejecucion": "Toca la primera nota de forma normal y, mientras todavía suena, deja caer otro dedo con fuerza sobre un traste más alto de la misma cuerda. El golpe tiene que ser rápido y seco, casi como si quisieras aplastar la cuerda contra el traste. Si el hammer-on suena débil o se apaga enseguida, casi siempre es porque el golpe fue tímido, no porque falte técnica.",
     "visualType": "posicion",
     "visual": { "kind": "hammer-on", "string": 2, "fromFret": 2, "toFret": 4 }
   },
   {
     "name": "Pull-off",
     "symbol": "p",
-    "definicion": "Lo opuesto al hammer-on: pasar de una nota a otra más grave en la misma cuerda sin volver a pulsar con la púa.",
-    "ejecucion": "Con ambos dedos ya apoyados, levanta el dedo de la nota más aguda tirando levemente hacia abajo (no solo despegándolo) para que la cuerda quede vibrando al soltarse.",
+    "definicion": "Es el movimiento contrario al hammer-on: bajas de una nota a otra más grave en la misma cuerda sin pulsar de nuevo con la púa. La segunda nota suena sola, gracias al tirón del dedo al soltarse.",
+    "ejecucion": "Empieza con los dos dedos ya apoyados en sus trastes, como si la nota grave estuviera esperando en silencio debajo. Levanta el dedo de la nota aguda tirando un poco hacia abajo, no solo separándolo de la cuerda, para darle un pequeño impulso al soltarse. Si al hacerlo la nota grave no suena, seguramente el segundo dedo no estaba realmente apoyado desde el principio.",
     "visualType": "posicion",
     "visual": { "kind": "pull-off", "string": 2, "fromFret": 4, "toFret": 2 }
   },
   {
     "name": "Slide",
     "symbol": "/",
-    "definicion": "Deslizar el mismo dedo de un traste a otro sobre la misma cuerda, manteniendo la nota sonando durante el recorrido.",
-    "ejecucion": "Mantén una presión constante mientras deslizas el dedo por el diapasón: ni tanta que frene el movimiento, ni tan poca que la cuerda deje de sonar a mitad de camino.",
+    "definicion": "Es mover el mismo dedo de un traste a otro sin levantarlo de la cuerda, dejando que la nota suene de forma continua durante todo el trayecto en vez de cortarse entre traste y traste.",
+    "ejecucion": "Pulsa la nota inicial y desliza el dedo por el diapasón manteniendo una presión pareja: si aprietas demasiado, el dedo se traba y el movimiento se frena; si aprietas muy poco, la cuerda deja de sonar antes de llegar al destino. La velocidad del deslizamiento también es parte de la música, así que vale la pena practicarlo despacio antes de acelerarlo.",
     "visualType": "posicion",
     "visual": { "kind": "slide", "string": 3, "fromFret": 1, "toFret": 3 }
   },
   {
     "name": "Palm mute",
     "symbol": "PM",
-    "definicion": "Amortiguar las cuerdas con la palma de la mano para lograr un sonido más corto, apagado y percusivo.",
-    "ejecucion": "Apoya el borde carnoso de la palma, cerca de la muñeca, sobre las cuerdas justo donde tocan el puente, sin llegar a silenciarlas del todo."
+    "definicion": "Es apagar parcialmente las cuerdas con el canto de la mano derecha para que suenen más cortas, opacas y percusivas, en vez de dejarlas resonar libremente.",
+    "ejecucion": "Apoya el borde carnoso de la palma, cerca de la muñeca, justo donde las cuerdas tocan el puente, y pulsa con normalidad con la otra mano. Si apoyas demasiado cerca del mástil, el sonido se apaga por completo y pierde la nota; si apoyas muy lejos del puente o muy suave, casi no se nota el efecto. El punto correcto es una zona bastante angosta, así que hay que buscarla a oído."
   },
   {
     "name": "Pinch harmonic",
     "symbol": "PH",
-    "definicion": "Armónico artificial que resalta una frecuencia armónica de la cuerda en vez de la nota fundamental, dando un sonido agudo y campanudo.",
-    "ejecucion": "Justo después de pulsar con la púa, roza la cuerda con el borde del pulgar de la misma mano. Hace falta experimentar con el punto exacto de la cuerda para encontrar el armónico."
+    "definicion": "Es un armónico artificial: en vez de escuchar la nota fundamental de la cuerda, se resalta una de sus frecuencias armónicas, produciendo un sonido agudo, metálico y con un timbre parecido a una campana.",
+    "ejecucion": "Pulsa la cuerda con la púa y, en el mismo movimiento, deja que el borde del pulgar de esa misma mano roce la cuerda justo después del golpe. El punto exacto donde tocar cambia según la nota y hasta según la guitarra, así que no hay una posición fija que sirva siempre: hay que ir moviendo el punto de contacto hasta encontrar dónde \"salta\" el armónico. Al principio se siente más a suerte que a técnica, y es normal."
   },
   {
     "name": "Vibrato",
     "symbol": "~",
-    "definicion": "Oscilación leve y repetida en la altura de una nota sostenida, usada para darle expresividad.",
-    "ejecucion": "Con el dedo firme sobre el traste, mueve la muñeca —no solo el dedo— hacia adelante y atrás en un movimiento corto y parejo, como girando una perilla.",
+    "definicion": "Es una oscilación leve y repetida en la altura de una nota que ya está sonando, usada para darle vida y expresividad en vez de dejarla sonar plana y estática.",
+    "ejecucion": "Mantén el dedo firme sobre el traste y mueve la muñeca, no solo el dedo, hacia adelante y atrás en un movimiento corto y parejo, como si giraras una perilla pequeña. Si el vibrato sale desigual o entrecortado, casi siempre es porque el movimiento viene solo de los dedos y no de la muñeca, que es la que realmente controla el ritmo del oscilado.",
     "visualType": "distorsion",
     "visual": { "kind": "vibrato", "string": 2, "fret": 3 }
   },
   {
     "name": "Tapping",
     "symbol": "T",
-    "definicion": "Generar una nota golpeando el traste directamente con un dedo de la mano que normalmente rasguea, en vez de pulsar la cuerda.",
-    "ejecucion": "Golpea el traste con ángulo perpendicular a la cuerda y suficiente fuerza, y retíralo con un pequeño tirón hacia el costado para que suene como un pull-off.",
+    "definicion": "Es generar una nota golpeando el traste directamente con un dedo de la mano que normalmente rasguea, en vez de tocar la cuerda con la púa. Permite usar las dos manos sobre el diapasón casi como si fueran independientes.",
+    "ejecucion": "Golpea el traste con un dedo de la mano derecha, con un ángulo perpendicular a la cuerda y la fuerza suficiente para que suene claro, y retíralo con un pequeño tirón hacia el costado, igual que en un pull-off, en vez de simplemente levantarlo. Ese tirón final es lo que hace que la nota se escuche limpia y no se corte de golpe.",
     "visualType": "posicion",
     "visual": { "kind": "tapping", "string": 4, "toFret": 4 }
   },
   {
     "name": "Dead note",
     "symbol": "x",
-    "definicion": "Nota sin altura definida: un golpe percusivo y silenciado, escrito como una \"x\" en la tablatura.",
-    "ejecucion": "Apoya los dedos de la mano que pisa sobre las cuerdas sin llegar a presionarlas contra el traste, y pulsa como si tocaras una nota normal.",
+    "definicion": "Es una nota sin altura definida: un golpe percusivo y silenciado que aporta ritmo en vez de melodía, escrito como una \"x\" en la tablatura.",
+    "ejecucion": "Apoya los dedos de la mano que pisa sobre las cuerdas, pero sin llegar a presionarlas contra el traste, y pulsa con normalidad con la otra mano. El resultado debe ser un chasquido seco, sin ninguna altura reconocible; si se alcanza a distinguir una nota, es que estás apoyando demasiado suave o muy cerca del traste.",
     "visualType": "marcador",
     "visual": { "string": 2, "fret": 3 }
   }
