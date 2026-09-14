@@ -124,7 +124,16 @@ export default function Home() {
   //     that direction, since a slot that was never rendered before is
   //     indistinguishable from a brand-new one.
   const [exitingTail, setExitingTail] = useState<
-    { id: number; token: string }[]
+    {
+      id: number;
+      token: string;
+      // Where this card was, in the LAST commit before it started
+      // exiting — null only if no measurement was ever recorded for it
+      // (shouldn't happen in practice, but falls back to the old
+      // in-flow behavior below rather than snapping to 0,0).
+      top: number | null;
+      left: number | null;
+    }[]
   >([]);
   const nextIdRef = useRef(0);
   const slotIdsRef = useRef<number[]>([]);
@@ -145,6 +154,19 @@ export default function Home() {
   // diff block below skip diffTokens entirely for a real full replace,
   // regardless of whether the lengths happen to match.
   const forceFullReplaceRef = useRef(false);
+  // Last measured {top,left} (relative to the grid container, in px) for
+  // every currently-REAL (non-exiting) card, keyed by slot id — refreshed
+  // after every commit by the measuring effect below. Read (never
+  // written) during render, at the exact moment a card newly starts
+  // exiting, to freeze its position — see gridRef's comment for why.
+  const cardPositionsRef = useRef<Map<number, { top: number; left: number }>>(
+    new Map(),
+  );
+  // Positioning context for exiting cards below (position: absolute is
+  // resolved against the nearest positioned ancestor — without this, it'd
+  // be the viewport, not the grid, and the frozen top/left offsets
+  // computed relative to the grid would land in the wrong place entirely).
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Synchronous, same-render adjustment (React's documented "adjusting
   // state while rendering" pattern) — NOT a useEffect. A shrink detected in
@@ -184,7 +206,20 @@ export default function Home() {
     const stillVisible = new Set(slotIdsRef.current.slice(0, CHORD_LIMIT));
     const newlyExiting = oldVisibleIds
       .filter((id) => !stillVisible.has(id))
-      .map((id) => ({ id, token: oldIdToToken.get(id)! }));
+      .map((id) => {
+        // cardPositionsRef still holds the PREVIOUS commit's measurements
+        // here — the measuring effect that would overwrite it for THIS
+        // commit hasn't run yet (effects fire after render) — so this is
+        // exactly "where the card was while it was still a real, in-flow
+        // item," the correct freeze point for its exit.
+        const pos = cardPositionsRef.current.get(id);
+        return {
+          id,
+          token: oldIdToToken.get(id)!,
+          top: pos?.top ?? null,
+          left: pos?.left ?? null,
+        };
+      });
 
     if (newlyExiting.length > 0) {
       // Prepend (not replace) — a second chord leaving before the first
@@ -202,6 +237,32 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [exitingTail]);
 
+  // Re-measures every REAL card's position after every commit (no
+  // dependency array — cheap for the handful of cards this grid ever
+  // holds), so cardPositionsRef is always ready with an up-to-date freeze
+  // point the instant something newly starts exiting (read during render,
+  // in the diff block above). Runs via useLayoutEffect, not useEffect, so
+  // it measures the DOM before the browser paints THIS commit — matters
+  // when a card exits and a real card shifts into a new position in the
+  // very same commit (e.g. deleting an earlier chord).
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const gridRect = grid.getBoundingClientRect();
+    const next = new Map<number, { top: number; left: number }>();
+    grid
+      .querySelectorAll<HTMLElement>(".chord-card:not(.chord-card-exiting)")
+      .forEach((el) => {
+        const id = Number(el.dataset.cardId);
+        const rect = el.getBoundingClientRect();
+        next.set(id, {
+          top: rect.top - gridRect.top,
+          left: rect.left - gridRect.left,
+        });
+      });
+    cardPositionsRef.current = next;
+  });
+
   // One combined array, mapped once below — see the key comment on the
   // card div for why this can't be two separate `.map()` calls. Filters
   // out any ghost whose id has already become visible again (a real slot
@@ -213,6 +274,8 @@ export default function Home() {
       id: slotIdsRef.current[i],
       token,
       exiting: false,
+      top: null as number | null,
+      left: null as number | null,
     })),
     ...exitingTail
       .filter((item) => !visibleIds.has(item.id))
@@ -220,6 +283,8 @@ export default function Home() {
         id: item.id,
         token: item.token,
         exiting: true,
+        top: item.top,
+        left: item.left,
       })),
   ];
 
@@ -338,8 +403,16 @@ export default function Home() {
           tight the badge has nowhere to go — each breakpoint is exactly
           110px/48px per gap, and the amount added on top (24px padding
           per side = 48px total, from the page wrapper's px-6) is why
-          these don't line up with round numbers. */}
-      <div className="w-full max-w-[110px] min-[316px]:max-w-[268px] min-[474px]:max-w-[426px] min-[632px]:max-w-[584px] mt-6 grid justify-start gap-x-12 gap-y-6 [grid-template-columns:repeat(auto-fit,110px)]">
+          these don't line up with round numbers.
+
+          relative: the positioning context for an exiting card's frozen
+          top/left below (see cardPositionsRef) — without it, those
+          offsets (computed relative to THIS box) would resolve against
+          the viewport instead. */}
+      <div
+        ref={gridRef}
+        className="relative w-full max-w-[110px] min-[316px]:max-w-[268px] min-[474px]:max-w-[426px] min-[632px]:max-w-[584px] mt-6 grid justify-start gap-x-12 gap-y-6 [grid-template-columns:repeat(auto-fit,110px)]"
+      >
         {cardSlots.map((slot, i) => {
           const chord = findChord(slot.token);
           // Bundled with the OUTGOING transition (to i+1), not the incoming
@@ -381,12 +454,35 @@ export default function Home() {
               // match) — which is what quietly broke the transition again
               // after the id scheme was first introduced.
               key={slot.id}
+              // Read by the measuring effect above to key cardPositionsRef
+              // — a plain index or the token text won't do (see the id
+              // comment above for why identity has to survive both).
+              data-card-id={slot.id}
               // relative: the badge below is positioned absolutely against
               // THIS card, not the grid — see the grid container's comment
               // for why (badge shouldn't count toward the column's width).
               className={`chord-card relative flex items-center justify-start ${
                 slot.exiting ? "chord-card-exiting" : ""
               }`}
+              // Exiting cards only: frozen at the exact spot they occupied
+              // as a real, in-flow grid item the instant before they
+              // started exiting (see cardPositionsRef/gridRef above) —
+              // pulls them out of the grid's own layout entirely, so a
+              // fading-out card no longer adds a phantom row that pushes
+              // everything below it (the footer included) down for the
+              // ~280ms it takes to fade. Falls back to the old in-flow
+              // behavior if no measurement was ever recorded (shouldn't
+              // happen, but beats snapping to the top-left corner).
+              style={
+                slot.exiting && slot.top !== null && slot.left !== null
+                  ? {
+                      position: "absolute",
+                      top: slot.top,
+                      left: slot.left,
+                      width: 110,
+                    }
+                  : undefined
+              }
             >
               {chord ? (
                 <ChordDiagram chord={chord} />
