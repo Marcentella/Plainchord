@@ -334,7 +334,6 @@ export default function Home() {
                 onClick={() => {
                   forceFullReplaceRef.current = true;
                   setInput(p);
-                  setShowSuggestions(false);
                 }}
                 className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
               >
