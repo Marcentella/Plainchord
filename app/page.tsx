@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -31,13 +37,56 @@ const COMMON_PROGRESSIONS = [
   "C - Am - Dm - G7",
 ];
 
+// A single string value — same simple case as the theme/palette
+// preferences (see FEATURES.md's palette section for why localStorage,
+// not IndexedDB, is the right store for a value like this). IndexedDB is
+// reserved for the actual imported-tab data (Fase 2, not built yet),
+// which is structured and much larger — not a one-off string.
+const PROGRESSION_KEY = "progression";
+
+// Next.js server-renders this "use client" component too, and
+// useLayoutEffect logs a warning when it runs during SSR (there's no DOM
+// to act on yet there) — falls back to plain useEffect on the server,
+// where neither actually does anything before the client takes over
+// anyway. Standard pattern (Framer Motion, Redux, etc. ship the same
+// helper) for exactly this "sync client-only state without a visible
+// flash" case.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export default function Home() {
   const [input, setInput] = useState("G - D - Em - C");
   const [showDifficulty, setShowDifficulty] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Gates the save effect below until the load effect has actually run —
+  // without it, the save effect's first firing (mount, `input` still the
+  // hardcoded default) would immediately overwrite whatever was just
+  // restored. Same hydration-safe shape as ThemeToggle/PalettePicker:
+  // start from the hardcoded default (matches SSR, no mismatch), sync
+  // from storage only after mount.
+  const [progressionLoaded, setProgressionLoaded] = useState(false);
+
+  // useLayoutEffect, not useEffect: it runs before the browser paints the
+  // hydrated commit, so a saved progression different from the hardcoded
+  // default lands in that SAME paint instead of a separate, later one.
+  // With useEffect (which fires strictly after paint), the page visibly
+  // rendered the 4-chord default first, then — a frame or more later —
+  // swapped to the real saved progression, resizing the chord grid and
+  // shoving the footer down/up after the page already looked settled.
+  useIsomorphicLayoutEffect(() => {
+    const saved = localStorage.getItem(PROGRESSION_KEY);
+    if (saved) setInput(saved);
+    setProgressionLoaded(true);
+  }, []);
+
+  // Saves on every change, not just on unmount/navigation — a browser tab
+  // close doesn't reliably fire cleanup effects, but every keystroke does
+  // fire this one.
+  useEffect(() => {
+    if (progressionLoaded) localStorage.setItem(PROGRESSION_KEY, input);
+  }, [input, progressionLoaded]);
 
   const allTokens = useMemo(() => parseProgression(input), [input]);
-  const truncated = allTokens.length > CHORD_LIMIT;
   // Only the first CHORD_LIMIT chords are ever rendered — see slotIdsRef's
   // comment for why an edit anywhere in the list can still affect what
   // falls inside vs outside this window.
@@ -82,6 +131,20 @@ export default function Home() {
   // Starts empty (not `allTokens`) so the very first render is itself just
   // an "insert everything" diff — no separate mount-only case needed.
   const prevAllTokensRef = useRef<string[]>([]);
+  // Set right before setInput() by anything that REPLACES the whole
+  // progression atomically (currently just the suggestion pills below) —
+  // never by typing. diffTokens deliberately treats any equal-length
+  // change as a no-op, content or not (see its own comment/test: typing a
+  // chord's name must never look like a remove+insert, or the exit/enter
+  // animation would fire every keystroke). That's correct for typing, but
+  // it means clicking a suggestion the SAME length as the current
+  // progression (COMMON_PROGRESSIONS has both 3- and 4-chord entries)
+  // silently swapped every card's content in place with no animation at
+  // all, while a different-length pick correctly faded — an inconsistency
+  // that only showed up on some clicks, not others. This flag lets the
+  // diff block below skip diffTokens entirely for a real full replace,
+  // regardless of whether the lengths happen to match.
+  const forceFullReplaceRef = useRef(false);
 
   // Synchronous, same-render adjustment (React's documented "adjusting
   // state while rendering" pattern) — NOT a useEffect. A shrink detected in
@@ -102,10 +165,10 @@ export default function Home() {
     );
     const oldVisibleIds = slotIdsRef.current.slice(0, CHORD_LIMIT);
 
-    const { at, removedCount, insertedCount } = diffTokens(
-      prevAllTokens,
-      allTokens,
-    );
+    const { at, removedCount, insertedCount } = forceFullReplaceRef.current
+      ? { at: 0, removedCount: prevAllTokens.length, insertedCount: allTokens.length }
+      : diffTokens(prevAllTokens, allTokens);
+    forceFullReplaceRef.current = false;
     const insertedIds = Array.from(
       { length: insertedCount },
       () => nextIdRef.current++,
@@ -171,12 +234,8 @@ export default function Home() {
           value={input}
           onChange={setInput}
           placeholder={t("home.progressionHint")}
+          chordLimit={CHORD_LIMIT}
         />
-        {truncated && (
-          <p className="text-xs text-muted">
-            {t("home.chordLimit", { limit: String(CHORD_LIMIT) })}
-          </p>
-        )}
       </div>
 
       {/* Own centered block (sibling of the input box, not nested inside
@@ -208,6 +267,7 @@ export default function Home() {
               <button
                 key={p}
                 onClick={() => {
+                  forceFullReplaceRef.current = true;
                   setInput(p);
                   setShowSuggestions(false);
                 }}
