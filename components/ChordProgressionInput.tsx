@@ -18,22 +18,53 @@ function splitLastToken(value: string): { before: string; token: string } {
   return { before: value.slice(0, lastEnd), token: value.slice(lastEnd) };
 }
 
+/** Character offset in `value` right after the `limit`-th finished chord's
+ * own text ends — everything from here on (its trailing separator, chord
+ * 17+, and the chord still being typed) is past the render limit and
+ * should be dimmed. `null` if there aren't more than `limit` finished
+ * chords yet. Only counts finished chords (closed by a separator) — the
+ * chord currently being typed is never itself what pushes the count past
+ * `limit`, matching parseProgression's own separator rules. */
+function dimFromOffset(value: string, limit: number): number | null {
+  let count = 0;
+  let segmentStart = 0;
+  for (const m of value.matchAll(SEPARATOR)) {
+    const segment = value.slice(segmentStart, m.index);
+    if (segment !== "") {
+      count++;
+      if (count === limit) return segmentStart + segment.length;
+    }
+    segmentStart = m.index! + m[0].length;
+  }
+  return null;
+}
+
 const SHARED = "w-full rounded-lg border px-4 py-2 text-lg";
 const GHOST_ONLY =
   "border-transparent pointer-events-none absolute inset-0 whitespace-pre overflow-hidden";
+// text-transparent + caret-foreground: the real input no longer draws its
+// own text at all — the overlay does, so it can dim chords past the
+// limit per-segment (a native input can only be one color at a time). The
+// caret is set back to the normal foreground explicitly, or it would
+// inherit the same transparency and vanish.
 const INPUT_ONLY =
-  "border-line bg-transparent relative transition-colors focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2";
+  "border-line bg-transparent relative text-transparent caret-foreground transition-colors focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2";
 
 export default function ChordProgressionInput({
   id,
   value,
   onChange,
   placeholder,
+  chordLimit,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Chords past this count render dimmed — still there, just not
+   * processed. Purely visual here; the actual cutoff lives in the
+   * chord-limit slicing in app/page.tsx, this just mirrors it. */
+  chordLimit: number;
 }) {
   const initial = splitLastToken(value);
   const beforeRef = useRef(initial.before);
@@ -49,6 +80,7 @@ export default function ChordProgressionInput({
   );
   const [cycling, setCycling] = useState(false);
   const [focused, setFocused] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const { before, token } = splitLastToken(value);
   const suggestion = suggestions[index];
@@ -63,6 +95,19 @@ export default function ChordProgressionInput({
   // and chip button below stay put; they're an explicit control, not a
   // stray artifact.
   const showGhostInInput = focused;
+
+  // dimFromOffset only ever lands inside (or at the very end of) `before`
+  // — it counts FINISHED chords, and `token` (still being typed) is by
+  // definition not finished yet — so `token` itself is never split, it's
+  // either entirely before the cutoff or entirely past it.
+  const dimOffset = dimFromOffset(value, chordLimit);
+  const beforeNormal = before.slice(0, dimOffset ?? before.length);
+  const beforeDimmed = dimOffset !== null ? before.slice(dimOffset) : "";
+  const tokenIsDimmed = dimOffset !== null;
+  // Same condition that drives the dimming above — the explanatory text
+  // and the dimmed chords should always appear/disappear together, never
+  // one without the other.
+  const truncated = dimOffset !== null;
 
   function retarget(nextValue: string) {
     const { before, token } = splitLastToken(nextValue);
@@ -121,19 +166,29 @@ export default function ChordProgressionInput({
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
-        <div aria-hidden className={`${SHARED} ${GHOST_ONLY}`}>
-          <span className="invisible">{before}</span>
+        {/* The real input's own text is transparent (see INPUT_ONLY) — this
+            overlay is the only thing actually drawing it now, which is
+            what lets the already-typed portion split into a normal-color
+            span and a dimmed one instead of being one uniform color. */}
+        <div ref={overlayRef} aria-hidden className={`${SHARED} ${GHOST_ONLY}`}>
+          <span>{beforeNormal}</span>
+          {beforeDimmed && <span className="opacity-45">{beforeDimmed}</span>}
           <span
             className={
-              showGhostInInput && tokenIsExactMatch
-                ? "border-b-2 border-accent/50 text-transparent"
-                : "invisible"
+              tokenIsDimmed
+                ? "opacity-45"
+                : showGhostInInput && tokenIsExactMatch
+                  ? "border-b-2 border-accent/50"
+                  : ""
             }
           >
             {token}
           </span>
+          {/* No ghost suggestion once past the limit — an active
+              autocomplete hint would read as "still being processed",
+              which contradicts the dimming. */}
           <span className="text-muted">
-            {showGhostInInput ? ghost : ""}
+            {showGhostInInput && !tokenIsDimmed ? ghost : ""}
           </span>
         </div>
         <input
@@ -146,12 +201,34 @@ export default function ChordProgressionInput({
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          // The real input is the only thing that actually scrolls
+          // horizontally (native caret-follow behavior) — its text is
+          // transparent now (see INPUT_ONLY), so the overlay drawing the
+          // visible text has to mirror that scroll position or long
+          // progressions leave the caret's text off-screen in the overlay
+          // while the invisible real input has already scrolled to it.
+          onScroll={(e) => {
+            if (overlayRef.current) {
+              overlayRef.current.scrollLeft = e.currentTarget.scrollLeft;
+            }
+          }}
           placeholder={placeholder}
           className={`${SHARED} ${INPUT_ONLY}`}
           autoComplete="off"
           spellCheck={false}
         />
       </div>
+
+      {/* Directly under the input, above the hint row below — not after it.
+          The hint row reserves its height even with no suggestion
+          (`invisible`, see below), so putting this message after it would
+          leave an awkward gap between the input and this text on the
+          (uncommon) no-suggestion case. */}
+      {truncated && (
+        <p className="text-xs text-muted">
+          {t("home.chordLimit", { limit: String(chordLimit) })}
+        </p>
+      )}
 
       {/* Always mounted — its height is reserved in the layout at all times.
           Only `visibility` toggles, so nothing below has to shift up/down
