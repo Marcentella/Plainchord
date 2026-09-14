@@ -151,6 +151,23 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Reserves the vertical scrollbar's width permanently, instead of it
+   popping in/out whenever content height crosses the viewport threshold.
+   Real, recurring case here: the chord grid briefly keeps BOTH the
+   exiting and the incoming cards mounted during a suggestion-pill switch
+   (see .chord-card-exiting below and app/page.tsx's exitingTail) — the
+   page is genuinely taller for that ~280ms overlap, by design, not a bug
+   to fix away. `scrollbar-gutter: stable` is the modern property for
+   this; `overflow-y: scroll` is the older fallback for browsers that
+   don't support it yet. Neither has any visible effect on an OS/browser
+   with overlay scrollbars (macOS default, mobile) — those never take up
+   layout width in the first place, so there was never a shift to fix
+   there. */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 /* Smooths every dark/light and palette switch (both just swap CSS custom
    properties, not classes-with-their-own-transition) so colors fade
    instead of snapping. Universal selector, but LOW specificity — any
