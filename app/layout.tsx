@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Image from "next/image";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import PalettePicker from "@/components/PalettePicker";
@@ -19,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Omnifret",
+  title: "PlainChord",
   description: "Aprendizaje visual de guitarra: acordes, notación y dificultad de transición, en una sola pantalla.",
 };
 
@@ -42,14 +41,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <header className="flex items-center justify-between px-6 py-4">
-          <Image
-            src="/logo.png"
-            alt="Omnifret"
-            width={150}
-            height={54}
-            className="dark:invert h-9 w-auto"
-            priority
-          />
+          {/* Plain text, not an image — the wordmark has no illustration
+              right now (temporary, until the new mark is designed). Using
+              text-foreground instead of an exported PNG means it already
+              tracks every theme AND every color palette automatically
+              (same mechanism as all body text), with no invert-filter
+              hack, no light/dark image pair, and no re-export step: a
+              future rename or restyle is a one-line text/class edit here,
+              not a design-and-export round trip. If a real illustrated
+              mark replaces this later, prefer an inline SVG with
+              fill="currentColor" over a raster image for the same reason
+              — see ChordDiagram.tsx for the existing pattern. */}
+          <span className="text-2xl font-semibold tracking-tight text-foreground">
+            PlainChord
+          </span>
           <nav className="flex gap-4 text-sm">
             <Link href="/" className="transition-colors hover-fine:text-accent">
               {t("nav.chords")}

@@ -1,11 +1,11 @@
-export const metadata = { title: "Términos de Servicio | Omnifret" };
+export const metadata = { title: "Términos de Servicio | PlainChord" };
 
 export default function Terminos() {
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
       <article className="w-full max-w-2xl flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-medium">Términos de Servicio | Omnifret</h1>
+          <h1 className="text-2xl font-medium">Términos de Servicio | PlainChord</h1>
           <p className="text-xs text-muted mt-1">
             Última actualización: 12 de septiembre de 2026
           </p>
@@ -13,17 +13,17 @@ export default function Terminos() {
 
         <p className="text-sm">
           Estos Términos de Servicio (&quot;Términos&quot;) rigen el uso de
-          Omnifret (&quot;la Aplicación&quot;, &quot;el Servicio&quot;). Al
+          PlainChord (&quot;la Aplicación&quot;, &quot;el Servicio&quot;). Al
           usar la Aplicación, aceptas estos Términos.
         </p>
 
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">1. Descripción del servicio</h2>
           <p className="text-sm">
-            Omnifret es una herramienta de referencia visual para el
+            PlainChord es una herramienta de referencia visual para el
             aprendizaje de guitarra. Permite consultar una biblioteca de
             acordes, un glosario de notación técnica, y clasificar la
-            dificultad de transiciones entre acordes. Omnifret también
+            dificultad de transiciones entre acordes. PlainChord también
             permite importar y visualizar tablaturas proporcionadas por el
             propio usuario.
           </p>
@@ -34,7 +34,7 @@ export default function Terminos() {
             2. Contenido importado por el usuario
           </h2>
           <p className="text-sm">
-            Omnifret no proporciona, aloja, indexa ni distribuye tablaturas de
+            PlainChord no proporciona, aloja, indexa ni distribuye tablaturas de
             canciones protegidas por derechos de autor.
           </p>
           <ul className="text-sm list-disc pl-5 flex flex-col gap-1">
@@ -49,11 +49,11 @@ export default function Terminos() {
             </li>
             <li>
               El contenido importado se procesa localmente y no se comparte
-              con otros usuarios ni se almacena en servidores de Omnifret con
+              con otros usuarios ni se almacena en servidores de PlainChord con
               fines de distribución.
             </li>
             <li>
-              Omnifret no revisa, verifica ni se hace responsable del origen
+              PlainChord no revisa, verifica ni se hace responsable del origen
               o legalidad del contenido importado por los usuarios.
             </li>
           </ul>
@@ -62,7 +62,7 @@ export default function Terminos() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">3. Uso aceptable</h2>
           <p className="text-sm">
-            El usuario se compromete a no utilizar Omnifret para:
+            El usuario se compromete a no utilizar PlainChord para:
           </p>
           <ul className="text-sm list-disc pl-5 flex flex-col gap-1">
             <li>
@@ -94,7 +94,7 @@ export default function Terminos() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">5. Sin garantías</h2>
           <p className="text-sm">
-            La Aplicación se proporciona &quot;tal cual&quot;. Omnifret no
+            La Aplicación se proporciona &quot;tal cual&quot;. PlainChord no
             garantiza que la información (diagramas de acordes, notación,
             cálculos de dificultad, o resultados de detección de acordes por
             audio) sea exacta al 100% en todos los casos, especialmente en
@@ -107,7 +107,7 @@ export default function Terminos() {
             6. Limitación de responsabilidad
           </h2>
           <p className="text-sm">
-            En la medida permitida por la ley, Omnifret y su desarrollador no
+            En la medida permitida por la ley, PlainChord y su desarrollador no
             serán responsables por daños derivados del uso del Servicio,
             incluyendo pero no limitado a contenido importado por el usuario.
           </p>
@@ -125,12 +125,12 @@ export default function Terminos() {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">8. Contacto</h2>
           <p className="text-sm">
-            Para consultas sobre estos Términos: contacto@omnifret.app
+            Para consultas sobre estos Términos: example@placeholder.app
           </p>
         </section>
 
         <p className="text-xs text-muted border-t border-line pt-4">
-          Nota: estos Términos pueden actualizarse a medida que Omnifret
+          Nota: estos Términos pueden actualizarse a medida que PlainChord
           incorpore nuevas funciones (por ejemplo, cuentas de usuario o
           pagos). Te recomendamos revisarlos de vez en cuando.
         </p>
