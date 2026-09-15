@@ -1,7 +1,4 @@
-// ponytail: kept in sync by hand with the 0.3s duration of the
-// `.theme-transitioning` override in app/globals.css — a CSS duration and
-// a JS timeout can't share one source without a build step.
-const THEME_TRANSITION_MS = 300;
+import { cssDurationMs } from "./cssTiming";
 
 /**
  * Briefly marks <html> so every element's color/border/fill transition —
@@ -21,5 +18,5 @@ export function flashThemeTransition() {
   html.classList.add("theme-transitioning");
   setTimeout(() => {
     html.classList.remove("theme-transitioning");
-  }, THEME_TRANSITION_MS);
+  }, cssDurationMs("--theme-transition-duration"));
 }

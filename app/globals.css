@@ -222,17 +222,23 @@ html {
    duration and the timing function keeps every element moving in lockstep
    for the switch, not just arriving together.
    lib/flashThemeTransition.ts adds this class right before ThemeToggle or
-   PalettePicker mutates the DOM, and removes it 0.3s later (matching the
-   duration below); once removed, hover goes back to its normal, snappier
-   speed and curve. Deliberately left UNLAYERED (unlike the base rule
-   above) — that's what lets a plain class selector here outrank `@layer
-   utilities`' own transition utilities for the few hundred ms it's
-   present, the same cascade-layers behavior that had to be worked around
-   for the base rule, now used on purpose. */
+   PalettePicker mutates the DOM, and removes it --theme-transition-duration
+   later; once removed, hover goes back to its normal, snappier speed and
+   curve. That JS side reads --theme-transition-duration directly (see
+   lib/cssTiming.ts) instead of hardcoding a matching literal, so the two
+   can't drift out of sync the way a duplicated number could. Deliberately
+   left UNLAYERED (unlike the base rule above) — that's what lets a plain
+   class selector here outrank `@layer utilities`' own transition utilities
+   for the few hundred ms it's present, the same cascade-layers behavior
+   that had to be worked around for the base rule, now used on purpose. */
+:root {
+  --theme-transition-duration: 0.3s;
+}
+
 .theme-transitioning *,
 .theme-transitioning *::before,
 .theme-transitioning *::after {
-  transition-duration: 0.3s;
+  transition-duration: var(--theme-transition-duration);
   transition-timing-function: ease;
 }
 
@@ -270,13 +276,22 @@ html {
 
 /* Chord library cards (app/page.tsx): fade + rise in on mount, fade + sink
    on removal. Same ease-out curve as the glossary's own appear/disappear
-   SMIL animations (plans/004-smil-easing-duration-token.md). */
+   SMIL animations (plans/004-smil-easing-duration-token.md).
+
+   --chord-card-transition-duration: app/page.tsx reads this directly (see
+   lib/cssTiming.ts) for how long to keep a removed card mounted before
+   unmounting it, instead of hardcoding a matching JS literal that could
+   drift out of sync with the value actually used here. */
+:root {
+  --chord-card-transition-duration: 280ms;
+}
+
 .chord-card {
   opacity: 1;
   transform: translateY(0);
   transition:
-    opacity 280ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 280ms cubic-bezier(0.23, 1, 0.32, 1);
+    opacity var(--chord-card-transition-duration) cubic-bezier(0.23, 1, 0.32, 1),
+    transform var(--chord-card-transition-duration) cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 @starting-style {
@@ -287,8 +302,8 @@ html {
 }
 
 /* Applied by app/page.tsx while a removed card is kept mounted for the
-   exit transition (see EXIT_MS there) — same values as @starting-style
-   above so entry and exit are symmetric. */
+   exit transition (reads --chord-card-transition-duration above) — same
+   values as @starting-style above so entry and exit are symmetric. */
 .chord-card-exiting {
   opacity: 0;
   transform: translateY(8px);

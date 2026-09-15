@@ -14,15 +14,10 @@ import TransitionBadge from "@/components/TransitionBadge";
 import { findChord, parseProgression } from "@/lib/chords";
 import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
+import { cssDurationMs } from "@/lib/cssTiming";
 import { t } from "@/i18n";
 
 const CHORD_LIMIT = 16;
-
-// ponytail: kept in sync by hand with .chord-card's transition-duration in
-// app/globals.css — a JS timeout and a CSS literal can't share one source
-// without a build step (same tradeoff as GLOSSARY_LOOP_DUR in
-// components/Fretboard.tsx).
-const EXIT_MS = 280;
 
 // Literal, curated progressions — no transposition, no matching logic (see
 // FEATURES.md's "evaluado y pausado" note on why the dynamic version isn't
@@ -93,8 +88,9 @@ export default function Home() {
   const tokens = allTokens.slice(0, CHORD_LIMIT);
 
   // Removed cards stay mounted (rendered as their own trailing group,
-  // "exiting") for EXIT_MS so they can fade+sink out instead of vanishing
-  // instantly — see .chord-card-exiting in globals.css.
+  // "exiting") for --chord-card-transition-duration so they can fade+sink
+  // out instead of vanishing instantly — see .chord-card-exiting in
+  // globals.css.
   //
   // Every real chord — not just visible ones — gets a permanent numeric
   // id, assigned once and never reused, kept in `slotIdsRef` index-aligned
@@ -233,7 +229,10 @@ export default function Home() {
 
   useEffect(() => {
     if (exitingTail.length === 0) return;
-    const timer = setTimeout(() => setExitingTail([]), EXIT_MS);
+    const timer = setTimeout(
+      () => setExitingTail([]),
+      cssDurationMs("--chord-card-transition-duration"),
+    );
     return () => clearTimeout(timer);
   }, [exitingTail]);
 
@@ -354,8 +353,9 @@ export default function Home() {
           justify-center): with auto-fit's unused columns collapsed,
           `justify-center` treats the occupied columns as one block and
           re-centers it whenever the count changes. Since a card is kept
-          mounted for EXIT_MS after being removed (see exitingTail above),
-          that recompute fires TWICE for every deletion — once instantly
+          mounted for --chord-card-transition-duration after being removed
+          (see exitingTail above), that recompute fires TWICE for every
+          deletion — once instantly
           when the real chord leaves `tokens`, and again ~280ms later when
           the ghost's own node finally leaves the DOM — each one snapping
           every other card sideways to stay centered. Left-aligned, adding
