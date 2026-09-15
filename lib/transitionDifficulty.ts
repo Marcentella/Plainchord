@@ -125,10 +125,16 @@ export function transitionScore(a: Chord, b: Chord): number {
 
 // ponytail: thresholds picked by computing the score for every pair in the
 // current chord library and splitting near its terciles (~facil/media/dificil
-// each get a third); revisit if new chords skew the distribution.
+// each get a third); revisit if new chords skew the distribution. Re-picked
+// at 5/9 (was 6/10) after the barre-flat-cost fix skewed the distribution:
+// barreMismatch pairs now cluster tightly around 10.5-13.5 almost
+// unconditionally, which pushed facil to ~48% of all pairs and squeezed
+// media down to ~22%. 5/9 restores a near-even three-way split (~36/32/32%
+// over the 378 pairs in the current library) — see the terciles (p33.3=5,
+// p66.6=9) computed the same way this comment already describes.
 export function classifyDifficulty(score: number): Difficulty {
-  if (score <= 6) return "facil";
-  if (score <= 10) return "media";
+  if (score <= 5) return "facil";
+  if (score <= 9) return "media";
   return "dificil";
 }
 
