@@ -2,16 +2,30 @@ import type { Chord } from "./chords";
 
 export type Difficulty = "facil" | "media" | "dificil";
 
-type FingerPos = { string: number; fret: number };
+type FretPosition = { string: number; fret: number };
 
-/** Fret/string of each fretted finger (1-4). Open/muted strings have no finger. */
-function fingerPositions(chord: Chord): Map<number, FingerPos> {
-  const positions = new Map<number, FingerPos>();
+/**
+ * Every physically fretted position, one entry per string. Deliberately NOT
+ * keyed by finger label: a chord chart's finger numbers are assigned per
+ * chord, for that chord's own ergonomics — "finger 2" in one chord isn't a
+ * promise that it's the same physical finger continuing into the next one.
+ * Matching by label produced wildly inflated distances (see transitionScore
+ * below for the fix this enables). This also fixes a latent bug the old
+ * finger-keyed version had: a barre finger pressing 3+ strings collapsed to
+ * a single map entry (each string overwrote the last), silently dropping
+ * every other string of any barre chord from the whole calculation.
+ */
+function positionsOf(chord: Chord): FretPosition[] {
+  const positions: FretPosition[] = [];
   chord.frets.forEach((fret, string) => {
     const finger = chord.fingers[string];
-    if (fret > 0 && finger > 0) positions.set(finger, { string, fret });
+    if (fret > 0 && finger > 0) positions.push({ string, fret });
   });
   return positions;
+}
+
+function positionDistance(p: FretPosition, q: FretPosition): number {
+  return Math.abs(p.string - q.string) + Math.abs(p.fret - q.fret);
 }
 
 /** Lowest fretted position — a rough proxy for where the hand sits on the neck. */
@@ -33,30 +47,57 @@ export function requiresBarre(chord: Chord): boolean {
 }
 
 /**
- * Higher = harder transition. Combines: per-finger travel distance, hand
- * position shift, fingers that must fully lift and reposition (rather than
- * slide on the same string), and a barre-only-on-one-side penalty.
+ * Cheapest way to pair up positions from two chords (order-independent;
+ * unbalanced sizes are fine — leftover positions on the larger side are
+ * left unmatched and counted separately by the caller as "repositioned").
+ * A true slide (same string, different fret) isn't special-cased — it just
+ * falls out as the cheapest match whenever that string is occupied in both
+ * chords, since a 0-or-small same-string distance is hard to beat.
+ *
+ * ponytail: brute-force backtracking over every pairing, not the Hungarian
+ * algorithm. A chord has at most 6 fretted positions (one per string), so
+ * this is at most 6! = 720 branches, pruned hard whenever a partial cost
+ * already can't beat the best found — instant at chord-sized inputs.
+ * Revisit only if a chord shape could ever exceed 6 strings.
  */
-export function transitionScore(a: Chord, b: Chord): number {
-  const posA = fingerPositions(a);
-  const posB = fingerPositions(b);
-  const fingers = new Set([...posA.keys(), ...posB.keys()]);
+function minCostMatching(a: FretPosition[], b: FretPosition[]): number {
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  if (shorter.length === 0) return 0;
 
-  let travel = 0;
-  let repositioned = 0;
+  const used = new Array(longer.length).fill(false);
+  let best = Infinity;
 
-  for (const finger of fingers) {
-    const pa = posA.get(finger);
-    const pb = posB.get(finger);
-    if (pa && pb && pa.string === pb.string) {
-      travel += Math.abs(pa.fret - pb.fret); // slides along one string
-    } else if (pa && pb) {
-      travel += Math.abs(pa.fret - pb.fret) + Math.abs(pa.string - pb.string);
-      repositioned += 1; // jumps to a different string
-    } else {
-      repositioned += 1; // only used in one of the two chords
+  function search(i: number, cost: number) {
+    if (cost >= best) return; // can't beat the best matching found so far
+    if (i === shorter.length) {
+      best = cost;
+      return;
+    }
+    for (let j = 0; j < longer.length; j++) {
+      if (used[j]) continue;
+      used[j] = true;
+      search(i + 1, cost + positionDistance(shorter[i], longer[j]));
+      used[j] = false;
     }
   }
+
+  search(0, 0);
+  return best;
+}
+
+/**
+ * Higher = harder transition. Combines: minimum total travel distance
+ * between fretted positions (matched by physical closeness, not finger
+ * label), fingers that must lift and land fresh with no matching position
+ * on the other side, hand position shift, and a barre-only-on-one-side
+ * penalty.
+ */
+export function transitionScore(a: Chord, b: Chord): number {
+  const posA = positionsOf(a);
+  const posB = positionsOf(b);
+
+  const travel = minCostMatching(posA, posB);
+  const repositioned = Math.abs(posA.length - posB.length);
 
   const handShift = Math.abs(handPosition(a) - handPosition(b));
   const barreMismatch = requiresBarre(a) !== requiresBarre(b) ? 1 : 0;
