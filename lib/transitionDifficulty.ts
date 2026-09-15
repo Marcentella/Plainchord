@@ -95,12 +95,30 @@ function minCostMatching(a: FretPosition[], b: FretPosition[]): number {
 export function transitionScore(a: Chord, b: Chord): number {
   const posA = positionsOf(a);
   const posB = positionsOf(b);
+  const barreMismatch = requiresBarre(a) !== requiresBarre(b) ? 1 : 0;
 
-  const travel = minCostMatching(posA, posB);
-  const repositioned = Math.abs(posA.length - posB.length);
+  // Gaining or losing a barre re-grips the whole hand around a different
+  // shape — it isn't individual fingers sliding to new spots, even when
+  // one happens to land on a string/fret it already occupied. Without this
+  // guard, position-matching could award real "travel" credit for that
+  // kind of coincidence: e.g. C and F's barre shape share two exact
+  // string/fret coordinates purely by accident of C's own fingering, which
+  // let C -> F score as an easier transition than G -> F even though G's
+  // positions sit consistently closer to F's throughout. Barre chords
+  // already exist in this library and can be transitioned to/from directly
+  // in the browser (e.g. type "C - F" or "G - F"), so this isn't a
+  // theoretical case. When barre status differs, skip matching for both
+  // travel AND the repositioned count — every position on the larger side
+  // is being freshly placed, not carried over from a match. `Math.max`
+  // (not `posB.length`) keeps this symmetric: transitionScore(a, b) must
+  // equal transitionScore(b, a), and the two chords' position counts don't
+  // swap identically when the arguments do.
+  const travel = barreMismatch ? 0 : minCostMatching(posA, posB);
+  const repositioned = barreMismatch
+    ? Math.max(posA.length, posB.length)
+    : Math.abs(posA.length - posB.length);
 
   const handShift = Math.abs(handPosition(a) - handPosition(b));
-  const barreMismatch = requiresBarre(a) !== requiresBarre(b) ? 1 : 0;
 
   return travel + repositioned * 1.5 + handShift * 1.5 + barreMismatch * 3;
 }
