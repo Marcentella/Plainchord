@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import NavMenu from "@/components/NavMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import PalettePicker from "@/components/PalettePicker";
 import Footer from "@/components/Footer";
-import { t } from "@/i18n";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +38,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning here too (not just <html>): some browser
+          extensions (e.g. asbplayer) inject a class/attribute onto <body>
+          itself before React hydrates, which otherwise throws a hydration
+          mismatch that's really the extension, not app state. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <header className="flex items-center justify-between px-6 py-4">
           {/* Plain text, not an image — the wordmark has no illustration
               right now (temporary, until the new mark is designed). Using
@@ -55,15 +58,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <span className="text-2xl font-semibold tracking-tight text-foreground">
             PlainChord
           </span>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/" className="transition-colors hover-fine:text-accent">
-              {t("nav.chords")}
-            </Link>
-            <Link href="/glosario" className="transition-colors hover-fine:text-accent">
-              {t("nav.glossary")}
-            </Link>
-          </nav>
           <div className="flex items-center gap-2">
+            <NavMenu />
             <PalettePicker />
             <ThemeToggle />
           </div>

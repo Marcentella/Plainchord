@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -15,6 +9,7 @@ import { findChord, parseProgression } from "@/lib/chords";
 import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { cssDurationMs } from "@/lib/cssTiming";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { t } from "@/i18n";
 
 const CHORD_LIMIT = 16;
@@ -34,20 +29,8 @@ const COMMON_PROGRESSIONS = [
 
 // A single string value — same simple case as the theme/palette
 // preferences (see FEATURES.md's palette section for why localStorage,
-// not IndexedDB, is the right store for a value like this). IndexedDB is
-// reserved for the actual imported-tab data (Fase 2, not built yet),
-// which is structured and much larger — not a one-off string.
+// not IndexedDB, is the right store for a value like this).
 const PROGRESSION_KEY = "progression";
-
-// Next.js server-renders this "use client" component too, and
-// useLayoutEffect logs a warning when it runs during SSR (there's no DOM
-// to act on yet there) — falls back to plain useEffect on the server,
-// where neither actually does anything before the client takes over
-// anyway. Standard pattern (Framer Motion, Redux, etc. ship the same
-// helper) for exactly this "sync client-only state without a visible
-// flash" case.
-const useIsomorphicLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export default function Home() {
   const [input, setInput] = useState("G - D - Em - C");
