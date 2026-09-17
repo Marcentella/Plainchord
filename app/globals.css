@@ -315,3 +315,34 @@ html {
     transition-property: opacity;
   }
 }
+
+/* Thin, theme-colored scrollbar — replaces the OS-default scrollbar (stark
+   white/grey chrome, unthemed) with the same --accent/--background tokens
+   as everything else. `.themed-scrollbar` opts a specific scrollable
+   element in (TechniquePopup's panel, the plain-text tab textarea); `html`
+   applies the same look to the page's own scrollbar, since it's the exact
+   same two properties either way. `scrollbar-width`/`scrollbar-color` are
+   the standard properties (Firefox always, Chromium 121+); the
+   `::-webkit-scrollbar-*` pseudo-elements are the equivalent for older
+   Chromium and Safari, which don't support the standard properties yet. */
+.themed-scrollbar,
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--background);
+}
+
+.themed-scrollbar::-webkit-scrollbar,
+html::-webkit-scrollbar {
+  width: 8px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}

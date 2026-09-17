@@ -2,9 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { allGlossaryEntries, searchGlossary } from "@/lib/glossary";
-import PositionAnimation from "@/components/PositionAnimation";
-import DistortionAnimation from "@/components/DistortionAnimation";
-import MarkerAnimation from "@/components/MarkerAnimation";
+import GlossaryEntryDetail from "@/components/GlossaryEntryDetail";
 import { t } from "@/i18n";
 
 export default function Glosario() {
@@ -53,38 +51,8 @@ export default function Glosario() {
       )}
 
       {selected && (
-        <div className="w-full max-w-xl flex flex-col gap-4 rounded-lg border border-line p-5">
-          <h2 className="flex items-center gap-2 text-lg font-medium">
-            <span className="font-mono text-accent">{selected.symbol}</span>
-            {selected.name}
-          </h2>
-          {selected.visualType === "posicion" && (
-            <div className="flex justify-center">
-              <PositionAnimation visual={selected.visual} />
-            </div>
-          )}
-          {selected.visualType === "distorsion" && (
-            <div className="flex justify-center">
-              <DistortionAnimation visual={selected.visual} />
-            </div>
-          )}
-          {selected.visualType === "marcador" && (
-            <div className="flex justify-center">
-              <MarkerAnimation visual={selected.visual} />
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium">
-              {t("glossary.definitionHeading")}
-            </h3>
-            <p className="text-sm">{selected.definicion}</p>
-          </div>
-          <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium">
-              {t("glossary.executionHeading")}
-            </h3>
-            <p className="text-sm">{selected.ejecucion}</p>
-          </div>
+        <div className="w-full max-w-xl rounded-lg border border-line p-5">
+          <GlossaryEntryDetail entry={selected} />
         </div>
       )}
     </div>

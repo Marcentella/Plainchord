@@ -28,3 +28,17 @@ npm-debug.log*
 FEATURES.md
 CONTEXT.md
 PONYTAIL-DEBT.md
+
+# local tooling/config (not for the public repo — same category as the docs above)
+/.agents/
+/plans/
+/skills-lock.json
+.claude/skills/animate/
+.claude/skills/improve-animations/
+
+# user-dropped Guitar Pro files used for local testing — never committed,
+# per the no-hosting-rule skill (PlainChord doesn't host copyrighted content)
+public/*.gp3
+public/*.gp4
+public/*.gp5
+public/*.gpx
