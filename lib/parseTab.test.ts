@@ -115,6 +115,35 @@ test("an unrecognized bend-release character is ignored but its note kept", () =
   assert.equal(result.tab.beats[1].notes[0].fret, 7);
 });
 
+test("a single stray character (e.g. tremolo picking's '^') no longer drops the whole block", () => {
+  const result = parseTab(
+    tab(["-----", "-----", "--5^--7--", "-----", "-----", "-----"]),
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.skippedBlocks, 0);
+  assert.equal(result.tab.beats.length, 2);
+  assert.equal(result.ignoredChars, 1);
+});
+
+test("two stray characters on one line still causes that block to be skipped (MAX_STRAY_CHARS is deliberate, not an oversight)", () => {
+  const result = parseTab(
+    tab(["-----", "-----", "--5^--7=--", "-----", "-----", "-----"]),
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error, "wrongStringCount");
+});
+
+test("inline PM/PH written directly on a note line (not the separate annotation-line convention) is still out of scope, and its block is skipped", () => {
+  const result = parseTab(
+    tab(["-----", "-----", "--5PM--7--", "-----", "-----", "-----"]),
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error, "wrongStringCount");
+});
+
 test("a PM annotation line tags every note under its span", () => {
   const input = [
     "  PM--------|",

@@ -90,6 +90,61 @@ test("a natural harmonic has no glossary symbol yet -- degrades to untagged, cou
   assert.equal(result.unmappedTechniques, 1);
 });
 
+test("an accent has no glossary symbol yet -- counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { ac }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("staccato has no glossary symbol yet -- counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { st }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("let-ring has no glossary symbol yet -- counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { lr }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("a slide-in has no glossary symbol yet -- counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { sib }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("tremolo picking (a Beat-level effect, invisible to per-note checks) is counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { tp 16 }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("a second Beat-level effect (slap) is also counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { s }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.unmappedTechniques, 1);
+});
+
+test("a Beat-level effect on a multi-note beat (chord) is counted once, not once per note", () => {
+  const result = scoreToTab(scoreFromTex("(3.1 5.2) { tp 16 }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.tab.beats[0].notes.length, 2);
+  assert.equal(result.unmappedTechniques, 1);
+});
+
 test("a dead note has no fret", () => {
   const result = scoreToTab(scoreFromTex("x.1 5.1"));
   assert.equal(result.ok, true);

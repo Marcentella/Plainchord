@@ -31,14 +31,36 @@ export type ParseTabResult =
     };
 
 // A line qualifies as tab staff content once its label (if any) is stripped:
-// only tab-alphabet characters, and at least 2 dashes so a stray "|" or a
+// mostly tab-alphabet characters, and at least 2 dashes so a stray "|" or a
 // short non-tab fragment doesn't false-positive. Two dashes rather than one
 // consecutive "--" run, since tight notation ("0-2-3-5") spaces notes with
 // single dashes, not a run of them.
-const STAFF_CONTENT_RE = /^[-0-9|hpbrsxXtT~/\\()<>*.\s]*$/;
+//
+// "Mostly" (not "only"): a strict whitelist used to reject the WHOLE line
+// over a single unrecognized character — but tokenizeLine's own catch-all
+// (below) already handles an unrecognized character gracefully (counts it
+// via ignoredChars, keeps going). That made the outer gate here stricter
+// than the inner tokenizer, so a single stray character a source uses that
+// isn't in this specific set (tremolo picking's "^", some site's own "=",
+// ...) silently dropped the entire 6-line block around it instead of just
+// that one character. Tolerating a small number of stray characters here
+// lets a line reach tokenizeLine's existing graceful handling instead.
+const STAFF_ALPHABET_RE = /[-0-9|hpbrsxXtT~/\\()<>*.\s]/g;
+// ponytail: 1 picked deliberately, not just "small" — see the PM/PH note
+// below for exactly why raising it isn't safe on its own.
+const MAX_STRAY_CHARS = 1;
 
+// Deliberately NOT tolerated inline, at any cap: "P"/"M" are reserved for
+// the separate PM/PH annotation-line convention (applyAnnotation, below).
+// The "PM annotation line" test relies on a PM-only line FAILING this check
+// — that's what keeps it from being swallowed into the block as a 7th line
+// instead of recognized as the annotation line above it. Inline "PM"/"PH"
+// written directly on a note line (as opposed to that separate line) is a
+// real but different gap, deliberately left out of this fix.
 function isStaffContent(s: string): boolean {
-  return (s.match(/-/g)?.length ?? 0) >= 2 && STAFF_CONTENT_RE.test(s);
+  if ((s.match(/-/g)?.length ?? 0) < 2) return false;
+  const recognized = s.match(STAFF_ALPHABET_RE)?.length ?? 0;
+  return s.length - recognized <= MAX_STRAY_CHARS;
 }
 
 // Tried in order; the first one whose stripped remainder qualifies wins.
@@ -51,7 +73,13 @@ const LABEL_PATTERNS = [
 
 /** Strips a line's own label and returns the remainder, or null if the line isn't a staff line at all. */
 function toStaffLine(line: string): string | null {
-  if (isStaffContent(line)) return line;
+  // Label patterns first, raw line only as a fallback: now that
+  // isStaffContent tolerates a stray character or two, a LABELED line's raw
+  // form (e.g. "e|--0--") could itself pass (only the label letter and "|"
+  // are non-tab-alphabet — within the tolerance) and get returned with the
+  // label still attached, silently breaking column alignment. The label
+  // patterns are narrow/anchored enough that they don't spuriously fire on
+  // genuine unlabeled staff content, so trying them first is safe.
   for (const re of LABEL_PATTERNS) {
     const m = line.match(re);
     if (m) {
@@ -59,7 +87,7 @@ function toStaffLine(line: string): string | null {
       if (isStaffContent(rest)) return rest;
     }
   }
-  return null;
+  return isStaffContent(line) ? line : null;
 }
 
 // Letters immediately before a fret number describe the transition INTO that

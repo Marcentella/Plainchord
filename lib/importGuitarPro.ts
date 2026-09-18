@@ -63,6 +63,10 @@ function noteTechniques(note: model.Note): { techniques: TechniqueSymbol[]; hadU
   if (note.hasBend) techniques.push("b");
   if (note.isGhost && !note.isDead) hadUnmappedEffect = true;
   if (note.isLeftHandTapped) hadUnmappedEffect = true; // opposite hand from the glossary's "Tapping" (right-hand) — see the technique mapping table in the plan
+  if (note.accentuated !== model.AccentuationType.None) hadUnmappedEffect = true;
+  if (note.isStaccato) hadUnmappedEffect = true;
+  if (note.isLetRing) hadUnmappedEffect = true;
+  if (note.slideInType !== model.SlideInType.None) hadUnmappedEffect = true;
 
   // Shift/Legato (a slide that connects to a real target note) is tagged on
   // that target note instead — see the caller's loop, which reads
@@ -77,6 +81,32 @@ function noteTechniques(note: model.Note): { techniques: TechniqueSymbol[]; hadU
   }
 
   return { techniques, hadUnmappedEffect };
+}
+
+/**
+ * Effects that live on the Beat itself, not any one Note — noteTechniques
+ * can't see these at all, so before this they didn't just lack a glossary
+ * symbol, they didn't even reach the unmappedTechniques count (zero signal
+ * to the user that anything was dropped). Checked once per beat by the
+ * caller below, not once per note in it, so a 3-note chord with one
+ * tremolo-picked beat adds exactly 1 to unmappedTechniques, not 3. Same
+ * "still renders, just untagged" contract as noteTechniques — no glossary
+ * symbol for any of these yet.
+ */
+function beatHasUnmappedEffect(beat: model.Beat): boolean {
+  return (
+    beat.isTremolo ||
+    beat.hasWhammyBar ||
+    beat.brushType !== model.BrushType.None ||
+    beat.pickStroke !== model.PickStroke.None ||
+    beat.golpe !== model.GolpeType.None ||
+    beat.pop ||
+    beat.slap ||
+    beat.tap ||
+    beat.graceType !== model.GraceType.None ||
+    beat.deadSlapped ||
+    beat.fade !== model.FadeType.None
+  );
 }
 
 /**
@@ -124,6 +154,7 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
         };
       });
 
+      if (beatHasUnmappedEffect(beat)) unmappedTechniques++;
       beats.push({ position: beats.length, bar: barIndex, notes });
     }
   });
