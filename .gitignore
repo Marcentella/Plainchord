@@ -37,8 +37,12 @@ PONYTAIL-DEBT.md
 .claude/skills/improve-animations/
 
 # user-dropped Guitar Pro files used for local testing — never committed,
-# per the no-hosting-rule skill (PlainChord doesn't host copyrighted content)
-public/*.gp3
-public/*.gp4
-public/*.gp5
-public/*.gpx
+# per the no-hosting-rule skill (PlainChord doesn't host copyrighted content).
+# Recursive (**), not just public/*.gp3 — real test batches land in their
+# own subfolders (public/gp3/, public/GP5/, ...), and a flat pattern here
+# would silently miss every file one directory deeper.
+public/**/*.gp3
+public/**/*.gp4
+public/**/*.gp5
+public/**/*.gpx
+public/**/*.filepart
