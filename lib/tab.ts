@@ -51,12 +51,26 @@ export type TabNote = {
   /** The bend's size in quarter-tones (1 = quarter step, 4 = a full step,
    *  matching Guitar Pro's own convention) — what TabRenderer draws the
    *  bend arrow's "Full"/"½"/etc. label from. Set whenever a note has the
-   *  "b" technique AND the bend actually rises during/into the note (a
-   *  release-only or held bend has nothing to label this way, so stays
-   *  unset — same "still renders, just untagged" degradation as any other
-   *  unmapped effect). Independent of bendTo: a quarter-tone bend (odd
-   *  value) sets this but not bendTo, since there's no whole fret for it. */
+   *  "b" technique and TabRenderer draws an arrow for it (rising or
+   *  releasing — see bendReleasing). Independent of bendTo: a quarter-tone
+   *  bend (odd value) sets this but not bendTo, since there's no whole fret
+   *  for it. */
   bendAmount?: number;
+  /** True when this bend arrives already at its peak and releases DOWN
+   *  during the note (Guitar Pro's Release/PrebendRelease), as opposed to
+   *  the far more common case of rising up to bendAmount — TabRenderer
+   *  draws these as a downward arrow instead of the usual upward one, with
+   *  no text label (the amount was already shown on whichever earlier note
+   *  it's releasing from). Plain text has no equivalent notation for this,
+   *  so it's Guitar-Pro-only, same as bendReleasing's sibling bendHold. */
+  bendReleasing?: boolean;
+  /** True when this note doesn't strike a new pitch at all — it just holds
+   *  whatever bend the previous note left off at (Guitar Pro's Hold type).
+   *  TabRenderer parenthesizes the fret digit for these (matching how real
+   *  tab notation marks a held, not re-picked, note) instead of drawing any
+   *  arrow — there's nothing to point at since nothing changes. Guitar-Pro-
+   *  only, like bendReleasing. */
+  bendHold?: boolean;
 };
 
 /** A cluster: one note per string, played together (a chord or double stop). */

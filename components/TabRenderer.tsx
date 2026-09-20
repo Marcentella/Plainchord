@@ -80,6 +80,20 @@ function bendGroupLabel(amounts: number[]): string {
   return [...new Set(amounts)].map(bendLabel).join(" · ");
 }
 
+/**
+ * Reorders a note's own techniques so "b" (bend) comes first — used only
+ * when opening the popup FROM the bend arrow itself, not from the note's
+ * own digit. Hovering a note's digit can reasonably show its techniques in
+ * whatever order they were tagged (e.g. pinch harmonic before bend); but
+ * hovering the bend arrow specifically is an unambiguous request for bend
+ * info, so that popup should lead with Bend rather than whatever else
+ * happens to be stacked on the same note.
+ */
+function withBendFirst(note: TabNote): TabNote {
+  if (!note.techniques.includes("b")) return note;
+  return { ...note, techniques: ["b", ...note.techniques.filter((t) => t !== "b")] };
+}
+
 function noteAriaLabel(note: TabNote): string {
   const label = note.fret === null ? t("tab.deadNoteLabel") : String(note.fret);
   const names = note.techniques
@@ -130,7 +144,7 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
 
   useEffect(() => cancelHoverClose, []);
 
-  function openFrom(note: TabNote, target: SVGTextElement, openedVia: Selected["openedVia"]) {
+  function openFrom(note: TabNote, target: SVGGraphicsElement, openedVia: Selected["openedVia"]) {
     if (note.techniques.length === 0) return;
     cancelHoverClose();
     const rect = target.getBoundingClientRect();
@@ -168,11 +182,87 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
         // notes inside a bar. Any extra margin here would make that seam
         // look wider than the internal spacing.
         const width = bar.length * COL_W;
-        // BEND_HEADROOM only on top — bends only ever rise, so the bottom
-        // margin stays exactly what it was.
+        // BEND_HEADROOM only on top — a bend's arrow (up OR down, see
+        // renderBendArrow) only ever needs room above the string lines, so
+        // the bottom margin stays exactly what it was.
         const topOffset = PAD_Y + BEND_HEADROOM;
         const height = topOffset + 5 * STRING_GAP + PAD_Y;
         const isFinalBar = barIdx === bars.length - 1;
+
+        // One arrow per beat per direction, not per bent note — two notes
+        // bending together in the same beat (a double-stop bend, almost
+        // always the same amount) share a single arrow instead of each
+        // getting their own; direction is "up" for a bend rising to its
+        // peak (the common case) or "down" for one arriving already at a
+        // peak and releasing (Guitar Pro's Release/PrebendRelease — see
+        // TabNote.bendReleasing). Its shaft reaches down to the LOWEST (up)
+        // or up to the HIGHEST (down — there isn't one here, but kept
+        // symmetric) of the group's own notes, so the same line still reads
+        // as pointing at every one of them, not just the one it's flush
+        // against. Hovering/clicking it opens the same popup as its note —
+        // it isn't pure decoration, the same way the note's own digit
+        // isn't. withBendFirst: an unambiguous request for bend info, so it
+        // should lead with Bend even on a note stacked with other
+        // techniques. Plain SVG shapes throughout, not a Unicode arrow
+        // character: those render inconsistently across platforms/fonts,
+        // exactly what this app already avoids elsewhere (see CLAUDE.md's
+        // lucide-react icon rule).
+        function renderBendArrow(colIdx: number, x: number, notes: TabNote[], direction: "up" | "down") {
+          if (notes.length === 0) return null;
+          const edgeY =
+            Math.max(...notes.map((n) => topOffset + (5 - n.string) * STRING_GAP)) - CUTOUT_R - 2;
+          const representativeNote = withBendFirst(notes[0]);
+
+          const shaftTopY = direction === "up" ? BEND_ARROWHEAD_BASE_Y : BEND_ARROWHEAD_TIP_Y;
+          const arrowheadTipY = direction === "up" ? BEND_ARROWHEAD_TIP_Y : edgeY;
+          const arrowheadBaseY = direction === "up" ? BEND_ARROWHEAD_BASE_Y : edgeY - 4;
+          const shaftBottomY = direction === "up" ? edgeY : arrowheadBaseY;
+          const rectTop = direction === "up" ? BEND_LABEL_Y - 9 : shaftTopY - 4;
+          const rectBottom = direction === "up" ? shaftBottomY : arrowheadTipY;
+
+          return (
+            <g
+              key={`${barIdx}-${colIdx}-bend-${direction}`}
+              role="button"
+              tabIndex={0}
+              aria-label={noteAriaLabel(representativeNote)}
+              style={{ cursor: "pointer" }}
+              onClick={(e) => openFrom(representativeNote, e.currentTarget, "click")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openFrom(representativeNote, e.currentTarget, "click");
+                }
+              }}
+              onMouseEnter={(e) => {
+                if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+                  openFrom(representativeNote, e.currentTarget, "hover");
+                }
+              }}
+              onMouseLeave={() => {
+                if (selected?.openedVia === "hover" && selected.note === representativeNote) {
+                  scheduleHoverClose();
+                }
+              }}
+            >
+              {/* Wider than the visible 1.5px shaft — a hairline is too thin
+                  to reliably hover; this invisible rect is the real hit
+                  target. Kept narrower than COL_W (32) on purpose, so it
+                  can't reach into a neighboring beat's own hover zone. */}
+              <rect x={x - 13} y={rectTop} width={26} height={rectBottom - rectTop} fill="transparent" />
+              <line x1={x} y1={shaftTopY} x2={x} y2={shaftBottomY} stroke="var(--accent)" strokeWidth={1.5} />
+              <polygon
+                points={`${x - 3},${arrowheadBaseY} ${x + 3},${arrowheadBaseY} ${x},${arrowheadTipY}`}
+                fill="var(--accent)"
+              />
+              {direction === "up" && (
+                <text x={x} y={BEND_LABEL_Y} textAnchor="middle" fontSize={9} fill="var(--accent)">
+                  {bendGroupLabel(notes.map((n) => n.bendAmount!))}
+                </text>
+              )}
+            </g>
+          );
+        }
 
         return (
           <svg key={barIdx} viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="text-foreground">
@@ -223,22 +313,18 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
               // exactly one slot — that's this reflow working as intended,
               // not a positioning bug.
               const x = colIdx * COL_W + COL_W / 2;
-              // One arrow per beat (not per note) — see BEND_HEADROOM's own
-              // comment for why. Its shaft reaches down to the LOWEST of
-              // this beat's bent notes (largest y — string 0 is the bottom
-              // line), so the same line still reads as pointing at a higher
-              // bent note it passes on the way, without needing its own
-              // separate arrow.
-              const bendingNotesInBeat = beat.notes.filter((n) => n.bendAmount != null);
-              const bendShaftBottomY =
-                bendingNotesInBeat.length > 0
-                  ? Math.max(...bendingNotesInBeat.map((n) => topOffset + (5 - n.string) * STRING_GAP))
-                  : 0;
+              const risingNotes = beat.notes.filter((n) => n.bendAmount != null && !n.bendReleasing);
+              const releasingNotes = beat.notes.filter((n) => n.bendAmount != null && n.bendReleasing);
 
               const noteEls = beat.notes.map((note) => {
                 const y = topOffset + (5 - note.string) * STRING_GAP;
                 const connecting = note.techniques.find((tech) => CONNECTING_TECHNIQUES.includes(tech));
-                const label = note.fret === null ? "x" : String(note.fret);
+                // Parenthesized, not a plain digit: a Hold note isn't a
+                // fresh pick, it's purely continuing whatever bend the
+                // previous note left off at (see TabNote.bendHold) — same
+                // convention real tab notation uses for a held, not
+                // re-struck, note.
+                const label = note.fret === null ? "x" : note.bendHold ? `(${note.fret})` : String(note.fret);
                 const interactive = note.techniques.length > 0;
 
                 return (
@@ -287,38 +373,19 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
                 );
               });
 
-              if (bendingNotesInBeat.length === 0) return noteEls;
+              if (risingNotes.length === 0 && releasingNotes.length === 0) return noteEls;
 
-              // Arrow FIRST, notes after — SVG paints in DOM order, and a
+              // Arrows FIRST, notes after — SVG paints in DOM order, and a
               // multi-note bend's shaft runs straight through wherever an
               // in-between note sits (e.g. the higher note of a double-stop
-              // bend, on its way down to the lower one). Drawing it behind
-              // the notes lets their own background-cutout circle punch a
-              // clean gap through it, exactly the same trick that already
-              // keeps the string lines from running through a note's own
-              // digit — the arrow needs the same treatment for the same
-              // reason. Plain SVG shapes, not a Unicode arrow character:
-              // those render inconsistently across platforms/fonts, exactly
-              // what this app already avoids elsewhere (see CLAUDE.md's
-              // lucide-react icon rule).
+              // bend, on its way down to the lower one). Drawing them behind
+              // the notes lets each note's own background-cutout circle
+              // punch a clean gap through it, exactly the same trick that
+              // already keeps the string lines from running through a
+              // note's own digit.
               return [
-                <g key={`${barIdx}-${colIdx}-bend`}>
-                  <line
-                    x1={x}
-                    y1={BEND_ARROWHEAD_BASE_Y}
-                    x2={x}
-                    y2={bendShaftBottomY - CUTOUT_R - 2}
-                    stroke="var(--accent)"
-                    strokeWidth={1.5}
-                  />
-                  <polygon
-                    points={`${x - 3},${BEND_ARROWHEAD_BASE_Y} ${x + 3},${BEND_ARROWHEAD_BASE_Y} ${x},${BEND_ARROWHEAD_TIP_Y}`}
-                    fill="var(--accent)"
-                  />
-                  <text x={x} y={BEND_LABEL_Y} textAnchor="middle" fontSize={9} fill="var(--accent)">
-                    {bendGroupLabel(bendingNotesInBeat.map((n) => n.bendAmount!))}
-                  </text>
-                </g>,
+                renderBendArrow(colIdx, x, risingNotes, "up"),
+                renderBendArrow(colIdx, x, releasingNotes, "down"),
                 ...noteEls,
               ];
             })}
