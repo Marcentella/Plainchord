@@ -326,9 +326,21 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
                 // re-struck, note.
                 const label = note.fret === null ? "x" : note.bendHold ? `(${note.fret})` : String(note.fret);
                 const interactive = note.techniques.length > 0;
+                // Solid diamond marks a harmonic, same convention Songsterr
+                // uses (see the deferred-visual-notation-references memory)
+                // — sits just left of the note rather than around it, so it
+                // doesn't share an outline with the digit and fight it for
+                // legibility.
+                const isPinchHarmonic = note.techniques.includes("PH");
 
                 return (
                   <g key={`${barIdx}-${colIdx}-${note.string}`}>
+                    {isPinchHarmonic && (
+                      <polygon
+                        points={`${x - 10},${y - 4} ${x - 7},${y} ${x - 10},${y + 4} ${x - 13},${y}`}
+                        fill="var(--accent)"
+                      />
+                    )}
                     <circle cx={x} cy={y} r={CUTOUT_R} fill="var(--background)" />
                     <text
                       x={x}
