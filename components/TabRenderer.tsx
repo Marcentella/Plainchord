@@ -11,6 +11,28 @@ import { t } from "@/i18n";
 const COL_W = 32;
 const STRING_GAP = 20;
 const PAD_Y = 14;
+// Reserved above every bar's top string line, always — not just bars that
+// happen to have a bend. Bars in the same flex-wrapped row must keep their
+// string lines aligned (that's the whole point of the seamless-staff look),
+// so one bar being taller than its neighbors to fit a bend arrow would
+// throw that off; giving every bar the same fixed headroom keeps them
+// uniform regardless of what's actually in each one. Sized with real
+// clearance below BEND_ARROWHEAD_BASE_Y (not just enough to reach it) —
+// tried exactly enough once, and the top string's own bends ended up with a
+// zero-length shaft, collapsing the arrow into a degenerate little shape at
+// the arrowhead.
+const BEND_HEADROOM = 34;
+// One arrow per BEAT, not per bent note — two notes bending together in the
+// same beat (a very common double-stop bend: two strings pushed by the same
+// finger, almost always by the same amount) share a single arrow instead of
+// each getting their own. Landing every arrow at this same fixed height,
+// regardless of which string(s) it's for, is what makes that possible: the
+// shaft's bottom end is just wherever the LOWEST of this beat's bent notes
+// sits, so the same line reads as pointing at all of them, whether there's
+// one or several.
+const BEND_LABEL_Y = PAD_Y + 8;
+const BEND_ARROWHEAD_TIP_Y = PAD_Y + 14;
+const BEND_ARROWHEAD_BASE_Y = PAD_Y + 18;
 // A hover-opened popup shouldn't close the instant the pointer leaves the
 // note — the popup itself sits a few px away (see TechniquePopup's GAP), so
 // moving the mouse toward it to read or scroll always crosses a gap that
@@ -27,10 +49,47 @@ const CUTOUT_R = 6;
 
 const CONNECTOR_LABEL: Record<string, string> = { h: "h", p: "p", "/": "/" };
 
+/**
+ * "Full", "1/2", "1 1/2", etc. from a raw quarter-tone amount (lib/tab.ts's
+ * TabNote.bendAmount — 4 = a full step, alphaTab's own unit) — a plain
+ * formula instead of a lookup table, since it falls out directly from the
+ * quarter-tones-per-whole-step math rather than needing every value
+ * enumerated by hand. Plain "1/4"-style text, not the ¼ ½ ¾ Unicode glyphs —
+ * those render as genuinely tiny, hard-to-read shapes at small sizes (this
+ * app already avoids exactly this class of font-rendering inconsistency
+ * elsewhere, see CLAUDE.md's lucide-react-not-emoji rule and the bend
+ * arrow's own use of plain SVG shapes over a Unicode arrow character).
+ */
+function bendLabel(amount: number): string {
+  const whole = Math.floor(amount / 4);
+  const fraction = ["", "1/4", "1/2", "3/4"][amount % 4];
+  if (whole === 0) return fraction;
+  if (whole === 1 && !fraction) return "Full";
+  return fraction ? `${whole} ${fraction}` : `${whole}`;
+}
+
+/**
+ * The one shared arrow's label for every bent note in a beat — almost
+ * always just one amount (a double-stop bend's two strings are pushed by
+ * the same finger, so they're the same amount far more often than not),
+ * but joins distinct amounts with the same " · " separator the header's own
+ * subtitle already uses, rather than picking just one and hiding the rest,
+ * for the rarer case where they genuinely differ.
+ */
+function bendGroupLabel(amounts: number[]): string {
+  return [...new Set(amounts)].map(bendLabel).join(" · ");
+}
+
 function noteAriaLabel(note: TabNote): string {
   const label = note.fret === null ? t("tab.deadNoteLabel") : String(note.fret);
   const names = note.techniques
-    .map((symbol) => allGlossaryEntries.find((e) => e.symbol === symbol)?.name)
+    .map((symbol) =>
+      // More specific than the glossary's generic "Bend" name once the
+      // actual amount is known — same info the arrow shows visually.
+      symbol === "b" && note.bendAmount != null
+        ? `${bendLabel(note.bendAmount)} bend`
+        : allGlossaryEntries.find((e) => e.symbol === symbol)?.name,
+    )
     .filter((n): n is string => !!n);
   return names.length ? `${label} — ${names.join(", ")}` : label;
 }
@@ -109,7 +168,10 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
         // notes inside a bar. Any extra margin here would make that seam
         // look wider than the internal spacing.
         const width = bar.length * COL_W;
-        const height = PAD_Y * 2 + 5 * STRING_GAP;
+        // BEND_HEADROOM only on top — bends only ever rise, so the bottom
+        // margin stays exactly what it was.
+        const topOffset = PAD_Y + BEND_HEADROOM;
+        const height = topOffset + 5 * STRING_GAP + PAD_Y;
         const isFinalBar = barIdx === bars.length - 1;
 
         return (
@@ -119,8 +181,8 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
                 key={string}
                 x1={0}
                 x2={width}
-                y1={PAD_Y + (5 - string) * STRING_GAP}
-                y2={PAD_Y + (5 - string) * STRING_GAP}
+                y1={topOffset + (5 - string) * STRING_GAP}
+                y2={topOffset + (5 - string) * STRING_GAP}
                 // --line (a hairline divider/border color) was too close to
                 // --background to read as a string; plain currentColor
                 // (full --foreground, FretboardGrid's own choice) turned out
@@ -143,8 +205,8 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
             <line
               x1={width}
               x2={width}
-              y1={PAD_Y}
-              y2={PAD_Y + 5 * STRING_GAP}
+              y1={topOffset}
+              y2={topOffset + 5 * STRING_GAP}
               stroke="var(--muted)"
               strokeWidth={isFinalBar ? 2.5 : 1}
             />
@@ -161,9 +223,20 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
               // exactly one slot — that's this reflow working as intended,
               // not a positioning bug.
               const x = colIdx * COL_W + COL_W / 2;
+              // One arrow per beat (not per note) — see BEND_HEADROOM's own
+              // comment for why. Its shaft reaches down to the LOWEST of
+              // this beat's bent notes (largest y — string 0 is the bottom
+              // line), so the same line still reads as pointing at a higher
+              // bent note it passes on the way, without needing its own
+              // separate arrow.
+              const bendingNotesInBeat = beat.notes.filter((n) => n.bendAmount != null);
+              const bendShaftBottomY =
+                bendingNotesInBeat.length > 0
+                  ? Math.max(...bendingNotesInBeat.map((n) => topOffset + (5 - n.string) * STRING_GAP))
+                  : 0;
 
-              return beat.notes.map((note) => {
-                const y = PAD_Y + (5 - note.string) * STRING_GAP;
+              const noteEls = beat.notes.map((note) => {
+                const y = topOffset + (5 - note.string) * STRING_GAP;
                 const connecting = note.techniques.find((tech) => CONNECTING_TECHNIQUES.includes(tech));
                 const label = note.fret === null ? "x" : String(note.fret);
                 const interactive = note.techniques.length > 0;
@@ -213,6 +286,41 @@ export default function TabRenderer({ tab }: { tab: Tab }) {
                   </g>
                 );
               });
+
+              if (bendingNotesInBeat.length === 0) return noteEls;
+
+              // Arrow FIRST, notes after — SVG paints in DOM order, and a
+              // multi-note bend's shaft runs straight through wherever an
+              // in-between note sits (e.g. the higher note of a double-stop
+              // bend, on its way down to the lower one). Drawing it behind
+              // the notes lets their own background-cutout circle punch a
+              // clean gap through it, exactly the same trick that already
+              // keeps the string lines from running through a note's own
+              // digit — the arrow needs the same treatment for the same
+              // reason. Plain SVG shapes, not a Unicode arrow character:
+              // those render inconsistently across platforms/fonts, exactly
+              // what this app already avoids elsewhere (see CLAUDE.md's
+              // lucide-react icon rule).
+              return [
+                <g key={`${barIdx}-${colIdx}-bend`}>
+                  <line
+                    x1={x}
+                    y1={BEND_ARROWHEAD_BASE_Y}
+                    x2={x}
+                    y2={bendShaftBottomY - CUTOUT_R - 2}
+                    stroke="var(--accent)"
+                    strokeWidth={1.5}
+                  />
+                  <polygon
+                    points={`${x - 3},${BEND_ARROWHEAD_BASE_Y} ${x + 3},${BEND_ARROWHEAD_BASE_Y} ${x},${BEND_ARROWHEAD_TIP_Y}`}
+                    fill="var(--accent)"
+                  />
+                  <text x={x} y={BEND_LABEL_Y} textAnchor="middle" fontSize={9} fill="var(--accent)">
+                    {bendGroupLabel(bendingNotesInBeat.map((n) => n.bendAmount!))}
+                  </text>
+                </g>,
+                ...noteEls,
+              ];
             })}
           </svg>
         );

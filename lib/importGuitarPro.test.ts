@@ -52,13 +52,38 @@ test("a legato slide tags the target note", () => {
   assert.deepEqual(result.tab.beats[1].notes[0].techniques, ["/"]);
 });
 
-test("a bend is tagged 'b' with bendTo left unset", () => {
+test("a full-step bend computes bendAmount 4 and lands bendTo on the real target fret", () => {
+  // bendPoints (0, 4): 4 quarter-tones above fret 7's own pitch -> a whole
+  // step -> 2 semitones -> fret 9. See lib/importGuitarPro.ts's
+  // bendAmountFor, verified against a real 4,398-bend corpus.
   const result = scoreToTab(scoreFromTex("7.1 { b (0 4) }"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
   const note = result.tab.beats[0].notes[0];
   assert.deepEqual(note.techniques, ["b"]);
+  assert.equal(note.bendAmount, 4);
+  assert.equal(note.bendTo, 9);
+});
+
+test("a quarter-tone bend computes bendAmount but leaves bendTo unset -- no whole fret to land on", () => {
+  // bendPoints (0, 1): a quarter step, half a semitone -- real, not rare
+  // (206 of 4,398 real bends in the corpus), but there's no fractional fret.
+  const result = scoreToTab(scoreFromTex("7.1 { b (0 1) }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const note = result.tab.beats[0].notes[0];
+  assert.equal(note.bendAmount, 1);
   assert.equal(note.bendTo, undefined);
+});
+
+test("a release-only bend (no real peak to point an arrow at) keeps the plain 'b' tag with no amount", () => {
+  const result = scoreToTab(scoreFromTex("7.1 { b (0 4) } | 5.1 { b release (4 0) }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const releaseNote = result.tab.beats[1].notes[0];
+  assert.deepEqual(releaseNote.techniques, ["b"]);
+  assert.equal(releaseNote.bendAmount, undefined);
+  assert.equal(releaseNote.bendTo, undefined);
 });
 
 test("palm mute maps to PM", () => {
