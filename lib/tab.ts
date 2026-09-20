@@ -44,8 +44,19 @@ export type TabNote = {
   fret: number | null;
   /** [] = plain note. Several can stack: "7b9~" is a bend plus vibrato. */
   techniques: TechniqueSymbol[];
-  /** "7b9" -> fret 7, bendTo 9. The renderer needs it to redraw what was written. */
+  /** "7b9" -> fret 7, bendTo 9. Only set when the bend lands on a whole fret
+   *  — a Guitar Pro import can carry a quarter-tone bend (see bendAmount)
+   *  that has no fret to land on at all. */
   bendTo?: number;
+  /** The bend's size in quarter-tones (1 = quarter step, 4 = a full step,
+   *  matching Guitar Pro's own convention) — what TabRenderer draws the
+   *  bend arrow's "Full"/"½"/etc. label from. Set whenever a note has the
+   *  "b" technique AND the bend actually rises during/into the note (a
+   *  release-only or held bend has nothing to label this way, so stays
+   *  unset — same "still renders, just untagged" degradation as any other
+   *  unmapped effect). Independent of bendTo: a quarter-tone bend (odd
+   *  value) sets this but not bendTo, since there's no whole fret for it. */
+  bendAmount?: number;
 };
 
 /** A cluster: one note per string, played together (a chord or double stop). */

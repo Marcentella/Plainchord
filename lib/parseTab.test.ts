@@ -66,7 +66,19 @@ test("a bend keeps the written target fret", () => {
     fret: 7,
     techniques: ["b"],
     bendTo: 9,
+    // 7 -> 9 is a whole step (2 semitones) -> 4 quarter-tones, same units
+    // as Guitar Pro's own bend amount (see lib/tab.ts's TabNote.bendAmount).
+    bendAmount: 4,
   });
+});
+
+test("a half-step bend (one fret) computes bendAmount 2, not the full-step 4", () => {
+  const result = parseTab(
+    tab(["-----", "-----", "--7b8--", "-----", "-----", "-----"]),
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.tab.beats[0].notes[0].bendAmount, 2);
 });
 
 test("a bend followed by vibrato stacks both technique tags", () => {
@@ -80,6 +92,7 @@ test("a bend followed by vibrato stacks both technique tags", () => {
     fret: 7,
     techniques: ["b", "~"],
     bendTo: 9,
+    bendAmount: 4,
   });
 });
 

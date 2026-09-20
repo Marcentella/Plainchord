@@ -123,6 +123,7 @@ type LineNote = {
   fret: number | null;
   techniques: TechniqueSymbol[];
   bendTo?: number;
+  bendAmount?: number;
 };
 
 /** Scans one label-stripped staff line into its notes, left to right. */
@@ -157,11 +158,16 @@ function tokenizeLine(line: string): { notes: Omit<LineNote, "string">[]; ignore
       i = end;
 
       let bendTo: number | undefined;
+      let bendAmount: number | undefined;
       if (line[i] === "b" && /[0-9]/.test(line[i + 1] ?? "")) {
         techniques.push("b");
         let k = i + 1;
         while (k < line.length && /[0-9]/.test(line[k])) k++;
         bendTo = parseInt(line.slice(i + 1, k), 10);
+        // Quarter-tones, matching Guitar Pro's own bend-amount units (see
+        // TabNote.bendAmount) — a written fret target is always a whole
+        // semitone apart, so this is exact, never an estimate.
+        bendAmount = (bendTo - fret) * 2;
         i = k; // consumes raw chars, zero logical width — a bend's target
         // isn't a separately-struck note, it's metadata on this one.
       }
@@ -170,7 +176,7 @@ function tokenizeLine(line: string): { notes: Omit<LineNote, "string">[]; ignore
         while (line[i] === "~") i++; // zero logical width, same reasoning
       }
 
-      notes.push({ startCol, endCol: i, col: startLogical, colEnd: col, fret, techniques, bendTo });
+      notes.push({ startCol, endCol: i, col: startLogical, colEnd: col, fret, techniques, bendTo, bendAmount });
       continue;
     }
 
@@ -304,9 +310,13 @@ export function parseTab(text: string): ParseTabResult {
       allBeats.push({
         position: allBeats.length,
         bar: runningBar + barsBefore,
-        notes: cluster.map(({ string, fret, techniques, bendTo }) =>
-          bendTo != null ? { string, fret, techniques, bendTo } : { string, fret, techniques },
-        ),
+        notes: cluster.map(({ string, fret, techniques, bendTo, bendAmount }) => ({
+          string,
+          fret,
+          techniques,
+          ...(bendTo != null && { bendTo }),
+          ...(bendAmount != null && { bendAmount }),
+        })),
       });
     }
 
