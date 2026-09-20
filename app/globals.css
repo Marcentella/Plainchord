@@ -346,3 +346,49 @@ html::-webkit-scrollbar-thumb {
   background: var(--accent);
   border-radius: 4px;
 }
+
+/* Skeleton placeholder block with a light sweep — the tab header while a
+   Guitar Pro import is in flight (app/tablatura/page.tsx). --line (the same
+   muted divider token used everywhere else) is the base; the sweep is a
+   translucent band of --foreground sliding across, so it reads as "a bit
+   lighter than the base" in both light and dark mode with one formula
+   instead of two hardcoded colors. Continuous/looping, not a one-shot
+   transition, so linear easing (see the animate skill's easing table:
+   "constant motion (marquee, progress) -> linear"), not an eased curve. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--foreground) 20%, transparent),
+    transparent
+  );
+  animation: skeleton-sweep 1.6s linear infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    /* Drop the sweep, keep the block — the placeholder shape alone still
+       reads as "loading," same "gentler, not zero" treatment as every
+       other reduced-motion rule in this file. */
+    animation: none;
+    content: none;
+  }
+}

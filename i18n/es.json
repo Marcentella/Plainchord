@@ -52,5 +52,6 @@
   "tab.badExtension": "Ese archivo no es un Guitar Pro (.gp3/.gp4/.gp5/.gpx). Pega texto plano o suelta un archivo con esa extensión.",
   "tab.unmappedTechniques": "Algunas técnicas de este archivo no tienen un símbolo equivalente en el glosario todavía y se muestran como notas simples.",
   "tab.untitled": "Tablatura sin título",
-  "tab.reimportButton": "Importar otra"
+  "tab.reimportButton": "Importar otra",
+  "tab.importingStatus": "Importando…"
 }

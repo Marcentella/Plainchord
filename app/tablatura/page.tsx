@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Upload } from "lucide-react";
+import { FolderOpen, Loader2, Upload } from "lucide-react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
 import TabRenderer from "@/components/TabRenderer";
@@ -54,11 +54,37 @@ function tabSubtitle(tab: Tab): string | null {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+// Header's fixed, known shape (a title line over a subtitle line) makes it
+// a good fit for a real skeleton — unlike the notation below, which has no
+// knowable shape until the import actually finishes (see the "importing"
+// branch further down, which blurs the existing render instead of guessing).
+function TabHeaderSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 py-0.5">
+      <div className="skeleton-shimmer h-7 w-48 rounded" />
+      <div className="skeleton-shimmer h-4 w-64 rounded" />
+    </div>
+  );
+}
+
+function ImportingSpinner() {
+  return (
+    <>
+      <Loader2 className="size-8 text-accent animate-spin" aria-hidden="true" />
+      <span className="sr-only">{t("tab.importingStatus")}</span>
+    </>
+  );
+}
+
 export default function Tablatura() {
   const [text, setText] = useState("");
   const [state, setState] = useState<ImportState>({ kind: "empty" });
   const [expanded, setExpanded] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  // True while a Guitar Pro file is being read/parsed — the only import
+  // path with a real async gap (dynamic-imports alphaTab, then parses).
+  // Plain-text paste is synchronous and never sets this.
+  const [isImporting, setIsImporting] = useState(false);
   // Gates the save effect below until the load effect has actually run —
   // same hydration-safe shape as ThemeToggle/PalettePicker/app/page.tsx's
   // progression input.
@@ -88,7 +114,15 @@ export default function Tablatura() {
   // there's no "committed" moment there but there very much is here.
   useEffect(() => {
     if (tabLoaded && state.kind === "ok") {
-      localStorage.setItem(LAST_TAB_KEY, JSON.stringify(state.tab));
+      try {
+        localStorage.setItem(LAST_TAB_KEY, JSON.stringify(state.tab));
+      } catch {
+        // Safari private browsing throws on every localStorage.setItem
+        // unconditionally, not just when actually over quota — persistence
+        // is a nice-to-have here, not something the rest of the page
+        // depends on, so just skip it rather than let this become an
+        // uncaught error in the effect.
+      }
     }
   }, [state, tabLoaded]);
 
@@ -130,25 +164,31 @@ export default function Tablatura() {
   }
 
   async function applyGuitarProFile(file: File) {
+    if (isImporting) return; // already importing one — ignore a second drop/pick mid-flight
     if (!hasGpExtension(file.name)) {
       setState({ kind: "fileError", error: "badExtension" });
       return;
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { importGuitarProFile } = await import("@/lib/importGuitarPro");
-    const result = await importGuitarProFile(bytes);
-    if (!result.ok) {
-      setState({ kind: "fileError", error: result.error });
-      return;
+    setIsImporting(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { importGuitarProFile } = await import("@/lib/importGuitarPro");
+      const result = await importGuitarProFile(bytes);
+      if (!result.ok) {
+        setState({ kind: "fileError", error: result.error });
+        return;
+      }
+      if (result.tab.beats.length === 0) {
+        setState({ kind: "empty" });
+        return;
+      }
+      const notices: string[] = [];
+      if (result.unmappedTechniques > 0) notices.push(t("tab.unmappedTechniques"));
+      setState({ kind: "ok", tab: result.tab, notices });
+      setExpanded(false);
+    } finally {
+      setIsImporting(false);
     }
-    if (result.tab.beats.length === 0) {
-      setState({ kind: "empty" });
-      return;
-    }
-    const notices: string[] = [];
-    if (result.unmappedTechniques > 0) notices.push(t("tab.unmappedTechniques"));
-    setState({ kind: "ok", tab: result.tab, notices });
-    setExpanded(false);
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -170,6 +210,7 @@ export default function Tablatura() {
 
   const showInput = expanded || state.kind !== "ok";
   const subtitle = state.kind === "ok" ? tabSubtitle(state.tab) : null;
+  const showTabArea = state.kind === "ok" || isImporting;
 
   return (
     <div
@@ -180,7 +221,7 @@ export default function Tablatura() {
       // textarea (see below); this only widens where the drag is DETECTED.
       onDragOver={(e) => {
         e.preventDefault();
-        setIsDraggingFile(true);
+        if (!isImporting) setIsDraggingFile(true);
       }}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -226,7 +267,8 @@ export default function Tablatura() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="self-start text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out"
+            disabled={isImporting}
+            className="self-start text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
           >
             {t("tab.gpPickerLink")}
           </button>
@@ -239,7 +281,7 @@ export default function Tablatura() {
         </p>
       )}
 
-      {state.kind === "ok" && (
+      {showTabArea && (
         // Wider than the paste input on purpose — components/TabRenderer.tsx
         // now wraps bars with plain CSS flex-wrap, so a wide container is
         // what actually lets multiple bars sit per line instead of one.
@@ -247,25 +289,36 @@ export default function Tablatura() {
           {/* Document header, not the old "Tablatura cargada" pill — this
               lives with the render itself (not gated behind !showInput), so
               it stays visible even while "Importar otra" has reopened the
-              input above to load a replacement. */}
+              input above to load a replacement. Skeletons while importing:
+              its shape (a title line over a subtitle line) is always the
+              same, known width range, so a real skeleton fits — unlike the
+              notation below. */}
           <div className="flex items-start justify-between gap-4 border-b border-line pb-3">
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold leading-tight">
-                {state.tab.title ?? t("tab.untitled")}
-              </h2>
-              {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
-            </div>
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="shrink-0 inline-flex items-center gap-1.5 text-sm text-accent transition hover-fine:opacity-70 active:scale-[0.97] duration-[160ms] ease-out"
-            >
-              <FolderOpen className="size-4" aria-hidden="true" />
-              {t("tab.reimportButton")}
-            </button>
+            {isImporting ? (
+              <TabHeaderSkeleton />
+            ) : (
+              state.kind === "ok" && (
+                <div className="min-w-0">
+                  <h2 className="text-2xl font-semibold leading-tight">
+                    {state.tab.title ?? t("tab.untitled")}
+                  </h2>
+                  {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+                </div>
+              )
+            )}
+            {!isImporting && state.kind === "ok" && (
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="shrink-0 inline-flex items-center gap-1.5 text-sm text-accent transition hover-fine:opacity-70 active:scale-[0.97] duration-[160ms] ease-out"
+              >
+                <FolderOpen className="size-4" aria-hidden="true" />
+                {t("tab.reimportButton")}
+              </button>
+            )}
           </div>
 
-          {state.notices.length > 0 && (
+          {!isImporting && state.kind === "ok" && state.notices.length > 0 && (
             <div className="flex flex-col gap-1">
               {state.notices.map((notice) => (
                 <p key={notice} className="text-xs text-muted">
@@ -274,7 +327,47 @@ export default function Tablatura() {
               ))}
             </div>
           )}
-          <TabRenderer tab={state.tab} />
+
+          {isImporting ? (
+            state.kind === "ok" ? (
+              // Re-importing over an existing tab: blur the real, already-
+              // correctly-shaped notation instead of faking one — there's
+              // no way to know the new tab's bar count/width ahead of time,
+              // but the OLD one is real content sitting right there already.
+              <div className="relative">
+                <div className="blur-sm pointer-events-none select-none">
+                  <TabRenderer tab={state.tab} />
+                </div>
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute inset-0 rounded-lg bg-background/30"
+                >
+                  {/* sticky + top-1/2 + -translate-y-1/2: a long tab's
+                      notation is far taller than the viewport, so centering
+                      against the FULL blurred height (plain items-center on
+                      the inset-0 parent) would place the spinner far below
+                      the fold — this keeps it pinned to the center of
+                      whatever's actually in view as the page scrolls. */}
+                  <div className="sticky top-1/2 flex -translate-y-1/2 items-center justify-center">
+                    <ImportingSpinner />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // First import ever: nothing to blur, so just a plain spinner
+              // in a placeholder box roughly where the notation will land.
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center justify-center rounded-lg border border-line py-20"
+              >
+                <ImportingSpinner />
+              </div>
+            )
+          ) : (
+            state.kind === "ok" && <TabRenderer tab={state.tab} />
+          )}
         </div>
       )}
     </div>
