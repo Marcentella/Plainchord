@@ -76,14 +76,61 @@ test("a quarter-tone bend computes bendAmount but leaves bendTo unset -- no whol
   assert.equal(note.bendTo, undefined);
 });
 
-test("a release-only bend (no real peak to point an arrow at) keeps the plain 'b' tag with no amount", () => {
+test("a release (arrives already bent, releases down) gets bendAmount + bendReleasing, not bendTo", () => {
+  // Real shape: [4, 0] -- starts at the previous note's peak, releases to 0.
+  // No bendTo: the note's own written fret already IS the landing pitch,
+  // there's no separate "target" to point at the way a rising bend has.
   const result = scoreToTab(scoreFromTex("7.1 { b (0 4) } | 5.1 { b release (4 0) }"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
   const releaseNote = result.tab.beats[1].notes[0];
   assert.deepEqual(releaseNote.techniques, ["b"]);
-  assert.equal(releaseNote.bendAmount, undefined);
+  assert.equal(releaseNote.bendAmount, 4);
+  assert.equal(releaseNote.bendReleasing, true);
   assert.equal(releaseNote.bendTo, undefined);
+});
+
+test("a prebend-release (arrives at a peak matching prior context, releases to its own new fret) is treated the same as a plain release", () => {
+  // Real shape: [4, 0] on a DIFFERENT fret than the previous note (10, not
+  // 12) -- the peak still matches whatever the previous note left off at in
+  // absolute pitch, this note just happens to be written on a new fret.
+  const result = scoreToTab(scoreFromTex("12.1 { b (0 4) } | 10.1 { b prebendrelease (4 0) }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const note = result.tab.beats[1].notes[0];
+  assert.equal(note.fret, 10);
+  assert.equal(note.bendAmount, 4);
+  assert.equal(note.bendReleasing, true);
+  assert.equal(note.bendTo, undefined);
+});
+
+test("a bend-release (rises then releases within the SAME note) is treated as a plain rising bend to its peak", () => {
+  // Real shape: [0, 4, 4, 0] -- self-contained, no cross-note context
+  // needed. Doesn't capture the "then releases" part, but the peak it
+  // reaches is still accurate, and it's the biggest of the four previously-
+  // unhandled types (59 of 4,398 real bends) -- strictly better than the
+  // plain "b" tag with nothing.
+  const result = scoreToTab(scoreFromTex("7.1 { b bendrelease (0 4 4 0) }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const note = result.tab.beats[0].notes[0];
+  assert.equal(note.bendAmount, 4);
+  assert.equal(note.bendTo, 9);
+  assert.equal(note.bendReleasing, undefined);
+});
+
+test("a hold (continues the previous note's bend, nothing changes) gets bendHold, not an amount", () => {
+  // Real shape: [4, 4] -- constant, matching wherever the previous note
+  // left off. No arrow to draw (nothing moves during this note), so
+  // TabRenderer parenthesizes the fret digit instead -- see bendHold.
+  const result = scoreToTab(scoreFromTex("7.1 { b (0 4) } | 7.1 { b hold (4 4) }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const holdNote = result.tab.beats[1].notes[0];
+  assert.deepEqual(holdNote.techniques, ["b"]);
+  assert.equal(holdNote.bendHold, true);
+  assert.equal(holdNote.bendAmount, undefined);
+  assert.equal(holdNote.bendTo, undefined);
 });
 
 test("palm mute maps to PM", () => {

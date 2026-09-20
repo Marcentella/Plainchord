@@ -44,19 +44,31 @@ function hammerPullSymbol(origin: model.Note, destination: model.Note): Techniqu
   return destination.fret > origin.fret ? "h" : "p";
 }
 
-// Bend types that describe a real peak pitch reached, as opposed to a
-// release/hold shape with nothing to point an "up to here" arrow at — see
-// bendAmountFor. Verified against 4,398 real bent notes across a real test
-// corpus: these four cover ~97.6% of them (Bend 61.3%, Custom 24.9%,
-// Prebend 11.2%, PrebendBend 0.2%); the excluded types (Release,
-// BendRelease, Hold, PrebendRelease) are ~2.4% combined and fall back to
-// the plain "b" tag with no amount, same as any other unmodeled nuance.
-const BEND_TYPES_WITH_AMOUNT = new Set<model.BendType>([
+// Every alphaTab bend type falls into exactly one of these three buckets —
+// verified against 4,398 real bent notes across a real test corpus, and
+// against real bendPoints examples for each of the three non-obvious types
+// (Release/BendRelease/Hold/PrebendRelease) pulled from that same corpus:
+//
+// - RISES to a peak during the note (draw the existing upward arrow +
+//   amount label): Bend 61.3%, Custom 24.9%, Prebend 11.2%, PrebendBend
+//   0.2%, BendRelease 1.3% (real shape [0,4,4,0] — rises then releases
+//   within one note, self-contained; the "then releases" part isn't drawn,
+//   but showing the peak it reaches is still accurate and needs nothing new).
+// - ARRIVES already at a peak and releases DOWN (draw a downward arrow, no
+//   label — the amount was already shown on whichever earlier note it's
+//   releasing from): Release 0.1%, PrebendRelease 0.4% (real shape [4,0] —
+//   these genuinely need cross-note context to be correct, which is exactly
+//   what makes them a different case from BendRelease above).
+// - HOLDS constant, no change at all (draw nothing, parenthesize the fret
+//   digit instead — see bendHold on TabNote): Hold 0.6% (real shape [4,4]).
+const BEND_TYPES_RISING = new Set<model.BendType>([
   model.BendType.Bend,
   model.BendType.Custom,
   model.BendType.Prebend,
   model.BendType.PrebendBend,
+  model.BendType.BendRelease,
 ]);
+const BEND_TYPES_RELEASING = new Set<model.BendType>([model.BendType.Release, model.BendType.PrebendRelease]);
 
 /**
  * The bend's peak height above the note's own open/written pitch, in
@@ -65,13 +77,14 @@ const BEND_TYPES_WITH_AMOUNT = new Set<model.BendType>([
  * steps (4 = a full step, 2 = a half step), confirmed against the same real
  * corpus: values cluster cleanly at 1/2/3/4/6/8/12, exactly Guitar Pro's own
  * Quarter/Half/3-4/Full/1half/FullFull/3-whole bend presets. Peak, not
- * "end minus start": a Prebend's points don't rise during the note (it's
- * already at the target pitch when struck), so only the peak read the same
- * way for every included bend type.
+ * "end minus start": neither a Prebend's nor a releasing bend's points rise
+ * during the note the way a plain Bend's do, so only the peak reads the same
+ * way for every bend type this covers (everything except Hold, which has no
+ * arrow to size at all — see bendHold).
  */
 function bendAmountFor(note: model.Note): number | undefined {
   if (!note.bendPoints || note.bendPoints.length === 0) return undefined;
-  if (!BEND_TYPES_WITH_AMOUNT.has(note.bendType)) return undefined;
+  if (!BEND_TYPES_RISING.has(note.bendType) && !BEND_TYPES_RELEASING.has(note.bendType)) return undefined;
   const amount = Math.max(...note.bendPoints.map((p) => p.value));
   return amount > 0 ? amount : undefined;
 }
@@ -82,11 +95,15 @@ function noteTechniques(note: model.Note): {
   hadUnmappedEffect: boolean;
   bendTo?: number;
   bendAmount?: number;
+  bendReleasing?: boolean;
+  bendHold?: boolean;
 } {
   const techniques: TechniqueSymbol[] = [];
   let hadUnmappedEffect = false;
   let bendTo: number | undefined;
   let bendAmount: number | undefined;
+  let bendReleasing: boolean | undefined;
+  let bendHold: boolean | undefined;
 
   if (note.isDead) techniques.push("x");
   if (note.isPalmMute) techniques.push("PM");
@@ -95,13 +112,26 @@ function noteTechniques(note: model.Note): {
   if (note.vibrato !== model.VibratoType.None) techniques.push("~");
   if (note.hasBend) {
     techniques.push("b");
-    bendAmount = bendAmountFor(note);
-    // Only when it lands on a whole fret (an even quarter-tone count — a
-    // half-step multiple): a quarter-tone bend (odd count) has no fret to
-    // point bendTo at, same limitation lib/parseTab.ts's own "7b9" notation
-    // already has (a written target is always a whole fret).
-    if (bendAmount != null && bendAmount % 2 === 0 && !note.isDead) {
-      bendTo = note.fret + bendAmount / 2;
+    if (note.bendType === model.BendType.Hold) {
+      // Nothing changes during this note at all — it's purely continuing
+      // whatever bend the previous note left off at, so there's no amount
+      // to draw an arrow for. TabRenderer parenthesizes the fret digit
+      // instead (see TabNote.bendHold).
+      bendHold = true;
+    } else {
+      bendAmount = bendAmountFor(note);
+      if (bendAmount != null) {
+        if (BEND_TYPES_RELEASING.has(note.bendType)) {
+          bendReleasing = true; // downward arrow, no bendTo — see BEND_TYPES_RELEASING above
+        } else if (bendAmount % 2 === 0 && !note.isDead) {
+          // Only when it lands on a whole fret (an even quarter-tone count
+          // — a half-step multiple): a quarter-tone bend (odd count) has no
+          // fret to point bendTo at, same limitation lib/parseTab.ts's own
+          // "7b9" notation already has (a written target is always a whole
+          // fret).
+          bendTo = note.fret + bendAmount / 2;
+        }
+      }
     }
   }
   if (note.isGhost && !note.isDead) hadUnmappedEffect = true;
@@ -123,7 +153,7 @@ function noteTechniques(note: model.Note): {
     hadUnmappedEffect = true; // a pick drag, not the glossary's fretting-hand slide
   }
 
-  return { techniques, hadUnmappedEffect, bendTo, bendAmount };
+  return { techniques, hadUnmappedEffect, bendTo, bendAmount, bendReleasing, bendHold };
 }
 
 /**
@@ -173,7 +203,7 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
 
     for (const beat of voice.beats) {
       const notes: TabNote[] = beat.notes.map((note) => {
-        const { techniques, hadUnmappedEffect, bendTo, bendAmount } = noteTechniques(note);
+        const { techniques, hadUnmappedEffect, bendTo, bendAmount, bendReleasing, bendHold } = noteTechniques(note);
         if (hadUnmappedEffect) unmappedTechniques++;
 
         // h/p/slide tags land on the ARRIVING note, same convention as
@@ -196,6 +226,8 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
           techniques,
           ...(bendTo != null && { bendTo }),
           ...(bendAmount != null && { bendAmount }),
+          ...(bendReleasing && { bendReleasing }),
+          ...(bendHold && { bendHold }),
         };
       });
 
