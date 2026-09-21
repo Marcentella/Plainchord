@@ -5,7 +5,8 @@ import { FolderOpen, Loader2, Upload } from "lucide-react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
 import TabRenderer from "@/components/TabRenderer";
-import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import TabHistoryMenu from "@/components/TabHistoryMenu";
+import { listTabHistory, saveTabToHistory, deleteTabFromHistory, type TabHistoryEntry } from "@/lib/tabHistory";
 import { t } from "@/i18n";
 
 // Explicit map (not a template-string key) so renaming an error variant
@@ -20,14 +21,6 @@ const ERROR_MESSAGE_KEY = {
 
 const GP_EXTENSIONS = [".gp3", ".gp4", ".gp5", ".gpx"];
 const MAX_TEXTAREA_HEIGHT = 320; // px — auto-grows up to this, scrolls internally beyond it
-// The already-parsed Tab, not the raw source — identical shape for a pasted
-// tab and a Guitar Pro import, so one save path covers both, and it's the
-// normalized beat data rather than a multi-hundred-KB binary file. A one-off
-// value like this is the same simple case as ThemeToggle/PalettePicker's
-// localStorage use (see app/page.tsx's PROGRESSION_KEY); IndexedDB stays the
-// right store for anything bigger or multi-item later (a saved-tabs library,
-// say), not for "the one most recent tab."
-const LAST_TAB_KEY = "lastTab";
 
 type ImportState =
   | { kind: "empty" }
@@ -48,9 +41,12 @@ function hasGpExtension(name: string): boolean {
 // this returns null and the header simply skips the subtitle line rather
 // than showing an empty one.
 function tabSubtitle(tab: Tab): string | null {
-  const parts = [tab.artist, tab.tuning?.join(" "), tab.tempo ? `${tab.tempo} BPM` : null].filter(
-    (part): part is string => !!part,
-  );
+  const parts = [
+    tab.artist,
+    tab.tuning?.join(" "),
+    tab.tempo ? `${tab.tempo} BPM` : null,
+    tab.timeSignature ? `${tab.timeSignature.numerator}/${tab.timeSignature.denominator}` : null,
+  ].filter((part): part is string => !!part);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
@@ -85,46 +81,51 @@ export default function Tablatura() {
   // path with a real async gap (dynamic-imports alphaTab, then parses).
   // Plain-text paste is synchronous and never sets this.
   const [isImporting, setIsImporting] = useState(false);
-  // Gates the save effect below until the load effect has actually run —
-  // same hydration-safe shape as ThemeToggle/PalettePicker/app/page.tsx's
-  // progression input.
-  const [tabLoaded, setTabLoaded] = useState(false);
+  const [history, setHistory] = useState<TabHistoryEntry[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Set true the instant the user does anything with the input — guards the
+  // initial history read below against a real race: if that read is still
+  // in flight when the user pastes/drops their own tab, it must not later
+  // overwrite that with a stale "most recent from history" entry once it
+  // resolves.
+  const userInteractedRef = useRef(false);
 
-  // Runs before the first paint, not after — restoring a saved tab lands in
-  // the SAME paint as the hydrated default instead of a visible flash of
-  // the empty input first (see lib/useIsomorphicLayoutEffect.ts).
-  useIsomorphicLayoutEffect(() => {
-    try {
-      const saved = localStorage.getItem(LAST_TAB_KEY);
-      const tab = saved ? (JSON.parse(saved) as Tab) : null;
-      if (tab && Array.isArray(tab.beats)) {
-        setState({ kind: "ok", tab, notices: [] });
-        setExpanded(false);
-      }
-    } catch {
-      // Corrupt or incompatible saved data — ignore, keep the empty default.
-    }
-    setTabLoaded(true);
-  }, []);
+  function refreshHistory() {
+    listTabHistory()
+      .then(setHistory)
+      .catch(() => {});
+  }
 
-  // Saves whenever a tab successfully (re)loads, from either import path —
-  // not on every keystroke the way the progression input saves, since
-  // there's no "committed" moment there but there very much is here.
+  // IndexedDB has no synchronous read API, unlike the localStorage version
+  // this replaces — restoring the most recent tab necessarily happens after
+  // first paint now, not before it. Accepted: this page already shows a
+  // loading state for a slower async gap (isImporting's Guitar Pro path).
   useEffect(() => {
-    if (tabLoaded && state.kind === "ok") {
-      try {
-        localStorage.setItem(LAST_TAB_KEY, JSON.stringify(state.tab));
-      } catch {
-        // Safari private browsing throws on every localStorage.setItem
-        // unconditionally, not just when actually over quota — persistence
-        // is a nice-to-have here, not something the rest of the page
-        // depends on, so just skip it rather than let this become an
-        // uncaught error in the effect.
-      }
+    let cancelled = false;
+    listTabHistory()
+      .then((entries) => {
+        if (cancelled) return;
+        setHistory(entries);
+        const [mostRecent] = entries;
+        if (mostRecent && !userInteractedRef.current) {
+          setState({ kind: "ok", tab: mostRecent.tab, notices: [] });
+          setExpanded(false);
+        }
+      })
+      .catch(() => {
+        // IndexedDB unavailable/blocked — same fallback posture as the old
+        // localStorage try/catch: keep the empty default.
+      });
+    try {
+      localStorage.removeItem("lastTab"); // one-off cleanup, not a migration — see FEATURES.md
+    } catch {
+      // Safari private browsing throws unconditionally — harmless to skip.
     }
-  }, [state, tabLoaded]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Auto-grow, capped, then scroll internally — replaces the manual resize
   // handle, which made no sense once this box also collapses to a pill the
@@ -137,6 +138,7 @@ export default function Tablatura() {
   }, [text]);
 
   function applyTextChange(value: string) {
+    userInteractedRef.current = true;
     setText(value);
     if (!value.trim()) {
       setState({ kind: "empty" });
@@ -161,10 +163,14 @@ export default function Tablatura() {
     if (result.skippedBlocks > 0) notices.push(t("tab.skippedBlocks"));
     setState({ kind: "ok", tab: result.tab, notices });
     setExpanded(false);
+    saveTabToHistory(result.tab)
+      .then(refreshHistory)
+      .catch(() => {});
   }
 
   async function applyGuitarProFile(file: File) {
     if (isImporting) return; // already importing one — ignore a second drop/pick mid-flight
+    userInteractedRef.current = true;
     if (!hasGpExtension(file.name)) {
       setState({ kind: "fileError", error: "badExtension" });
       return;
@@ -186,9 +192,27 @@ export default function Tablatura() {
       if (result.unmappedTechniques > 0) notices.push(t("tab.unmappedTechniques"));
       setState({ kind: "ok", tab: result.tab, notices });
       setExpanded(false);
+      saveTabToHistory(result.tab)
+        .then(refreshHistory)
+        .catch(() => {});
     } finally {
       setIsImporting(false);
     }
+  }
+
+  function handleSelectHistoryEntry(entry: TabHistoryEntry) {
+    setState({ kind: "ok", tab: entry.tab, notices: [] });
+    setExpanded(false);
+  }
+
+  function handleDeleteHistoryEntry(id: string) {
+    // Deliberately doesn't special-case deleting the entry for the tab
+    // currently on screen — state.tab is an independent value copy, so the
+    // visible render is unaffected either way; only a future reload would
+    // stop finding it.
+    deleteTabFromHistory(id)
+      .then(refreshHistory)
+      .catch(() => {});
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -226,6 +250,19 @@ export default function Tablatura() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Standalone fallback — only when there's no Document Header to dock
+          into at all (nothing ever loaded). Once a tab is loaded, this same
+          menu instead lives inside that header, next to "Importar otra". */}
+      {state.kind !== "ok" && (
+        <div className="w-full max-w-xl flex justify-end">
+          <TabHistoryMenu
+            history={history}
+            onSelect={handleSelectHistoryEntry}
+            onDelete={handleDeleteHistoryEntry}
+          />
+        </div>
+      )}
+
       {showInput && (
         <div className="w-full max-w-xl flex flex-col gap-2">
           <label htmlFor="tab-input" className="text-sm font-medium">
@@ -306,15 +343,30 @@ export default function Tablatura() {
                 </div>
               )
             )}
-            {!isImporting && state.kind === "ok" && (
-              <button
-                type="button"
-                onClick={() => setExpanded(true)}
-                className="shrink-0 inline-flex items-center gap-1.5 text-sm text-accent transition hover-fine:opacity-70 active:scale-[0.97] duration-[160ms] ease-out"
-              >
-                <FolderOpen className="size-4" aria-hidden="true" />
-                {t("tab.reimportButton")}
-              </button>
+            {state.kind === "ok" && (
+              // Condition on state.kind alone (not also !isImporting): a
+              // reimport-in-progress still has state.kind === "ok" (the old
+              // tab, blurred, stays on screen under the spinner until the
+              // new one replaces it) — this keeps the history trigger in
+              // place through that transient window instead of jumping out
+              // to the standalone fallback position and back.
+              <div className="flex items-center gap-2 shrink-0">
+                <TabHistoryMenu
+                  history={history}
+                  onSelect={handleSelectHistoryEntry}
+                  onDelete={handleDeleteHistoryEntry}
+                />
+                {!isImporting && (
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(true)}
+                    className="inline-flex items-center gap-1.5 text-sm text-accent transition hover-fine:opacity-70 active:scale-[0.97] duration-[160ms] ease-out"
+                  >
+                    <FolderOpen className="size-4" aria-hidden="true" />
+                    {t("tab.reimportButton")}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 

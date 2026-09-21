@@ -93,4 +93,6 @@ export type Tab = {
   tempo?: number;
   /** Low string to high, e.g. ["E", "A", "D", "G", "B", "E"] — display names, not MIDI values. */
   tuning?: string[];
+  /** e.g. {numerator:4, denominator:4} for 4/4. Guitar Pro imports only, same limitation as title/artist/tempo/tuning above. */
+  timeSignature?: { numerator: number; denominator: number };
 };
