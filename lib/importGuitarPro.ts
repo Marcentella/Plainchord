@@ -247,6 +247,12 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
     artist: score.artist || undefined,
     tempo: score.tempo,
     tuning: tuningNames(staff),
+    timeSignature: score.masterBars[0]
+      ? {
+          numerator: score.masterBars[0].timeSignatureNumerator,
+          denominator: score.masterBars[0].timeSignatureDenominator,
+        }
+      : undefined,
   };
 
   return { ok: true, tab, unmappedTechniques };

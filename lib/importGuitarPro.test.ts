@@ -251,6 +251,23 @@ test("blank title/artist (no directive in the source) fall back to undefined, no
   assert.equal(result.tab.artist, undefined);
 });
 
+test("time signature is read from the first bar", () => {
+  const result = scoreToTab(scoreFromTex("\\ts 3 4\n.\n3.1 5.1"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.timeSignature, { numerator: 3, denominator: 4 });
+});
+
+// alphaTab gives every score an implicit MasterBar even with no \ts
+// directive at all — confirmed against the real parser, not assumed — so
+// this is never actually undefined for a real import, unlike title/artist.
+test("an unspecified time signature defaults to 4/4, not undefined", () => {
+  const result = scoreToTab(scoreFromTex("3.1 5.1"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.timeSignature, { numerator: 4, denominator: 4 });
+});
+
 test("tuning reads low string to high, as it's conventionally written (\"E A D G B E\"), not the raw high-to-low storage order", () => {
   const result = scoreToTab(scoreFromTex("3.1 5.1"));
   assert.equal(result.ok, true);
