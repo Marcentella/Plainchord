@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, Guitar, BookOpen, Rows3 } from "lucide-react";
+import { Menu, Guitar, BookOpen, Rows3, Music } from "lucide-react";
 import { t } from "@/i18n";
+import TunerModal from "@/components/TunerModal";
 
 // Guitar/BookOpen/Rows3: same lucide-react convention as every other icon in
 // the header (see CLAUDE.md — no emoji). Rows3 stands in for tab notation's
@@ -27,7 +28,9 @@ const ITEMS = [
  */
 export default function NavMenu() {
   const [open, setOpen] = useState(false);
+  const [tunerOpen, setTunerOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Same dismissal pattern as PalettePicker: outside click or Escape.
   useEffect(() => {
@@ -51,6 +54,7 @@ export default function NavMenu() {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={menuButtonRef}
         onClick={() => setOpen((v) => !v)}
         aria-label={t("nav.menuAriaLabel")}
         aria-expanded={open}
@@ -71,8 +75,36 @@ export default function NavMenu() {
               {t(labelKey)}
             </Link>
           ))}
+          {/* A single action item, not folded into ITEMS above — that array
+              is link-shaped (href) on purpose, and generalizing it into a
+              link-or-action union for one entry would be speculative until
+              a second action item actually exists. */}
+          <button
+            onClick={() => {
+              setOpen(false);
+              setTunerOpen(true);
+            }}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover-fine:text-accent"
+          >
+            <Music size={16} aria-hidden />
+            {t("nav.tuner")}
+          </button>
         </div>
       )}
+      <TunerModal
+        open={tunerOpen}
+        onClose={() => {
+          setTunerOpen(false);
+          // The dialog's own native focus-restore has nothing to return to
+          // — the "Afinador" item that opened it is a menu row that
+          // unmounts (the dropdown closes) in the same tick showModal() is
+          // called, so document.activeElement is already <body> by the
+          // time the browser tries to remember it. Send focus somewhere
+          // real instead: the hamburger trigger, since that's what's
+          // actually still on screen.
+          menuButtonRef.current?.focus();
+        }}
+      />
     </div>
   );
 }
