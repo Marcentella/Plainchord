@@ -392,3 +392,102 @@ html::-webkit-scrollbar-thumb {
     content: none;
   }
 }
+
+/* TunerModal (native <dialog>): fade + rise, same curve as .chord-card and
+   TechniquePopup's own strong ease-out — @starting-style is the native-
+   <dialog> equivalent of TechniquePopup's opacity `starting:` variant, but
+   for BOTH entrance and exit, since a real <dialog> owns its own open/close
+   timing (`display: none <-> block`) instead of needing a React `closing`
+   prop + onTransitionEnd dance to stay mounted through the fade. `overlay`/
+   `display` with `allow-discrete` are what let a transition play across
+   that display change at all — without them the close would just snap. */
+dialog.tuner-dialog {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 150ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 150ms cubic-bezier(0.23, 1, 0.32, 1),
+    overlay 150ms allow-discrete,
+    display 150ms allow-discrete;
+}
+
+dialog.tuner-dialog:not([open]) {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@starting-style {
+  dialog.tuner-dialog[open] {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+dialog.tuner-dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+  transition:
+    background-color 150ms ease,
+    overlay 150ms allow-discrete,
+    display 150ms allow-discrete;
+}
+
+@starting-style {
+  dialog.tuner-dialog[open]::backdrop {
+    background: rgb(0 0 0 / 0);
+  }
+}
+
+/* The cents-bar indicator's own glide between readings — a plain 80ms
+   transition on transform (never `left`, see the animate skill: transform/
+   opacity only). Reduced motion keeps the fade above (movement-free) but
+   drops this one, since the indicator sliding across the track IS the
+   movement being asked to reduce, unlike globals.css's other reduced-motion
+   exceptions. */
+.tuner-indicator {
+  transition: transform 80ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tuner-indicator {
+    transition-duration: 0ms;
+  }
+}
+
+/* Tuning-preset dropdown: themes the native popup's own background AND its
+   hovered/selected-row highlight (otherwise an unthemeable OS system color
+   — confirmed, accent-color has no effect on it) to this app's actual
+   palette, via the "customizable select" feature (appearance: base-select,
+   the ::picker(select) popup, plain CSS on <option>). Chrome 135+ only —
+   NOT Baseline, Firefox/Safari haven't implemented it. Pure progressive
+   enhancement: an unsupporting browser doesn't recognize `base-select` as a
+   valid appearance value, drops just that one declaration (ordinary CSS
+   error handling, not a page-breaking failure), and keeps the plain native
+   dropdown — already correctly readable from TunerModal's own
+   bg-background/text-foreground classes, so nothing regresses there. */
+.tuner-select,
+.tuner-select::picker(select) {
+  appearance: base-select;
+}
+
+.tuner-select::picker(select) {
+  background: var(--background);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.tuner-select option {
+  color: var(--foreground);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem;
+}
+
+/* --dot-text, not a new color: same job it already does on a chord
+   diagram's dot (globals.css's :root block) — readable text over a solid
+   --accent fill, same pairing, different shape. */
+.tuner-select option:hover,
+.tuner-select option:focus,
+.tuner-select option:checked {
+  background: var(--accent);
+  color: var(--dot-text);
+}

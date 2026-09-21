@@ -7,7 +7,7 @@ export default function Privacidad() {
         <div>
           <h1 className="text-2xl font-medium">Política de Privacidad | PlainChord</h1>
           <p className="text-xs text-muted mt-1">
-            Última actualización: 12 de septiembre de 2026
+            Última actualización: 20 de septiembre de 2026
           </p>
         </div>
 
@@ -29,14 +29,16 @@ export default function Privacidad() {
 
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">
-            2. Audio (detección de acordes, componente exploratorio)
+            2. Audio (afinador)
           </h2>
           <p className="text-sm">
-            El componente de detección de acordes a partir de audio procesa
-            el sonido directamente en el navegador del usuario, mediante Web
-            Audio API y la librería Meyda. El audio no se envía ni se
-            almacena en ningún servidor. Una vez cerrada o recargada la
-            página, el audio procesado no persiste en ningún lugar
+            El afinador solicita acceso al micrófono solo cuando el usuario
+            lo activa explícitamente desde su ventana. El audio se procesa
+            directamente en el navegador (Web Audio API y la librería
+            Pitchy) para detectar la nota y afinación de la cuerda tocada;
+            no se envía ni se almacena en ningún servidor. Al cerrar la
+            ventana del afinador, PlainChord libera el micrófono de
+            inmediato y el audio procesado no persiste en ningún lugar
             controlado por PlainChord.
           </p>
         </section>
