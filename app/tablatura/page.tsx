@@ -20,7 +20,12 @@ const ERROR_MESSAGE_KEY = {
   badExtension: "tab.badExtension",
 } as const;
 
-const GP_EXTENSIONS = [".gp3", ".gp4", ".gp5", ".gpx"];
+// .gp is Guitar Pro 7/8's own format — a completely different ZIP/XML
+// container from the older binary .gp3-5/.gpx, but alphaTab's ScoreLoader
+// (lib/importGuitarPro.ts) already auto-detects and parses it via its own
+// registered Gp7To8Importer — this list is the only thing that was gating
+// it out, nothing in the actual parsing path needed to change.
+const GP_EXTENSIONS = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
 const MAX_TEXTAREA_HEIGHT = 320; // px — auto-grows up to this, scrolls internally beyond it
 
 type ImportState =
