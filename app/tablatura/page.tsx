@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Loader2, Upload } from "lucide-react";
+import { FolderOpen, Loader2, Pause, Play, RotateCcw, Square, Upload } from "lucide-react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
-import TabRenderer from "@/components/TabRenderer";
+import TabRenderer, { type TabRendererHandle } from "@/components/TabRenderer";
 import TabHistoryMenu from "@/components/TabHistoryMenu";
 import { listTabHistory, saveTabToHistory, deleteTabFromHistory, type TabHistoryEntry } from "@/lib/tabHistory";
+import { usePlayhead } from "@/lib/usePlayhead";
 import { t } from "@/i18n";
 
 // Explicit map (not a template-string key) so renaming an error variant
@@ -82,8 +83,13 @@ export default function Tablatura() {
   // Plain-text paste is synchronous and never sets this.
   const [isImporting, setIsImporting] = useState(false);
   const [history, setHistory] = useState<TabHistoryEntry[]>([]);
+  // Not persisted (see FEATURES.md) — a manual typed-in tempo for a tab that
+  // has none of its own (plain-text pastes never have tab.tempo). The one
+  // piece of state a future tap-tempo tool would also write into.
+  const [bpmOverride, setBpmOverride] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tabRendererRef = useRef<TabRendererHandle>(null);
   // Set true the instant the user does anything with the input — guards the
   // initial history read below against a real race: if that read is still
   // in flight when the user pastes/drops their own tab, it must not later
@@ -163,6 +169,7 @@ export default function Tablatura() {
     if (result.skippedBlocks > 0) notices.push(t("tab.skippedBlocks"));
     setState({ kind: "ok", tab: result.tab, notices });
     setExpanded(false);
+    setBpmOverride(null);
     saveTabToHistory(result.tab)
       .then(refreshHistory)
       .catch(() => {});
@@ -192,6 +199,7 @@ export default function Tablatura() {
       if (result.unmappedTechniques > 0) notices.push(t("tab.unmappedTechniques"));
       setState({ kind: "ok", tab: result.tab, notices });
       setExpanded(false);
+      setBpmOverride(null);
       saveTabToHistory(result.tab)
         .then(refreshHistory)
         .catch(() => {});
@@ -203,6 +211,7 @@ export default function Tablatura() {
   function handleSelectHistoryEntry(entry: TabHistoryEntry) {
     setState({ kind: "ok", tab: entry.tab, notices: [] });
     setExpanded(false);
+    setBpmOverride(null);
   }
 
   function handleDeleteHistoryEntry(id: string) {
@@ -235,6 +244,34 @@ export default function Tablatura() {
   const showInput = expanded || state.kind !== "ok";
   const subtitle = state.kind === "ok" ? tabSubtitle(state.tab) : null;
   const showTabArea = state.kind === "ok" || isImporting;
+  const effectiveBpm = state.kind === "ok" ? (bpmOverride ?? state.tab.tempo ?? null) : null;
+  const { isPlaying, play, pause, stop, seek } = usePlayhead(
+    state.kind === "ok" ? state.tab : null,
+    effectiveBpm,
+    tabRendererRef,
+  );
+
+  // Spacebar toggles play/pause while following along — same gate as the
+  // transport buttons themselves (isImporting/effectiveBpm), so the
+  // shortcut never does something the visible controls say isn't currently
+  // available. Ignored while typing in any input/textarea (the BPM field,
+  // the paste textarea) so a literal space still types normally there.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (isImporting || !effectiveBpm) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.code !== "Space") return;
+      e.preventDefault(); // stop the page scrolling, even on OS key-repeat
+      if (e.repeat) return; // ...but only toggle once per press, not on every repeat while held
+      if (isPlaying) pause();
+      else play();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isImporting, effectiveBpm, isPlaying, play, pause]);
 
   return (
     <div
@@ -370,6 +407,53 @@ export default function Tablatura() {
             )}
           </div>
 
+          {!isImporting && state.kind === "ok" && (
+            <div className="flex items-center gap-3 text-sm">
+              <button
+                type="button"
+                onClick={() => (isPlaying ? pause() : play())}
+                disabled={!effectiveBpm}
+                aria-label={t(isPlaying ? "tab.pause" : "tab.play")}
+                className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {isPlaying ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
+              </button>
+              <button
+                type="button"
+                onClick={stop}
+                disabled={!effectiveBpm}
+                aria-label={t("tab.stop")}
+                className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Square size={16} aria-hidden />
+              </button>
+              <label className="flex items-center gap-1.5 text-muted">
+                {t("tab.bpmLabel")}
+                <input
+                  type="number"
+                  min={20}
+                  max={400}
+                  value={bpmOverride ?? state.tab.tempo ?? ""}
+                  disabled={isPlaying}
+                  onChange={(e) => setBpmOverride(e.target.value ? Number(e.target.value) : null)}
+                  className="w-16 rounded-md border border-line bg-transparent px-2 py-1 text-foreground focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2 disabled:opacity-50"
+                />
+              </label>
+              {bpmOverride !== null && bpmOverride !== state.tab.tempo && (
+                <button
+                  type="button"
+                  onClick={() => setBpmOverride(null)}
+                  disabled={isPlaying}
+                  aria-label={t("tab.resetBpmAriaLabel")}
+                  className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  <RotateCcw size={14} aria-hidden />
+                </button>
+              )}
+              {!effectiveBpm && <span className="text-xs text-muted">{t("tab.bpmHint")}</span>}
+            </div>
+          )}
+
           {!isImporting && state.kind === "ok" && state.notices.length > 0 && (
             <div className="flex flex-col gap-1">
               {state.notices.map((notice) => (
@@ -418,7 +502,7 @@ export default function Tablatura() {
               </div>
             )
           ) : (
-            state.kind === "ok" && <TabRenderer tab={state.tab} />
+            state.kind === "ok" && <TabRenderer ref={tabRendererRef} tab={state.tab} onSeek={seek} />
           )}
         </div>
       )}

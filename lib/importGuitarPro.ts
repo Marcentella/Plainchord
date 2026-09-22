@@ -7,6 +7,16 @@
 import { importer, model, Settings } from "@coderline/alphatab";
 import type { Tab, TabBeat, TabNote, TechniqueSymbol } from "./tab";
 
+// alphaTab's fixed MIDI resolution for a quarter note — confirmed
+// empirically against the real parser (a quarter's playbackDuration is
+// 960 ticks, an eighth's is 480, a whole's is 3840, a 2/3-compressed
+// triplet eighth's is 320, etc. — no exported constant for this in
+// alphaTab's own .d.ts to import instead). playbackDuration is already
+// fully resolved (dots, tuplets, and grace notes all baked in by alphaTab
+// itself), so dividing by this is the whole conversion to quarter-note
+// units — no need to hand-roll duration+dots+tuplet math ourselves.
+const MIDI_TICKS_PER_QUARTER_NOTE = 960;
+
 /**
  * staff.tuning is ordered "most top tablature line first" — i.e. highest
  * string to lowest, the opposite of how a tuning reads out loud or gets
@@ -232,7 +242,12 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
       });
 
       if (beatHasUnmappedEffect(beat)) unmappedTechniques++;
-      beats.push({ position: beats.length, bar: barIndex, notes });
+      beats.push({
+        position: beats.length,
+        bar: barIndex,
+        notes,
+        duration: beat.playbackDuration / MIDI_TICKS_PER_QUARTER_NOTE,
+      });
     }
   });
 
@@ -258,10 +273,27 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
   return { ok: true, tab, unmappedTechniques };
 }
 
+// alphaTab's own default (Settings.importer.encoding, 'utf-8') assumes the
+// GP3-7/MusicXML text fields are UTF-8 — real Guitar Pro files predate that
+// being true. Guitar Pro is (and long was) a Windows-native app, and wrote
+// title/artist/etc. in whatever 8-bit codepage Windows itself used, which
+// for the vast majority of non-English users is windows-1252 (Western
+// European — covers ä/ö/ü/ñ/é and friends). A byte like ä's 0xE4 isn't a
+// valid standalone UTF-8 sequence on its own, so decoding it as UTF-8
+// fails and falls back to the U+FFFD replacement character — the diamond
+// "?" the import showed for "Tränen". windows-1252 is a real TextDecoder
+// label (browser support, not alphaTab's own code), and is a superset of
+// ISO-8859-1 for the printable range that matters here.
+function importSettings(): Settings {
+  const settings = new Settings();
+  settings.importer.encoding = "windows-1252";
+  return settings;
+}
+
 export async function importGuitarProFile(bytes: Uint8Array): Promise<ImportGuitarProResult> {
   let score: model.Score;
   try {
-    score = importer.ScoreLoader.loadScoreFromBytes(bytes, new Settings());
+    score = importer.ScoreLoader.loadScoreFromBytes(bytes, importSettings());
   } catch {
     return { ok: false, error: "corruptFile" };
   }

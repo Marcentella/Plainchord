@@ -268,6 +268,51 @@ test("an unspecified time signature defaults to 4/4, not undefined", () => {
   assert.deepEqual(result.tab.timeSignature, { numerator: 4, denominator: 4 });
 });
 
+test("duration is read in quarter-note units", () => {
+  const result = scoreToTab(scoreFromTex("3.3.4 5.3.8 7.3.1"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(
+    result.tab.beats.map((b) => b.duration),
+    [1, 0.5, 4],
+  );
+});
+
+test("a dotted note's duration includes the dot (alphaTex {d}, not a . suffix)", () => {
+  const result = scoreToTab(scoreFromTex("3.3.4 {d}"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.tab.beats[0].duration, 1.5);
+});
+
+test("a triplet eighth's duration is compressed by the tuplet ratio", () => {
+  const result = scoreToTab(scoreFromTex("3.3.8{tu 3} 3.3.8 3.3.8"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(Math.abs(result.tab.beats[0].duration! - 1 / 3) < 1e-9);
+});
+
+// A grace note's duration/dots alone look like a plain eighth note — only
+// playbackDuration (what this project actually reads, see
+// lib/importGuitarPro.ts) reveals its real, much briefer timing. Confirmed
+// against the real parser: a real grace beat here resolves to 120/960 ticks.
+test("a grace note gets a realistically brief duration, not a full beat's worth", () => {
+  const result = scoreToTab(scoreFromTex("3.3.16{gr} 3.3.4"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.tab.beats[0].duration! < 0.2);
+});
+
+// Rests still take up real time — they must contribute to the timeline the
+// same as a struck note, or playback desyncs from that point on.
+test("a rest's duration matches its notated value, even though it has no notes", () => {
+  const result = scoreToTab(scoreFromTex("3.3.4 r.4"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[1].notes, []);
+  assert.equal(result.tab.beats[1].duration, 1);
+});
+
 test("tuning reads low string to high, as it's conventionally written (\"E A D G B E\"), not the raw high-to-low storage order", () => {
   const result = scoreToTab(scoreFromTex("3.1 5.1"));
   assert.equal(result.ok, true);

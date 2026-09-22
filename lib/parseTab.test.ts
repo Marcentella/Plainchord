@@ -30,6 +30,15 @@ test("parses a single fretted note", () => {
   assert.deepEqual(result.tab.beats[0].notes, [{ string: 3, fret: 0, techniques: [] }]);
 });
 
+test("a plain-text beat has no duration — no rhythm notation to read one from", () => {
+  const result = parseTab(
+    tab(["-----", "-----", "--0--", "-----", "-----", "-----"]),
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.tab.beats[0].duration, undefined);
+});
+
 test("labels of different widths still align columns per-line", () => {
   // "e|" (2 chars) vs "E |" (3 chars) — each line's own label is stripped
   // independently, so both remainders start at column 0.
