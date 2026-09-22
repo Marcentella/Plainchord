@@ -242,6 +242,27 @@ html {
   transition-timing-function: ease;
 }
 
+/* TabRenderer's notation tree (.tab-renderer, see its own className comment
+   in components/TabRenderer.tsx) is thousands of SVG elements once a real
+   song is loaded — the base wildcard rule above gives every one of them a
+   fill/stroke/color transition, and .theme-transitioning then forces all of
+   those to actually run together on a theme switch. Interpolating that many
+   color transitions at once is what causes the lag; the notation doesn't
+   need to visually cross-fade colors on a switch anyway; a flat instant
+   snap reads as "the theme changed," same as it would for any other flash
+   update. Scoped to exactly this subtree, exactly while switching — the
+   rest of the app (shell, buttons, menus) keeps its normal smooth
+   transition. Higher specificity than `.theme-transitioning *` alone
+   already wins here without `!important` (two classes vs one), but the
+   notation tree layers its own per-element transitions on top (.rail-fill,
+   .playhead-rect, .ghost-rect, .rail-thumb-dot) that this must also beat
+   during the switch, hence `!important`. */
+.theme-transitioning .tab-renderer *,
+.theme-transitioning .tab-renderer *::before,
+.theme-transitioning .tab-renderer *::after {
+  transition: none !important;
+}
+
 /* Shared "appear, hold, reset" loop for glossary markers that live outside
    SVG (so SMIL <animate> isn't available) — same timing shape as the SMIL
    position/distortion animations, so every marker on a card stays in sync. */
@@ -449,6 +470,63 @@ dialog.tuner-dialog::backdrop {
 
 @media (prefers-reduced-motion: reduce) {
   .tuner-indicator {
+    transition-duration: 0ms;
+  }
+}
+
+/* The playhead's own glide between beats (components/TabRenderer.tsx) — one
+   shared overlay element, positioned via `transform: translate()` in real
+   page coordinates rather than one instance per bar. transform over
+   left/top for the usual reason (GPU-composited, no layout recalculation),
+   same technique TunerModal's own needle already uses. Matters once real
+   per-beat durations replace today's flat one-size beat: a run of fast
+   notes next to one long held note means genuinely irregular gaps between
+   moves, and a hard snap reads as erratic there in a way a consistent
+   glide doesn't — same curve as every other transition in this file
+   (.chord-card, .tuner-dialog), not a new one. Transitions, not keyframes,
+   since a new beat can retarget this before the glide from the previous
+   one finishes — transitions retarget cleanly from wherever they currently
+   are, keyframes would restart from zero. */
+.playhead-rect {
+  transition:
+    opacity 80ms ease-out,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Ghost preview (seek rail hover/drag) — opacity only, deliberately no
+   transform transition. Unlike .playhead-rect, its whole job is exact
+   "where you are right now" feedback while the pointer moves continuously,
+   so its position always snaps instantly; only its fade in/out eases. */
+.ghost-rect {
+  transition: opacity 80ms ease-out;
+}
+
+/* Seek rail progress fill — deliberately NOT transitioned. A seek can jump
+   many bars at once, and every affected bar's width changes in the same
+   updateRailFill pass — animated, that reads as a flurry of segments each
+   filling on their own instead of one clean movement. Instant reads as
+   snappier than trying to fake a single continuous sweep across bars that
+   are, mechanically, separate elements. */
+
+/* The rail's shared thumb dot — a page-coordinate overlay like
+   .playhead-rect/.ghost-rect, so it gets the same translate()-based glide
+   for a committed position (a real playback tick, or landing a seek).
+   TabRenderer.tsx's setRailThumbTracking switches this off inline (not via
+   a class here) for the duration of a hover snap or a drag's continuous
+   tracking — neither should ease into position, only a settled, committed
+   position glides. Inline rather than a class: see setRailThumbTracking's
+   own comment for why a class toggled on an ancestor wasn't reliable
+   enough here. */
+.rail-thumb-dot {
+  transition:
+    opacity 80ms ease-out,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playhead-rect,
+  .ghost-rect,
+  .rail-thumb-dot {
     transition-duration: 0ms;
   }
 }

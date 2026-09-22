@@ -61,6 +61,21 @@ export function overflowIds(entries: Pick<TabHistoryEntry, "id" | "importedAt">[
     .map((e) => e.id);
 }
 
+/**
+ * Pure, testable: ids of EXISTING entries whose tab is identical to the one
+ * just imported. Re-importing the same song shouldn't leave two entries
+ * sitting in history — the older one makes way, and the new save naturally
+ * sorts to the top on its own fresh importedAt. Plain JSON-equality on the
+ * whole Tab (beats included) rather than title/artist: those are only ever
+ * present on Guitar Pro imports (see Tab's own doc comment), so matching on
+ * them alone would silently never dedupe a plain-text paste, which has no
+ * other identity to go on besides its actual content.
+ */
+export function duplicateIds(entries: Pick<TabHistoryEntry, "id" | "tab">[], tab: Tab): string[] {
+  const serialized = JSON.stringify(tab);
+  return entries.filter((e) => JSON.stringify(e.tab) === serialized).map((e) => e.id);
+}
+
 export async function saveTabToHistory(tab: Tab): Promise<void> {
   const entry: TabHistoryEntry = { id: crypto.randomUUID(), importedAt: Date.now(), tab };
   const db = await openDb();
@@ -70,7 +85,18 @@ export async function saveTabToHistory(tab: Tab): Promise<void> {
 
   const readTx = db.transaction(STORE_NAME, "readonly");
   const all = (await promisifyRequest(readTx.objectStore(STORE_NAME).getAll())) as TabHistoryEntry[];
-  const evict = overflowIds(all, MAX_HISTORY_ENTRIES);
+  // Dedup first, then check overflow against what's left — otherwise a
+  // duplicate sitting comfortably under the cap could cause a totally
+  // unrelated, older song to get evicted instead of the actual duplicate.
+  const duplicates = duplicateIds(
+    all.filter((e) => e.id !== entry.id),
+    tab,
+  );
+  const overflow = overflowIds(
+    all.filter((e) => !duplicates.includes(e.id)),
+    MAX_HISTORY_ENTRIES,
+  );
+  const evict = [...new Set([...duplicates, ...overflow])];
   db.close();
 
   if (evict.length > 0) {

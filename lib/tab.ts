@@ -75,13 +75,19 @@ export type TabNote = {
 
 /** A cluster: one note per string, played together (a chord or double stop). */
 export type TabBeat = {
-  /** 0-based order in the sequence. The only timing unit for now — plain text
-   *  carries no rhythm. A future alphaTab import adds an optional `duration`
-   *  here, which is additive and changes nothing else. */
+  /** 0-based order in the sequence. */
   position: number;
   /** 0-based bar index, from the source's bar lines. */
   bar: number;
   notes: TabNote[];
+  /** This beat's real length in quarter notes (1 = a quarter, 0.5 = an
+   *  eighth, 1.5 = a dotted quarter...) — dots, tuplets, and grace notes are
+   *  already resolved into this one number by the importer (see
+   *  lib/importGuitarPro.ts). Guitar Pro imports only, same limitation as
+   *  Tab's own title/artist/tempo/tuning/timeSignature — plain text has no
+   *  rhythm notation to read this from. Falls back to an implicit quarter
+   *  note wherever it's absent; see lib/playhead.ts. */
+  duration?: number;
 };
 
 export type Tab = {
