@@ -17,6 +17,8 @@ export type TechniqueSymbol =
   | "/"
   | "PM"
   | "PH"
+  | "NH"
+  | "TH"
   | "~"
   | "T"
   | "x";
@@ -28,6 +30,8 @@ export const TECHNIQUE_SYMBOLS: TechniqueSymbol[] = [
   "/",
   "PM",
   "PH",
+  "NH",
+  "TH",
   "~",
   "T",
   "x",

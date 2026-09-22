@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useRef, useState, type Ref, type PointerEvent as ReactPointerEvent } from "react";
-import type { Tab, TabNote } from "@/lib/tab";
+import type { Tab, TabBeat, TabNote, TechniqueSymbol } from "@/lib/tab";
 import { CONNECTING_TECHNIQUES } from "@/lib/tab";
 import { groupIntoBars } from "@/lib/groupIntoBars";
 import { allGlossaryEntries } from "@/lib/glossary";
@@ -45,6 +45,46 @@ const BEND_HEADROOM = 34 + VIBRATO_ROOM;
 const BEND_LABEL_Y = PAD_Y + VIBRATO_ROOM + 8;
 const BEND_ARROWHEAD_TIP_Y = PAD_Y + VIBRATO_ROOM + 14;
 const BEND_ARROWHEAD_BASE_Y = PAD_Y + VIBRATO_ROOM + 18;
+// A release-type bend (direction="down" in renderBendArrow) arrives already
+// at its peak and comes back down during the note — real notation draws
+// that as a curve connecting back to the rising bend it's releasing from
+// (found via findPrecedingBendColIdx), not a mirrored copy of the rising
+// arrow's own straight shaft. This is the curve's own starting offset — a
+// few px diagonally down-right from the rising arrow's own tip, so the two
+// read as one continuous gesture without literally sharing a vertex with
+// that arrow's own arrowhead polygon (which would look like a coincidence,
+// not an intentional join).
+const BEND_RELEASE_GAP = 3;
+// Where a harmonic-type technique's own text ("P.H.", "N.H.", "T.H.") sits
+// above the staff — the headroom's own LOWER half, not sharing BEND_LABEL_Y's
+// row (the upper half, where "Full" sits) — a beat can genuinely have both a
+// bend AND a harmonic at once, so the two labels need their own separate
+// rows. The squeeze is real: below BEND_ARROWHEAD_BASE_Y the arrowhead
+// triangle's own tip pokes into the label (tried +4, the "P" clipped its
+// left corner); at/below the top string's own cutout a harmonic on the
+// highest string collides with its own label instead (tried right at the
+// string line originally). +8 is the sliver between those two failures —
+// still shares this one row with every harmonic label, bend or not, rather
+// than carving out a special case just for the bend-arrow combination.
+const HARMONIC_LABEL_Y = BEND_ARROWHEAD_BASE_Y + 8;
+// A beat with a bend already has its arrow's shaft running straight down
+// the note's own center x — nudging the harmonic label to START just right
+// of that center, instead of centering it there like the bend-free case,
+// keeps it legible next to the shaft instead of straddling it. Small on
+// purpose (a first version used 4px): the note this most often lands on is
+// the LAST beat of its bar (a bend's peak, released a beat or two later,
+// often falls right at a phrase's end) — every bar is its own <svg>, which
+// clips its own content at its own right edge, so anything pushed too far
+// right runs straight into that boundary. See HARMONIC_LABEL_WIDTH below
+// for how far right this can safely go on any given beat.
+const HARMONIC_LABEL_BEND_OFFSET_X = 2;
+// All three harmonic labels are the same length ("P.H.", "N.H.", "T.H."), so
+// one fixed width estimate covers every case — unlike CUTOUT_CHAR_WIDTH
+// (below), which has to handle genuinely different lengths (a connector
+// prefix, a 1-2 digit fret) and so multiplies per character instead. SVG has
+// no synchronous way to measure real rendered text width; this errs a
+// little wide, the safe direction, same reasoning as CUTOUT_CHAR_WIDTH.
+const HARMONIC_LABEL_WIDTH = 17;
 // One mark per BEAT, same "shared, not per-note" reasoning as the bend
 // arrow above — and always in this same fixed spot, whether or not the beat
 // also has a bend. Originally drawn inline right after the fret digit, but
@@ -141,6 +181,18 @@ const RAIL_THUMB_SIZE = 10;
 
 const CONNECTOR_LABEL: Record<string, string> = { h: "h", p: "p", "/": "/" };
 
+// Every harmonic-type technique's own display text — the same "X.H."
+// shorthand real tab notation (and alphaTab's own renderer) already uses.
+// alphaTab also has Artificial/Semi/Feedback harmonic types with no entry
+// here — they have no glossary symbol yet (see lib/importGuitarPro.ts's own
+// harmonicType mapping), so they fall through cleanly: no label, no diamond,
+// same as any other unmapped technique.
+const HARMONIC_LABELS: Partial<Record<TechniqueSymbol, string>> = {
+  PH: "P.H.",
+  NH: "N.H.",
+  TH: "T.H.",
+};
+
 /**
  * "Full", "1/2", "1 1/2", etc. from a raw quarter-tone amount (lib/tab.ts's
  * TabNote.bendAmount — 4 = a full step, alphaTab's own unit) — a plain
@@ -184,6 +236,37 @@ function bendGroupLabel(amounts: number[]): string {
 function withBendFirst(note: TabNote): TabNote {
   if (!note.techniques.includes("b")) return note;
   return { ...note, techniques: ["b", ...note.techniques.filter((t) => t !== "b")] };
+}
+
+/**
+ * The nearest earlier beat, within the same bar, whose note on this string
+ * is a rising bend — what a release-type bend's own curve connects back to
+ * (see renderBendArrow's "down" branch). Scoped to the current bar on
+ * purpose: reaching into a previous bar would mean spanning two separate
+ * <svg> elements in two separate local coordinate systems, which a single
+ * path can't do (the same reason the playhead itself became a single
+ * page-coordinate overlay instead of one element per bar). null when there
+ * genuinely isn't one in this bar — the caller falls back to a plain arrow.
+ */
+function findPrecedingBendColIdx(bar: TabBeat[], beforeColIdx: number, string: number): number | null {
+  for (let i = beforeColIdx - 1; i >= 0; i--) {
+    if (bar[i].notes.some((n) => n.string === string && n.bendAmount != null && !n.bendReleasing)) return i;
+  }
+  return null;
+}
+
+/**
+ * The display label for whichever harmonic-type technique a note carries
+ * (P.H., N.H., T.H.) — null for a note with none, so both the notehead
+ * diamond and the above-staff text share this one lookup instead of
+ * checking each symbol by hand in two places.
+ */
+function harmonicNoteLabel(note: TabNote): string | null {
+  for (const technique of note.techniques) {
+    const label = HARMONIC_LABELS[technique];
+    if (label) return label;
+  }
+  return null;
 }
 
 function noteAriaLabel(note: TabNote): string {
@@ -351,6 +434,20 @@ export default function TabRenderer({
     }
   }
 
+  // The rail's own committed fill/dot position — anchored to the middle of
+  // the currently-sounding beat, not its raw start. The notation's own pill
+  // continuously creeps through the beat in real time (setPlayheadProgress),
+  // so a rail anchored to the beat's bare start reads as meaningfully behind
+  // the pill for the beat's whole first half, catching up only right before
+  // it snaps ahead again — a real, noticed "lagging" look during playback.
+  // The midpoint doesn't fix that (the rail still only moves in per-beat
+  // jumps, unlike the pill), but it halves the worst-case mismatch: ahead by
+  // half a beat's width right at the start, behind by half a beat's width
+  // right at the end, instead of a full beat's width of lag every time.
+  function committedRailFraction(barIdx: number, colIdx: number): number {
+    return (colIdx + 0.5) / barsRef.current[barIdx].length;
+  }
+
   // Toggles the thumb's own transition directly on the element (inline,
   // not a class) — set true right before any hover/drag preview position,
   // false only once a tracking session (hover or drag) truly ends. Inline
@@ -394,8 +491,9 @@ export default function TabRenderer({
   function restoreRailToCurrent() {
     const loc = currentLocationRef.current;
     if (loc) {
-      updateRailFill(loc.barIdx, loc.colIdx / barsRef.current[loc.barIdx].length);
-      positionRailThumb(loc.barIdx, loc.colIdx / barsRef.current[loc.barIdx].length);
+      const fraction = committedRailFraction(loc.barIdx, loc.colIdx);
+      updateRailFill(loc.barIdx, fraction);
+      positionRailThumb(loc.barIdx, fraction);
     } else {
       updateRailFill(-1, 0);
       hideRailThumb();
@@ -482,6 +580,15 @@ export default function TabRenderer({
   function commitSeek(location: BeatLocation) {
     hideGhost();
     onSeek?.(location);
+    // A clicked (or keyboard-activated) rail segment stays the focused
+    // element in Chrome afterward — so a later, unrelated Space press meant
+    // for the global play/pause shortcut (app/tablatura/page.tsx) lands on
+    // THIS element first and re-fires its own onKeyDown, silently re-
+    // seeking back to this exact spot before the page's own handler even
+    // runs. Blurring whatever's focused right after a seek commits means
+    // there's nothing left to catch that later keypress — same fix applied
+    // in openFrom below for the same reason.
+    (document.activeElement as HTMLElement | SVGElement | null)?.blur?.();
   }
 
   // Ghost + dot together, snapped to the exact beat pressed — the dot then
@@ -571,7 +678,7 @@ export default function TabRenderer({
         }
         activeBarRef.current = location.barIdx;
         currentLocationRef.current = location;
-        const fraction = location.colIdx / barsRef.current[location.barIdx].length;
+        const fraction = committedRailFraction(location.barIdx, location.colIdx);
         updateRailFill(location.barIdx, fraction);
         positionRailThumb(location.barIdx, fraction);
       },
@@ -612,6 +719,12 @@ export default function TabRenderer({
     const rect = target.getBoundingClientRect();
     setClosing(false);
     setSelected({ note, anchor: { x: rect.x, top: rect.top, bottom: rect.bottom }, openedVia });
+    // Only for a deliberate click/keyboard-activate, not a hover preview —
+    // same reason as commitSeek's own blur: leaves nothing focused to catch
+    // a later, unrelated Space press meant for the global play/pause
+    // shortcut. Less harmful here than on the rail (it would just re-open
+    // the same popup, not move playback), but the same fix either way.
+    if (openedVia === "click") target.blur();
   }
 
   return (
@@ -750,6 +863,11 @@ export default function TabRenderer({
           const shaftBottomY = direction === "up" ? edgeY : arrowheadBaseY;
           const rectTop = direction === "up" ? BEND_LABEL_Y - 9 : shaftTopY - 4;
           const rectBottom = direction === "up" ? shaftBottomY : arrowheadTipY;
+          // Only relevant for "down" — where this release curve connects
+          // back to, if anywhere (see findPrecedingBendColIdx's own
+          // comment). null falls back to a plain arrow instead of a curve.
+          const precedingBendColIdx =
+            direction === "down" ? findPrecedingBendColIdx(bar, colIdx, representativeNote.string) : null;
 
           return (
             <g
@@ -781,7 +899,21 @@ export default function TabRenderer({
                   target. Kept narrower than COL_W (32) on purpose, so it
                   can't reach into a neighboring beat's own hover zone. */}
               <rect x={x - 13} y={rectTop} width={26} height={rectBottom - rectTop} fill="transparent" />
-              <line x1={x} y1={shaftTopY} x2={x} y2={shaftBottomY} stroke="var(--accent)" strokeWidth={1.5} />
+              {precedingBendColIdx !== null ? (
+                // Connects back to the rising arrow found above: starts a
+                // small gap down-right of its own tip, control point
+                // directly above the landing point and level with the
+                // start — that's what makes the curve go right first, then
+                // arc down into the note, instead of a diagonal line.
+                <path
+                  d={`M ${precedingBendColIdx * COL_W + COL_W / 2 + BEND_RELEASE_GAP} ${BEND_ARROWHEAD_TIP_Y + BEND_RELEASE_GAP} Q ${x} ${BEND_ARROWHEAD_TIP_Y} ${x} ${arrowheadBaseY}`}
+                  stroke="var(--accent)"
+                  strokeWidth={1.5}
+                  fill="none"
+                />
+              ) : (
+                <line x1={x} y1={shaftTopY} x2={x} y2={shaftBottomY} stroke="var(--accent)" strokeWidth={1.5} />
+              )}
               <polygon
                 points={`${x - 3},${arrowheadBaseY} ${x + 3},${arrowheadBaseY} ${x},${arrowheadTipY}`}
                 fill="var(--accent)"
@@ -870,6 +1002,39 @@ export default function TabRenderer({
                 />
               ) : null;
 
+              // One label per beat, not per note — same "shared, not
+              // per-note" reasoning as the bend arrow and vibrato mark
+              // above. A chord with two different harmonic types stacked on
+              // the same beat is a real edge case Guitar Pro can produce,
+              // but rare enough that showing just the first one found is an
+              // acceptable simplification — the note's own popup still
+              // lists every technique it actually carries.
+              const harmonicNotes = beat.notes.filter((n) => harmonicNoteLabel(n) != null);
+              const hasBend = risingNotes.length > 0 || releasingNotes.length > 0;
+              // Clamped, not just the fixed offset — this bar's own <svg>
+              // clips at its own right edge (width), and a beat near the end
+              // of a bar leaves less than COL_W/2 of room to grow into.
+              // Shrinks toward 0 (starting flush at the note's own center,
+              // never past it) rather than ever going negative into the
+              // shaft's own x — see HARMONIC_LABEL_BEND_OFFSET_X's own
+              // comment for why this is usually the last beat of a bar.
+              const harmonicOffsetX = Math.max(
+                0,
+                Math.min(HARMONIC_LABEL_BEND_OFFSET_X, width - x - HARMONIC_LABEL_WIDTH),
+              );
+              const harmonicMark = harmonicNotes.length > 0 ? (
+                <text
+                  key={`${barIdx}-${colIdx}-harmonic`}
+                  x={hasBend ? x + harmonicOffsetX : x}
+                  y={HARMONIC_LABEL_Y}
+                  textAnchor={hasBend ? "start" : "middle"}
+                  fontSize={9}
+                  fill="var(--accent)"
+                >
+                  {harmonicNoteLabel(harmonicNotes[0])}
+                </text>
+              ) : null;
+
               // Extra, secondary seek path — clicking the notation itself,
               // not just the dedicated rail below. Painted first (furthest
               // back), so any note/bend-arrow hit-target painted after it
@@ -906,8 +1071,9 @@ export default function TabRenderer({
                 // uses (see the deferred-visual-notation-references memory)
                 // — sits just left of the note rather than around it, so it
                 // doesn't share an outline with the digit and fight it for
-                // legibility.
-                const isPinchHarmonic = note.techniques.includes("PH");
+                // legibility. Any harmonic type (see HARMONIC_LABELS), not
+                // just pinch harmonics.
+                const harmonicLabel = harmonicNoteLabel(note);
                 // The exact same string the <text> below renders (connector
                 // prefix + label) — the cutout has to cover precisely this,
                 // not just `label` alone, since the connector is what makes
@@ -918,11 +1084,11 @@ export default function TabRenderer({
 
                 return (
                   <g key={`${barIdx}-${colIdx}-${note.string}`}>
-                    {/* Painted before the PH diamond (not after, like the
-                        old single-size circle could get away with) — a wide
-                        cutout for a long label could otherwise paint over
-                        and hide part of the diamond, which sits close by at
-                        x-13..x-7. */}
+                    {/* Painted before the harmonic diamond (not after, like
+                        the old single-size circle could get away with) — a
+                        wide cutout for a long label could otherwise paint
+                        over and hide part of the diamond, which sits close
+                        by at x-13..x-7. */}
                     <rect
                       x={x - cutoutWidth / 2}
                       y={y - CUTOUT_HEIGHT / 2}
@@ -931,7 +1097,7 @@ export default function TabRenderer({
                       rx={CUTOUT_HEIGHT / 2}
                       fill="var(--background)"
                     />
-                    {isPinchHarmonic && (
+                    {harmonicLabel && (
                       <polygon
                         points={`${x - 10},${y - 4} ${x - 7},${y} ${x - 10},${y + 4} ${x - 13},${y}`}
                         fill="var(--accent)"
@@ -981,7 +1147,7 @@ export default function TabRenderer({
               });
 
               if (risingNotes.length === 0 && releasingNotes.length === 0) {
-                return [seekThroughRect, vibratoMark, ...noteEls];
+                return [seekThroughRect, vibratoMark, harmonicMark, ...noteEls];
               }
 
               // Arrows FIRST, notes after — SVG paints in DOM order, and a
@@ -998,6 +1164,7 @@ export default function TabRenderer({
               return [
                 seekThroughRect,
                 vibratoMark,
+                harmonicMark,
                 renderBendArrow(colIdx, x, risingNotes, "up"),
                 renderBendArrow(colIdx, x, releasingNotes, "down"),
                 ...noteEls,

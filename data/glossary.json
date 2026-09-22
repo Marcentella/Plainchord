@@ -44,6 +44,18 @@
     "ejecucion": "Pulsa la cuerda con la púa y, en el mismo movimiento, deja que el borde del pulgar de esa misma mano roce la cuerda justo después del golpe. El punto exacto donde tocar cambia según la nota y hasta según la guitarra, así que no hay una posición fija que sirva siempre: hay que ir moviendo el punto de contacto hasta encontrar dónde \"salta\" el armónico. Al principio se siente más a suerte que a técnica, y es normal."
   },
   {
+    "name": "Natural harmonic",
+    "symbol": "NH",
+    "definicion": "Es un armónico que se obtiene tocando la cuerda al aire, muy suavemente, justo sobre un traste exacto (el 12, el 7 o el 5 son los más comunes) sin llegar a pisarlo, dejando sonar solo esa frecuencia armónica en vez de la nota completa de la cuerda.",
+    "ejecucion": "Apoya el dedo justo encima del traste, no detrás como al pisar una nota normal, y pulsa la cuerda con la púa, soltando el dedo apenas se escucha el golpe. Solo suena limpio sobre ciertos puntos exactos de la cuerda; si el dedo no está justo sobre el traste, el armónico no aparece o sale apagado."
+  },
+  {
+    "name": "Tap harmonic",
+    "symbol": "TH",
+    "definicion": "Es un armónico artificial parecido al pinch harmonic, pero provocado con un golpe seco de un dedo de la mano que normalmente rasguea, tocando la cuerda doce trastes por encima de la nota que ya está pisada con la otra mano.",
+    "ejecucion": "Pisa la nota con normalidad con la mano izquierda y, con un dedo de la derecha, golpea rápido la cuerda exactamente doce trastes más arriba (una octava), retirando el dedo enseguida para dejar sonar el armónico. Si el golpe cae fuera de esa zona exacta o el dedo se queda apoyado en la cuerda, el armónico no suena."
+  },
+  {
     "name": "Vibrato",
     "symbol": "~",
     "definicion": "Es una oscilación leve y repetida en la altura de una nota que ya está sonando, usada para darle vida y expresividad en vez de dejarla sonar plana y estática.",

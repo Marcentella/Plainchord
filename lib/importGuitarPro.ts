@@ -117,7 +117,12 @@ function noteTechniques(note: model.Note): {
 
   if (note.isDead) techniques.push("x");
   if (note.isPalmMute) techniques.push("PM");
+  // Artificial/Semi/Feedback (alphaTab's remaining HarmonicType members)
+  // stay unmapped for now, same as any other technique without a glossary
+  // symbol yet — only the three most common types get their own symbol.
   if (note.harmonicType === model.HarmonicType.Pinch) techniques.push("PH");
+  else if (note.harmonicType === model.HarmonicType.Natural) techniques.push("NH");
+  else if (note.harmonicType === model.HarmonicType.Tap) techniques.push("TH");
   else if (note.harmonicType !== model.HarmonicType.None) hadUnmappedEffect = true;
   if (note.vibrato !== model.VibratoType.None) techniques.push("~");
   if (note.hasBend) {

@@ -154,8 +154,22 @@ test("pinch harmonic maps to PH", () => {
   assert.deepEqual(result.tab.beats[0].notes[0].techniques, ["PH"]);
 });
 
-test("a natural harmonic has no glossary symbol yet -- degrades to untagged, counted as unmapped", () => {
+test("natural harmonic maps to NH", () => {
   const result = scoreToTab(scoreFromTex("3.1 { nh }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, ["NH"]);
+});
+
+test("tap harmonic maps to TH", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { th }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, ["TH"]);
+});
+
+test("an artificial harmonic has no glossary symbol yet -- degrades to untagged, counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { ah }"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
