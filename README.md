@@ -39,7 +39,7 @@ PlainChord es una referencia objetiva, tipo wiki bien diseñada — no una aplic
 ## Empezar a desarrollar
 
 ```bash
-git clone <url-del-repo>
+git clone https://github.com/Marcentella/Plainchord
 cd plainchord
 npm install
 npm run dev
