@@ -10,6 +10,23 @@
   }
 }
 
+/* Chrome shows its default focus outline on a plain mouse click for any
+   focusable element (an SVG rail segment, a bend arrow, a technique note —
+   anything with tabIndex for keyboard support); Firefox doesn't. This makes
+   both match Firefox's behavior instead: :focus-visible is false for a
+   click on a button-like element (so this rule's :not() lets the outline
+   through and it collapses to none) but stays TRUE for a click on a genuine
+   text field (browsers' own :focus-visible heuristic always matches text
+   inputs, click or keyboard) — so the accent focus ring already used on
+   inputs elsewhere (ChordProgressionInput.tsx, app/tablatura/page.tsx's
+   textarea/BPM field, app/glosario/page.tsx) is untouched by this. Kept
+   unlayered, not in @layer base, for the same reason the theme-transition
+   rule below is: a plain selector here needs to reliably outrank anything
+   in Tailwind's own @layer utilities, not lose to it by layer order. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* "azul" (default, no data-theme attribute — see the palette blocks
    below). Genuinely blue in both modes: background and accent are the
    same cool blue hue family in light AND dark, unlike the values this
