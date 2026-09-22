@@ -53,11 +53,7 @@ PlainChord no aloja, indexa ni distribuye tablaturas de canciones protegidas por
 
 ## Estado del proyecto
 
-En desarrollo activo. Ver `FEATURES.md` (no incluido en este repositorio público) para el detalle de fases y decisiones de alcance.
-
-## Licencia
-
-_Por definir._
+En desarrollo activo.
 
 ## Documentos relacionados
 
