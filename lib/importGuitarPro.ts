@@ -151,7 +151,14 @@ function noteTechniques(note: model.Note): {
   }
   if (note.isGhost && !note.isDead) hadUnmappedEffect = true;
   if (note.isLeftHandTapped) hadUnmappedEffect = true; // opposite hand from the glossary's "Tapping" (right-hand) — see the technique mapping table in the plan
-  if (note.accentuated !== model.AccentuationType.None) hadUnmappedEffect = true;
+  // Tenuto stays unmapped -- a genuinely different mark (a held/sustained
+  // line), not a louder variant of an accent. Normal and Heavy both map to
+  // the same accent glyph for now, same "no sub-variant" precedent as PH/NH/TH.
+  if (note.accentuated === model.AccentuationType.Normal || note.accentuated === model.AccentuationType.Heavy) {
+    techniques.push(">");
+  } else if (note.accentuated !== model.AccentuationType.None) {
+    hadUnmappedEffect = true;
+  }
   if (note.isStaccato) hadUnmappedEffect = true;
   if (note.isLetRing) hadUnmappedEffect = true;
   if (note.slideInType !== model.SlideInType.None) hadUnmappedEffect = true;

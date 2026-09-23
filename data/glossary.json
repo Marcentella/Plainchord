@@ -56,6 +56,12 @@
     "ejecucion": "Pisa la nota con normalidad con la mano izquierda y, con un dedo de la derecha, golpea rápido la cuerda exactamente doce trastes más arriba (una octava), retirando el dedo enseguida para dejar sonar el armónico. Si el golpe cae fuera de esa zona exacta o el dedo se queda apoyado en la cuerda, el armónico no suena."
   },
   {
+    "name": "Acento",
+    "symbol": ">",
+    "definicion": "Es tocar una nota con más fuerza y volumen que las que la rodean, para que resalte dentro del ritmo en vez de sonar al mismo nivel que el resto.",
+    "ejecucion": "Pulsa esa nota específica con más fuerza de púa que las notas vecinas, sin acelerar el tempo ni cambiar su duración — el énfasis está en el volumen del golpe, no en tocarla más rápido o más larga. Si el acento no se nota, casi siempre es porque la diferencia de fuerza con las notas de al lado es demasiado sutil."
+  },
+  {
     "name": "Vibrato",
     "symbol": "~",
     "definicion": "Es una oscilación leve y repetida en la altura de una nota que ya está sonando, usada para darle vida y expresividad en vez de dejarla sonar plana y estática.",
