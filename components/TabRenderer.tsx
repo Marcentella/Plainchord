@@ -153,6 +153,16 @@ const CUTOUT_R = 6;
 const CUTOUT_CHAR_WIDTH = 7.5;
 const CUTOUT_HEIGHT = CUTOUT_R * 2;
 const CUTOUT_MAX_WIDTH = COL_W - 4;
+// The accent mark's own point, offset right of the note's own center —
+// mirrors the harmonic diamond's own outer bound on the LEFT (x-13..x-7, see
+// noteEls below), just on the opposite side, so a note that's both accented
+// and a harmonic doesn't fight itself for the same few px. A drawn chevron,
+// not a text ">" character — same reason the bend arrowhead is plain SVG
+// shapes rather than a Unicode arrow: guaranteed identical rendering
+// everywhere, not left to font/platform differences. 9 read as touching a
+// 2-digit fret's own right edge (a plain digit's cutout half-width alone is
+// ~7.5px) — 13 gives it real clearance, same outer reach as the diamond.
+const ACCENT_MARK_OFFSET = 13;
 // Reserved below every bar, always, for the seek rail. Lives below rather
 // than above for the same reason bend arrows only ever grow upward into
 // BEND_HEADROOM: the space below the low-E string is unconditionally free
@@ -1074,6 +1084,7 @@ export default function TabRenderer({
                 // legibility. Any harmonic type (see HARMONIC_LABELS), not
                 // just pinch harmonics.
                 const harmonicLabel = harmonicNoteLabel(note);
+                const hasAccent = note.techniques.includes(">");
                 // The exact same string the <text> below renders (connector
                 // prefix + label) — the cutout has to cover precisely this,
                 // not just `label` alone, since the connector is what makes
@@ -1081,6 +1092,18 @@ export default function TabRenderer({
                 // CUTOUT_CHAR_WIDTH's own comment for the sizing approach.
                 const displayText = connecting ? CONNECTOR_LABEL[connecting] + label : label;
                 const cutoutWidth = Math.min(displayText.length * CUTOUT_CHAR_WIDTH, CUTOUT_MAX_WIDTH);
+                // Asymmetric, not just wider — the digit's own text still
+                // grows equally in both directions from center, but the
+                // accent chevron only ever sits on the right (see
+                // ACCENT_MARK_OFFSET), so only that side needs the extra
+                // reach. Math.max, not addition — the cutout only needs to
+                // reach exactly to the chevron's own point (plus a couple px
+                // clearance, same pattern as the bend arrow's own edgeY
+                // - CUTOUT_R - 2), not stack on top of the digit's own
+                // half-width too. Adding them left a wide dead strip of
+                // erased string with no mark drawn over most of it.
+                const cutoutLeftHalf = cutoutWidth / 2;
+                const cutoutRightHalf = hasAccent ? Math.max(cutoutWidth / 2, ACCENT_MARK_OFFSET + 2) : cutoutWidth / 2;
 
                 return (
                   <g key={`${barIdx}-${colIdx}-${note.string}`}>
@@ -1090,13 +1113,21 @@ export default function TabRenderer({
                         over and hide part of the diamond, which sits close
                         by at x-13..x-7. */}
                     <rect
-                      x={x - cutoutWidth / 2}
+                      x={x - cutoutLeftHalf}
                       y={y - CUTOUT_HEIGHT / 2}
-                      width={cutoutWidth}
+                      width={cutoutLeftHalf + cutoutRightHalf}
                       height={CUTOUT_HEIGHT}
                       rx={CUTOUT_HEIGHT / 2}
                       fill="var(--background)"
                     />
+                    {hasAccent && (
+                      <polyline
+                        points={`${x + ACCENT_MARK_OFFSET - 4},${y - 3} ${x + ACCENT_MARK_OFFSET},${y} ${x + ACCENT_MARK_OFFSET - 4},${y + 3}`}
+                        stroke="var(--accent)"
+                        strokeWidth={1.5}
+                        fill="none"
+                      />
+                    )}
                     {harmonicLabel && (
                       <polygon
                         points={`${x - 10},${y - 4} ${x - 7},${y} ${x - 10},${y + 4} ${x - 13},${y}`}

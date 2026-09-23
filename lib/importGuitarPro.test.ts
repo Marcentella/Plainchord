@@ -176,8 +176,22 @@ test("an artificial harmonic has no glossary symbol yet -- degrades to untagged,
   assert.equal(result.unmappedTechniques, 1);
 });
 
-test("an accent has no glossary symbol yet -- counted as unmapped", () => {
+test("a normal accent maps to >", () => {
   const result = scoreToTab(scoreFromTex("3.1 { ac }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, [">"]);
+});
+
+test("a heavy accent also maps to >", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { hac }"));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.tab.beats[0].notes[0].techniques, [">"]);
+});
+
+test("tenuto has no glossary symbol yet -- degrades to untagged, counted as unmapped", () => {
+  const result = scoreToTab(scoreFromTex("3.1 { ten }"));
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.tab.beats[0].notes[0].techniques, []);
