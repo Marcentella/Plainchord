@@ -272,7 +272,7 @@ html {
    transition. Higher specificity than `.theme-transitioning *` alone
    already wins here without `!important` (two classes vs one), but the
    notation tree layers its own per-element transitions on top (.rail-fill,
-   .playhead-rect, .ghost-rect, .rail-thumb-dot) that this must also beat
+   .playhead-rect, .ghost-rect, .rail-thumb-dot, .rail-hover-dot) that this must also beat
    during the switch, hence `!important`. */
 .theme-transitioning .tab-renderer *,
 .theme-transitioning .tab-renderer *::before,
@@ -525,25 +525,27 @@ dialog.tuner-dialog::backdrop {
    snappier than trying to fake a single continuous sweep across bars that
    are, mechanically, separate elements. */
 
-/* The rail's shared thumb dot — a page-coordinate overlay like
-   .playhead-rect/.ghost-rect, so it gets the same translate()-based glide
-   for a committed position (a real playback tick, or landing a seek).
-   TabRenderer.tsx's setRailThumbTracking switches this off inline (not via
-   a class here) for the duration of a hover snap or a drag's continuous
-   tracking — neither should ease into position, only a settled, committed
-   position glides. Inline rather than a class: see setRailThumbTracking's
-   own comment for why a class toggled on an ancestor wasn't reliable
-   enough here. */
+/* The rail's playing-position dot — a page-coordinate overlay like
+   .playhead-rect/.ghost-rect, so it gets the same translate()-based glide.
+   It only ever moves to a committed position (a playback tick, or landing a
+   seek); hover/drag previews use .rail-hover-dot instead. */
 .rail-thumb-dot {
   transition:
     opacity 80ms ease-out,
     transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* The hover/drag preview dot: snaps (no transform transition), like the
+   ghost pill — it's precise "right here" feedback, not a movement. */
+.rail-hover-dot {
+  transition: opacity 80ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .playhead-rect,
   .ghost-rect,
-  .rail-thumb-dot {
+  .rail-thumb-dot,
+  .rail-hover-dot {
     transition-duration: 0ms;
   }
 }
