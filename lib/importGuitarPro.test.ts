@@ -346,6 +346,7 @@ test("tuning reads low string to high, as it's conventionally written (\"E A D G
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.tab.tuning, ["E", "A", "D", "G", "B", "E"]);
+  assert.deepEqual(result.tab.tuningMidi, [40, 45, 50, 55, 59, 64]);
 });
 
 test("a non-standard tuning (drop D) is read in the same low-to-high order", () => {
@@ -353,6 +354,7 @@ test("a non-standard tuning (drop D) is read in the same low-to-high order", () 
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.deepEqual(result.tab.tuning, ["D", "A", "D", "G", "B", "E"]);
+  assert.deepEqual(result.tab.tuningMidi, [38, 45, 50, 55, 59, 64]);
 });
 
 test("garbage bytes are rejected as corruptFile, not thrown", async () => {
