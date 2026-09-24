@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { importer, midi, model, Settings } from "@coderline/alphatab";
 import { scoreToTab } from "./importGuitarPro.ts";
 import { parseTab } from "./parseTab.ts";
-import { tabToScore, createPlaybackSettings } from "./tabToScore.ts";
+import { tabToScore, createPlaybackSettings, playbackProgramFor } from "./tabToScore.ts";
 import type { Tab } from "./tab.ts";
 
 // alphaTex scores are the reference here for the same reason importGuitarPro's
@@ -88,14 +88,14 @@ test("tempo option and tab.tempo both set the tempo, the option winning", () => 
   assert.equal(tempoOf(tabToScore({ beats: tab.beats })), 120);
 });
 
-test("the chosen program is the only program the score plays", () => {
+test("the tab's program is the only program the score plays", () => {
   const tab: Tab = { beats: [{ position: 0, bar: 0, notes: [{ string: 0, fret: 0, techniques: [] }] }] };
   const programs = (score: model.Score) =>
     generateMidi(score)
       .events.filter((e) => e.type === midi.MidiEventType.ProgramChange)
       .map((e) => (e as unknown as { program: number }).program);
   assert.deepEqual([...new Set(programs(tabToScore(tab)))], [27]);
-  assert.deepEqual([...new Set(programs(tabToScore(tab, { program: 30 })))], [30]);
+  assert.deepEqual([...new Set(programs(tabToScore({ ...tab, program: 30 })))], [30]);
 });
 
 test("vibrato uses the tuned 360 tick / 0.5 semitone constants", () => {
@@ -160,3 +160,15 @@ test("round trip: tap harmonic", () => assertRoundTrips("3.1 { th } 5.1 r r"));
 test("round trip: durations (quarters, eighths, triplet)", () => assertRoundTrips(":4 3.1 :8 5.1 5.1 :8 { tu 3 } 3.1 4.1 5.1 :4 7.1"));
 test("round trip: a non-4/4 bar", () => assertRoundTrips("\\ts 3 4\n.\n3.1 5.1 7.1 | 3.1 5.1 7.1"));
 test("round trip: drop D tuning", () => assertRoundTrips("\\tuning E4 B3 G3 D3 A2 D2\n.\n0.6 2.5 3.4 r"));
+
+test("playbackProgramFor keeps a program the soundfont has and falls back to clean guitar otherwise", () => {
+  assert.equal(playbackProgramFor({}), 27); // plain text: no program
+  for (const program of [25, 26, 27, 28, 29, 30, 31]) assert.equal(playbackProgramFor({ program }), program);
+  // Outside the trimmed soundfont these would play silence.
+  for (const program of [0, 24, 32, 33, 127]) assert.equal(playbackProgramFor({ program }), 27);
+});
+
+test("a program outside the soundfont never reaches the score", () => {
+  const tab: Tab = { program: 33, beats: [{ position: 0, bar: 0, notes: [{ string: 0, fret: 0, techniques: [] }] }] };
+  assert.equal(tabToScore(tab).tracks[0].playbackInfo.program, 27);
+});

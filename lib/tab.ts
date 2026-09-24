@@ -107,6 +107,8 @@ export type Tab = {
   tuning?: string[];
   /** Same strings as `tuning`, low to high, but as exact MIDI note numbers (standard = [40, 45, 50, 55, 59, 64]) — `tuning` carries no octaves, so playback can't recover pitch from it. Guitar Pro imports only; unset means standard tuning. */
   tuningMidi?: number[];
+  /** General MIDI program of the imported track (25 = steel, 27 = clean, 30 = distortion...). Guitar Pro imports only; playback resolves it through playbackProgramFor (lib/tabToScore.ts), which falls back to clean guitar. */
+  program?: number;
   /** e.g. {numerator:4, denominator:4} for 4/4. Guitar Pro imports only, same limitation as title/artist/tempo/tuning above. */
   timeSignature?: { numerator: number; denominator: number };
 };
