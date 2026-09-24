@@ -372,6 +372,12 @@ export default function TabRenderer({
   const ghostRef = useRef<HTMLDivElement>(null);
   const railFillRefs = useRef<Map<number, SVGRectElement>>(new Map());
   const railThumbRef = useRef<HTMLDivElement>(null);
+  // A second, hollow dot for where a hover/drag would land — the solid thumb
+  // above only ever marks what's actually playing. Sharing one dot made the
+  // playback marker jump to the pointer and glide back on leave; this way the
+  // playing position never moves unless playback or a committed seek moves it
+  // (same split YouTube's seek bar makes with its separate hover marker).
+  const railHoverDotRef = useRef<HTMLDivElement>(null);
   // The playhead's real current location (not just its bar — colIdx too),
   // kept in sync by setPlayheadPosition below. Needed so a hover-leave or an
   // aborted drag can restore the rail's fill to what's actually playing,
@@ -458,56 +464,38 @@ export default function TabRenderer({
     return (colIdx + 0.5) / barsRef.current[barIdx].length;
   }
 
-  // Toggles the thumb's own transition directly on the element (inline,
-  // not a class) — set true right before any hover/drag preview position,
-  // false only once a tracking session (hover or drag) truly ends. Inline
-  // rather than a "rail-tracking" class toggled on a shared ancestor: a
-  // class relies on the browser committing that style change before the
-  // next transform write is *also* committed, and a hover/drag session can
-  // move fast enough (sibling rail-hit rects firing leave/enter, or a
-  // captured pointer's own rapid pointermove) that the two easily end up
-  // batched into the same style recalculation — the net effect reads as
-  // the dot visibly gliding to each new hover target instead of snapping.
-  // Setting `transition` directly on the exact element being moved, in the
-  // exact same call that's about to move it, leaves nothing to batch.
-  function setRailThumbTracking(tracking: boolean) {
-    const thumb = railThumbRef.current;
-    if (thumb) thumb.style.transition = tracking ? "none" : "";
-  }
-
-  // The single shared thumb — positioned in real page coordinates exactly
-  // like playheadRef/ghostRef, not per bar (see the ref's own comment for
-  // why). `fraction` can be continuous (a live hover/drag preview) or
-  // discrete (colIdx/bar.length, a committed position); either way this is
-  // the only place that moves it.
-  function positionRailThumb(barIdx: number, fraction: number) {
-    const thumb = railThumbRef.current;
+  // Places a rail dot in real page coordinates exactly like
+  // playheadRef/ghostRef, not per bar (see railThumbRef's own comment for
+  // why). `fraction` can be continuous (a drag) or discrete (a beat).
+  function positionRailDot(dot: HTMLDivElement | null, barIdx: number, fraction: number) {
     const wrapper = wrapperRef.current;
     const barSvg = svgRefs.current.get(barIdx);
-    if (!thumb || !wrapper || !barSvg) return;
+    if (!dot || !wrapper || !barSvg) return;
     const wrapperRect = wrapper.getBoundingClientRect();
     const barRect = barSvg.getBoundingClientRect();
     const barWidth = barsRef.current[barIdx].length * COL_W;
     const x = barRect.left - wrapperRect.left + fraction * barWidth;
     const y = barRect.top - wrapperRect.top + RAIL_Y + SEEK_RAIL_VISUAL_HEIGHT / 2;
-    thumb.style.transform = `translate(${x}px, ${y}px)`;
-    thumb.style.setProperty("opacity", "1");
+    dot.style.transform = `translate(${x}px, ${y}px)`;
+    dot.style.setProperty("opacity", "1");
+  }
+
+  /** The solid dot: only ever a committed, playing position. */
+  function positionRailThumb(barIdx: number, fraction: number) {
+    positionRailDot(railThumbRef.current, barIdx, fraction);
   }
 
   function hideRailThumb() {
     railThumbRef.current?.style.setProperty("opacity", "0");
   }
 
-  function restoreRailToCurrent() {
-    const loc = currentLocationRef.current;
-    if (loc) {
-      const fraction = committedRailFraction(loc.barIdx, loc.colIdx);
-      updateRailFill(loc.barIdx, fraction);
-      positionRailThumb(loc.barIdx, fraction);
-    } else {
-      updateRailFill(-1, 0);
-      hideRailThumb();
-    }
+  /** The hollow dot: where a hover or drag would land. */
+  function positionHoverDot(barIdx: number, fraction: number) {
+    positionRailDot(railHoverDotRef.current, barIdx, fraction);
+  }
+
+  function hideHoverDot() {
+    railHoverDotRef.current?.style.setProperty("opacity", "0");
   }
 
   function showGhostAt(location: BeatLocation) {
@@ -589,6 +577,7 @@ export default function TabRenderer({
   // a commit arrived via onClick instead.
   function commitSeek(location: BeatLocation) {
     hideGhost();
+    hideHoverDot();
     onSeek?.(location);
     // A clicked (or keyboard-activated) rail segment stays the focused
     // element in Chrome afterward — so a later, unrelated Space press meant
@@ -601,28 +590,22 @@ export default function TabRenderer({
     (document.activeElement as HTMLElement | SVGElement | null)?.blur?.();
   }
 
-  // Ghost + dot together, snapped to the exact beat pressed — the dot then
-  // tracks continuously from here via handleRailDragMove's own pointermove.
-  // Only a drag moves the dot at all; plain hover only shows the ghost (see
-  // the rail-hit rect's own onPointerEnter) — an earlier version also
-  // snapped the dot to whichever beat was hovered, but sweeping the pointer
-  // across the rail made it visibly teleport bar to bar, which read as
-  // broken rather than responsive. Worth reconsidering as an opt-in
-  // preference later, not as the default.
+  // Ghost + hover dot together, snapped to the exact beat pressed — the
+  // hover dot then tracks continuously via handleRailDragMove. The playing
+  // (solid) dot stays put until the seek actually commits.
   function handleRailDragStart(e: ReactPointerEvent, barIdx: number, colIdx: number) {
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     draggingRef.current = true;
     pointerHandledRef.current = false;
-    setRailThumbTracking(true);
     showGhostAt({ barIdx, colIdx });
-    positionRailThumb(barIdx, colIdx / barsRef.current[barIdx].length);
+    positionHoverDot(barIdx, committedRailFraction(barIdx, colIdx));
   }
 
   function handleRailDragMove(e: ReactPointerEvent) {
     const result = nearestBeatAtPoint(e.clientX, e.clientY);
     if (!result) return;
     showGhostAt({ barIdx: result.barIdx, colIdx: result.colIdx });
-    positionRailThumb(result.barIdx, result.fraction);
+    positionHoverDot(result.barIdx, result.fraction);
   }
 
   // commit=false is a cancelled gesture (e.g. a touch scroll interrupting
@@ -631,17 +614,16 @@ export default function TabRenderer({
   function handleRailDragEnd(e: ReactPointerEvent, commit: boolean) {
     draggingRef.current = false;
     pointerHandledRef.current = true;
-    setRailThumbTracking(false);
     if (!commit) {
       hideGhost();
-      restoreRailToCurrent();
+      hideHoverDot();
       return;
     }
     const result = nearestBeatAtPoint(e.clientX, e.clientY);
     if (result) commitSeek({ barIdx: result.barIdx, colIdx: result.colIdx });
     else {
       hideGhost();
-      restoreRailToCurrent();
+      hideHoverDot();
     }
   }
 
@@ -706,6 +688,10 @@ export default function TabRenderer({
         creep.style.transform = `translateX(${progress.fraction * COL_W}px)`;
       },
     }),
+    // Every helper called above only reads refs (positionRailThumb goes
+    // through positionRailDot, which the rule can't see is ref-only), so
+    // the handle is safe to build once at mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -805,10 +791,9 @@ export default function TabRenderer({
           opacity: 0,
         }}
       />
-      {/* The rail's own thumb — one shared dot, not one per bar (see
-          railThumbRef's own comment for why). Marks the current committed
-          position at rest, or tracks a hover/drag candidate live; the ghost
-          above is what confirms exactly which beat that candidate is. */}
+      {/* The rail's own thumb — one dot, not one per bar (see railThumbRef's
+          own comment for why). Solid: only ever the committed, playing
+          position. Hover/drag previews use the hollow dot below. */}
       <div
         ref={railThumbRef}
         aria-hidden
@@ -820,6 +805,25 @@ export default function TabRenderer({
           marginTop: -RAIL_THUMB_SIZE / 2,
           borderRadius: "50%",
           backgroundColor: "var(--accent)",
+          opacity: 0,
+        }}
+      />
+      {/* Hover/drag preview dot — hollow, like the ghost pill, so "where I'd
+          land" never reads as "what's playing." Filled with the page
+          background so the rail doesn't show through the ring. */}
+      <div
+        ref={railHoverDotRef}
+        aria-hidden
+        className="rail-hover-dot pointer-events-none absolute left-0 top-0"
+        style={{
+          width: RAIL_THUMB_SIZE,
+          height: RAIL_THUMB_SIZE,
+          marginLeft: -RAIL_THUMB_SIZE / 2,
+          marginTop: -RAIL_THUMB_SIZE / 2,
+          borderRadius: "50%",
+          backgroundColor: "var(--background)",
+          border: "1.5px solid var(--accent)",
+          boxSizing: "border-box",
           opacity: 0,
         }}
       />
@@ -1266,25 +1270,21 @@ export default function TabRenderer({
                     commitSeek({ barIdx, colIdx });
                   }
                 }}
-                // Plain hover shows the ghost and snaps the dot straight to
-                // this beat — no continuous tracking, and setRailThumbTracking
-                // keeps it a true snap, not a glide (see that function's own
-                // comment). Each beat is its own rect, so moving to a
-                // neighboring one is a plain enter/leave pair — no
-                // pointermove needed here; only an active drag's pointermove
-                // tracks continuously (handleRailDragMove, below), the one
-                // place that's supposed to feel smooth.
+                // Plain hover shows the ghost and the hollow hover dot on
+                // this beat, at the same spot the solid dot would sit if the
+                // seek were committed. Each beat is its own rect, so moving
+                // to a neighbor is a plain enter/leave pair — only an active
+                // drag's pointermove tracks continuously (handleRailDragMove).
+                // The solid playing dot is never touched here.
                 onPointerEnter={() => {
                   if (draggingRef.current) return;
-                  setRailThumbTracking(true);
                   showGhostAt({ barIdx, colIdx });
-                  positionRailThumb(barIdx, colIdx / barsRef.current[barIdx].length);
+                  positionHoverDot(barIdx, committedRailFraction(barIdx, colIdx));
                 }}
                 onPointerLeave={() => {
                   if (draggingRef.current) return;
                   hideGhost();
-                  restoreRailToCurrent();
-                  setRailThumbTracking(false);
+                  hideHoverDot();
                 }}
                 onPointerMove={(e) => {
                   if (draggingRef.current) handleRailDragMove(e);
