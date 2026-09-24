@@ -9,7 +9,19 @@ import type { Tab, TabBeat, TabNote } from "./tab";
 
 /** GM program 27 — "Clean Guitar" in public/soundfont/FluidR3_GM.sf3. */
 const DEFAULT_PROGRAM = 27;
+/**
+ * The only presets public/soundfont/FluidR3_GM.sf3 keeps (it was trimmed to
+ * GM guitars 25-31: steel, jazz, clean, muted, overdrive, distortion,
+ * harmonics). Any other program resolves to no preset and plays silence.
+ */
+const SOUNDFONT_PROGRAMS = new Set([25, 26, 27, 28, 29, 30, 31]);
+
+/** The program a tab plays with: its own track program when the soundfont has it, else clean guitar. */
+export function playbackProgramFor(tab: Pick<Tab, "program">): number {
+  return tab.program !== undefined && SOUNDFONT_PROGRAMS.has(tab.program) ? tab.program : DEFAULT_PROGRAM;
+}
 const DEFAULT_TEMPO = 120;
+const TICKS_PER_QUARTER = 960;
 const STANDARD_TUNING_LOW_TO_HIGH = [40, 45, 50, 55, 59, 64];
 
 // alphaTab's own bend-point convention (offset 0-60 across the note, value in
@@ -35,8 +47,6 @@ export function createPlaybackSettings(): Settings {
 export type TabToScoreOptions = {
   /** BPM. Falls back to tab.tempo, then 120. */
   tempo?: number;
-  /** General MIDI program. Falls back to 27 (clean guitar). */
-  program?: number;
 };
 
 // Every (duration, dots, tuplet) combination a beat's length in quarter notes
@@ -84,21 +94,30 @@ function quartersOf(beat: TabBeat): number {
   return beat.duration ?? 1;
 }
 
+function ticksOf(beat: TabBeat): number {
+  return Math.round(quartersOf(beat) * TICKS_PER_QUARTER);
+}
+
 /**
  * A bar's time signature comes from what's actually in it, not from
  * tab.timeSignature: alphaTab places each bar at masterBar.calculateDuration(),
  * and a plain-text tab has no meter at all (its bars are just N implicit
  * quarters). A signature that disagrees with the bar's beats makes bars
  * overlap or leave gaps in the MIDI.
+ *
+ * The bar's length must be exact to the tick (the playhead times from the
+ * same ticks). alphaTab measures a bar as numerator * (3840 / denominator | 0),
+ * so power-of-2 denominators stay exact down to 256 (15 ticks); a bar of
+ * truncated tuplets (a 16th septuplet is 137 ticks) can sum to 3839, which
+ * only a 1-tick unit spells. That denominator only reaches the MIDI
+ * time-signature event, which the synth ignores for timing.
  */
-function timeSignatureFor(quarters: number): { numerator: number; denominator: number } {
-  for (const denominator of [4, 8, 16, 32]) {
-    const numerator = (quarters * denominator) / 4;
-    if (Math.abs(numerator - Math.round(numerator)) < 1e-3 && Math.round(numerator) >= 1) {
-      return { numerator: Math.round(numerator), denominator };
-    }
+function timeSignatureFor(ticks: number): { numerator: number; denominator: number } {
+  for (const denominator of [4, 8, 16, 32, 64, 128, 256]) {
+    const unit = (4 * TICKS_PER_QUARTER) / denominator;
+    if (ticks % unit === 0) return { numerator: ticks / unit, denominator };
   }
-  return { numerator: Math.max(1, Math.round(quarters * 8)), denominator: 32 };
+  return { numerator: ticks, denominator: 4 * TICKS_PER_QUARTER };
 }
 
 /**
@@ -228,7 +247,7 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
   // score it loads itself; the secondary channel is where notes that need
   // their own pitch bend (bends, vibrato) go so they don't drag other notes.
   const playback = track.playbackInfo;
-  playback.program = options.program ?? DEFAULT_PROGRAM;
+  playback.program = playbackProgramFor(tab);
   playback.primaryChannel = 0;
   playback.secondaryChannel = 1;
   playback.port = 1;
@@ -258,10 +277,11 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
   // in the immediately preceding beat.
   let previousNotes = new Map<number, model.Note>();
   let previousBendEnds = new Map<number, number>();
+  const tabBeatOf = new Map<model.Beat, TabBeat>();
 
   bars.forEach((tabBeats, barIndex) => {
     const masterBar = new model.MasterBar();
-    const signature = timeSignatureFor(tabBeats.reduce((sum, beat) => sum + quartersOf(beat), 0));
+    const signature = timeSignatureFor(tabBeats.reduce((sum, beat) => sum + ticksOf(beat), 0));
     masterBar.timeSignatureNumerator = signature.numerator;
     masterBar.timeSignatureDenominator = signature.denominator;
     if (barIndex === 0) {
@@ -282,6 +302,7 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
       beat.tupletNumerator = rhythm.tupletNumerator;
       beat.tupletDenominator = rhythm.tupletDenominator;
       voice.addBeat(beat);
+      tabBeatOf.set(beat, tabBeat);
 
       const notes = new Map<number, model.Note>();
       const bendEnds = new Map<number, number>();
@@ -298,5 +319,19 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
   });
 
   score.finish(settings);
+
+  // The playhead (lib/playhead.ts) times beats from Tab durations, so the
+  // audio must too, to the tick. rhythmFor can only approximate lengths that
+  // no notated rhythm spells (a Guitar Pro grace note's 0, the 0.625 of the
+  // beat it borrowed time from), and MidiFileGenerator reads these two fields
+  // directly, so the exact ticks overwrite whatever finish() derived.
+  for (const bar of staff.bars) {
+    let tick = 0;
+    for (const beat of bar.voices[0].beats) {
+      beat.playbackStart = tick;
+      beat.playbackDuration = ticksOf(tabBeatOf.get(beat)!);
+      tick += beat.playbackDuration;
+    }
+  }
   return score;
 }

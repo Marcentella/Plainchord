@@ -363,3 +363,10 @@ test("garbage bytes are rejected as corruptFile, not thrown", async () => {
   if (result.ok) return;
   assert.equal(result.error, "corruptFile");
 });
+
+test("the six-string track's program is carried over for playback", () => {
+  const result = scoreToTab(scoreFromTex('\\track "Lead" { instrument 30 }\n3.1 5.1'));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.tab.program, 30);
+});
