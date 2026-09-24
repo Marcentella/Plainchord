@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Tab } from "./tab";
 import { groupIntoBars } from "./groupIntoBars";
 import { buildTimeline, locateAtElapsedWithFraction, startSecondsFor, type BeatLocation } from "./playhead";
+import { useAudioPlayback } from "./useAudioPlayback";
 
 export type PlayheadTarget = {
   // animate: true only for an explicit seek() — a genuine, non-continuous
@@ -29,16 +30,24 @@ export type PlayheadTarget = {
  *
  * Kept in its own file (not inlined where it's used) because it has two
  * consumers — the transport controls and TabRenderer's imperative handle —
- * and because it's the one file a future real audio clock (Fase 3) would
- * ever need to touch: swapping performance.now()-diffing for an audio
- * clock's own elapsed time doesn't require changing anything that calls
- * this hook.
+ * and because it's the one place that knows where time comes from. Each
+ * play() picks the clock: the synth's (lib/useAudioPlayback.ts), so the pill
+ * follows what's actually heard, or — when audio can't start (soundfont
+ * fetch failed, AudioContext blocked) — plain performance.now()-diffing, the
+ * silent visual tempo guide this hook always was. Callers can't tell which.
  */
 export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefObject<PlayheadTarget | null>) {
   const [isPlaying, setIsPlaying] = useState(false);
   const startedAtRef = useRef<number | null>(null); // performance.now() that maps to elapsed=0
   const pausedElapsedRef = useRef(0); // elapsed seconds banked at last pause/stop
   const lastLocationRef = useRef<BeatLocation | null>(null); // dedupe key — avoids redundant DOM writes
+  const usingAudioRef = useRef(false); // which clock the current/last play() chose
+  // Bumped by anything that should cancel a play() still waiting on audio
+  // setup (stop, pause, a new tab) — the first Play downloads the soundfont,
+  // and a user who gave up in the meantime mustn't get sound seconds later.
+  const playRequestRef = useRef(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const audio = useAudioPlayback(() => stop());
 
   // A pure derivation of tab/bpm, not an imperative concern — useMemo, not
   // the ref+deps-less-effect pattern used elsewhere in this file for things
@@ -58,6 +67,7 @@ export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefO
   if (tab !== prevTab) {
     setPrevTab(tab);
     setIsPlaying(false);
+    setIsLoading(false);
   }
 
   // Ref resets + clearing the DOM playhead (an imperative call into
@@ -68,23 +78,62 @@ export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefO
   useEffect(() => {
     pausedElapsedRef.current = 0;
     lastLocationRef.current = null;
+    playRequestRef.current++;
+    if (usingAudioRef.current) audio.stop();
     targetRef.current?.setPlayheadPosition(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  function play() {
-    if (isPlaying || !bpm) return;
-    startedAtRef.current = performance.now() - pausedElapsedRef.current * 1000;
+  // BPM only changes while stopped/paused (the field is disabled during
+  // playback). One tempo means every time in the song scales by the same
+  // ratio, so rescaling the banked position keeps the playhead on the same
+  // beat instead of wherever the old seconds land at the new speed.
+  const bpmRef = useRef(bpm);
+  useEffect(() => {
+    if (bpmRef.current && bpm) pausedElapsedRef.current *= bpmRef.current / bpm;
+    bpmRef.current = bpm;
+  }, [bpm]);
+
+  function elapsedSeconds(): number {
+    return usingAudioRef.current ? audio.getElapsedSeconds() : (performance.now() - startedAtRef.current!) / 1000;
+  }
+
+  // Must be called straight from the click/keypress: the first call builds
+  // the AudioContext, which browsers only allow inside a user gesture. That
+  // happens synchronously, before ensureReady's first await.
+  async function play() {
+    if (isPlaying || isLoading || !bpm || !tab) return;
+    const request = ++playRequestRef.current;
+    setIsLoading(true);
+    const withAudio = await audio.ensureReady(tab, bpm);
+    if (request !== playRequestRef.current) return; // cancelled while loading
+    setIsLoading(false);
+    usingAudioRef.current = withAudio;
+    const from = pausedElapsedRef.current;
+    if (withAudio) {
+      // Always seek: a reload (new bpm) restarts the synth at 0, and a
+      // stopped synth is at 0 while the playhead may have been clicked elsewhere.
+      audio.seek(from);
+      audio.play();
+    } else {
+      startedAtRef.current = performance.now() - from * 1000;
+    }
     setIsPlaying(true);
   }
 
   function pause() {
-    if (!isPlaying || startedAtRef.current == null) return;
-    pausedElapsedRef.current = (performance.now() - startedAtRef.current) / 1000;
+    playRequestRef.current++;
+    setIsLoading(false);
+    if (!isPlaying) return;
+    pausedElapsedRef.current = elapsedSeconds();
+    if (usingAudioRef.current) audio.pause();
     setIsPlaying(false);
   }
 
   function stop() {
+    playRequestRef.current++;
+    setIsLoading(false);
+    if (usingAudioRef.current) audio.stop();
     setIsPlaying(false);
     pausedElapsedRef.current = 0;
     lastLocationRef.current = null;
@@ -103,7 +152,8 @@ export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefO
     if (startSeconds === null) return;
     pausedElapsedRef.current = startSeconds;
     if (isPlaying) {
-      startedAtRef.current = performance.now() - startSeconds * 1000;
+      if (usingAudioRef.current) audio.seek(startSeconds);
+      else startedAtRef.current = performance.now() - startSeconds * 1000;
     }
     lastLocationRef.current = location;
     targetRef.current?.setPlayheadPosition(location, true);
@@ -121,7 +171,7 @@ export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefO
     if (!isPlaying || !bpm) return;
     let raf: number;
     const tick = () => {
-      const elapsed = (performance.now() - startedAtRef.current!) / 1000;
+      const elapsed = elapsedSeconds();
       const located = locateAtElapsedWithFraction(timeline, elapsed);
       if (located === null) {
         stop();
@@ -139,5 +189,16 @@ export function usePlayhead(tab: Tab | null, bpm: number | null, targetRef: RefO
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, bpm, timeline]);
 
-  return { isPlaying, play, pause, stop, seek };
+  return {
+    isPlaying,
+    isLoading,
+    play,
+    pause,
+    stop,
+    seek,
+    audioStatus: audio.status,
+    audioProgress: audio.progress,
+    muted: audio.muted,
+    setMuted: audio.setMuted,
+  };
 }

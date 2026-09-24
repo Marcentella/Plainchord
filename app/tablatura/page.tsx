@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Loader2, Pause, Play, RotateCcw, Square, Upload } from "lucide-react";
+import { FolderOpen, Loader2, Pause, Play, RotateCcw, Square, Upload, Volume2, VolumeX } from "lucide-react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
 import TabRenderer, { type TabRendererHandle } from "@/components/TabRenderer";
@@ -250,7 +250,7 @@ export default function Tablatura() {
   const subtitle = state.kind === "ok" ? tabSubtitle(state.tab) : null;
   const showTabArea = state.kind === "ok" || isImporting;
   const effectiveBpm = state.kind === "ok" ? (bpmOverride ?? state.tab.tempo ?? null) : null;
-  const { isPlaying, play, pause, stop, seek } = usePlayhead(
+  const { isPlaying, isLoading, play, pause, stop, seek, audioStatus, audioProgress, muted, setMuted } = usePlayhead(
     state.kind === "ok" ? state.tab : null,
     effectiveBpm,
     tabRendererRef,
@@ -272,7 +272,7 @@ export default function Tablatura() {
       e.preventDefault(); // stop the page scrolling, even on OS key-repeat
       if (e.repeat) return; // ...but only toggle once per press, not on every repeat while held
       if (isPlaying) pause();
-      else play();
+      else void play();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -416,12 +416,21 @@ export default function Tablatura() {
             <div className="flex items-center gap-3 text-sm">
               <button
                 type="button"
-                onClick={() => (isPlaying ? pause() : play())}
+                // While the sound is loading this stays enabled and acts as
+                // pause, so a slow first download can be cancelled.
+                onClick={() => (isPlaying || isLoading ? pause() : void play())}
                 disabled={!effectiveBpm}
-                aria-label={t(isPlaying ? "tab.pause" : "tab.play")}
+                aria-label={t(isPlaying || isLoading ? "tab.pause" : "tab.play")}
+                aria-busy={isLoading}
                 className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
               >
-                {isPlaying ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
+                {isLoading ? (
+                  <Loader2 size={16} className="animate-spin" aria-hidden />
+                ) : isPlaying ? (
+                  <Pause size={16} aria-hidden />
+                ) : (
+                  <Play size={16} aria-hidden />
+                )}
               </button>
               <button
                 type="button"
@@ -432,6 +441,15 @@ export default function Tablatura() {
               >
                 <Square size={16} aria-hidden />
               </button>
+              <button
+                type="button"
+                onClick={() => setMuted(!muted)}
+                aria-label={t(muted ? "tab.unmute" : "tab.mute")}
+                aria-pressed={muted}
+                className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+              >
+                {muted ? <VolumeX size={16} aria-hidden /> : <Volume2 size={16} aria-hidden />}
+              </button>
               <label className="flex items-center gap-1.5 text-muted">
                 {t("tab.bpmLabel")}
                 <input
@@ -439,7 +457,7 @@ export default function Tablatura() {
                   min={20}
                   max={400}
                   value={bpmOverride ?? state.tab.tempo ?? ""}
-                  disabled={isPlaying}
+                  disabled={isPlaying || isLoading}
                   onChange={(e) => setBpmOverride(e.target.value ? Number(e.target.value) : null)}
                   className="w-16 rounded-md border border-line bg-transparent px-2 py-1 text-foreground focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2 disabled:opacity-50"
                 />
@@ -448,7 +466,7 @@ export default function Tablatura() {
                 <button
                   type="button"
                   onClick={() => setBpmOverride(null)}
-                  disabled={isPlaying}
+                  disabled={isPlaying || isLoading}
                   aria-label={t("tab.resetBpmAriaLabel")}
                   className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
                 >
@@ -456,7 +474,18 @@ export default function Tablatura() {
                 </button>
               )}
               {!effectiveBpm && <span className="text-xs text-muted">{t("tab.bpmHint")}</span>}
+              {isLoading && audioStatus === "loading" && (
+                <span className="text-xs text-muted" role="status">
+                  {t("tab.audioLoading", { percent: String(Math.round(audioProgress * 100)) })}
+                </span>
+              )}
             </div>
+          )}
+
+          {!isImporting && state.kind === "ok" && audioStatus === "error" && (
+            <p className="text-xs text-muted" role="status">
+              {t("tab.audioUnavailable")}
+            </p>
           )}
 
           {!isImporting && state.kind === "ok" && state.notices.length > 0 && (
