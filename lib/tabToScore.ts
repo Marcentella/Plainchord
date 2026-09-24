@@ -28,6 +28,14 @@ const STANDARD_TUNING_LOW_TO_HIGH = [40, 45, 50, 55, 59, 64];
 // quarter-tones), read off scores built by importer.ScoreLoader.loadAlphaTex
 // for "b (0 4)", "b release (4 0)" and "b hold (4 4)".
 const BEND_END = model.BendPoint.MaxPosition;
+// How long a bend takes to reach pitch (and a release to come back down).
+// Guitar Pro stores every bend as a straight line across the whole note, and
+// played that way a bend on a long note is a slow siren glide; a guitarist
+// gets there in a fraction of a second and holds. alphaTab's own "Fast" bend
+// style can't stand in: outside grace notes it bends at the END of the note.
+// Applied after score.finish(), which would otherwise re-classify a custom
+// shape back into a plain Bend and drop the extra point.
+const BEND_RISE_SECONDS = 0.12;
 
 /**
  * Playback settings shared by score.finish() here and by MidiFileGenerator in
@@ -218,6 +226,8 @@ function buildNote(
         }
         const amount = tabNote.bendAmount ?? (tabNote.bendTo != null && tabNote.fret != null ? (tabNote.bendTo - tabNote.fret) * 2 : 0);
         if (amount <= 0) break;
+        // Built as alphaTab's own straight-line shapes so finish() treats them
+        // normally; the playback shape is set after finish() (see the end of tabToScore).
         if (tabNote.bendReleasing) {
           note.bendType = model.BendType.Release;
           for (const point of bendPoints([0, amount], [BEND_END, 0])) note.addBendPoint(point);
@@ -272,6 +282,7 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
   if (bars.length === 0) bars.push([{ position: 0, bar: 0, notes: [] }]);
 
   const tempo = options.tempo ?? tab.tempo ?? DEFAULT_TEMPO;
+  const riseTicks = BEND_RISE_SECONDS * (tempo / 60) * TICKS_PER_QUARTER;
   // Per string: the last note built (for h/p// links) and where its bend
   // ended (for a "hold" that continues it). Cleared by any note that isn't
   // in the immediately preceding beat.
@@ -331,6 +342,15 @@ export function tabToScore(tab: Tab, options: TabToScoreOptions = {}): model.Sco
       beat.playbackStart = tick;
       beat.playbackDuration = ticksOf(tabBeatOf.get(beat)!);
       tick += beat.playbackDuration;
+      // Offset (0-60 across the note) where the bend arrives; Custom makes
+      // MidiFileGenerator play the points exactly as given.
+      const rise = beat.playbackDuration > 0 ? Math.min(BEND_END, Math.max(1, (BEND_END * riseTicks) / beat.playbackDuration)) : BEND_END;
+      for (const note of beat.notes) {
+        if (note.bendType !== model.BendType.Bend && note.bendType !== model.BendType.Release) continue;
+        const [from, to] = [note.bendPoints![0].value, note.bendPoints![1].value];
+        note.bendType = model.BendType.Custom;
+        note.bendPoints = bendPoints([0, from], [rise, to], [BEND_END, to]);
+      }
     }
   }
   return score;

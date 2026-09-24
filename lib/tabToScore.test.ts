@@ -50,6 +50,34 @@ function assertRoundTrips(tex: string) {
   assert.deepEqual(summarize(rebuilt), summarize(original));
 }
 
+const isBend = (e: Summary) => e.type === midi.MidiEventType.PerNotePitchBend;
+
+/** Final bend value per note, in event order: where each bend ends up, whatever its shape. */
+function bendTargets(events: Summary[]): number[] {
+  const last = new Map<string, number>();
+  for (const e of events.filter(isBend)) last.set(`${e.channel}:${e.noteKey}`, e.value!);
+  return [...last.values()];
+}
+
+/**
+ * Like assertRoundTrips, but for bends: tabToScore deliberately reshapes them
+ * (a quick rise, then hold — see BEND_RISE_SECONDS), so only everything else
+ * and each bend's destination must match alphaTab's straight-line original.
+ */
+function assertRoundTripsExceptBendShape(tex: string) {
+  const original = scoreFromTex(tex);
+  const result = scoreToTab(original);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const rebuilt = summarize(tabToScore(result.tab));
+  const expected = summarize(original);
+  assert.deepEqual(
+    rebuilt.filter((e) => !isBend(e)),
+    expected.filter((e) => !isBend(e)),
+  );
+  assert.deepEqual(bendTargets(rebuilt), bendTargets(expected));
+}
+
 test("open strings in standard tuning play E2 A2 D3 G3 B3 E4", () => {
   const tab: Tab = {
     beats: [0, 1, 2, 3, 4, 5].map((string, position) => ({ position, bar: 0, notes: [{ string, fret: 0, techniques: [] }] })),
@@ -150,10 +178,24 @@ test("round trip: accent", () => assertRoundTrips("3.1 { ac } 5.1 r r"));
 test("round trip: hammer-on", () => assertRoundTrips("3.1 { h } 5.1 7.1 r"));
 test("round trip: pull-off", () => assertRoundTrips("5.1 { h } 3.1 7.1 r"));
 test("round trip: shift slide", () => assertRoundTrips("3.1 { ss } 7.1 r r"));
-test("round trip: bend", () => assertRoundTrips("7.1 { b (0 4) } 5.1 r r"));
-test("round trip: half-step bend", () => assertRoundTrips("7.1 { b (0 2) } 5.1 r r"));
-test("round trip: bend then release on the next note", () => assertRoundTrips("7.1 { b (0 4) } r r r | 5.1 { b release (4 0) } r r r"));
-test("round trip: bend then hold", () => assertRoundTrips("7.1 { b (0 4) } 7.1 { b hold (4 4) } r r"));
+test("round trip: bend", () => assertRoundTripsExceptBendShape("7.1 { b (0 4) } 5.1 r r"));
+test("round trip: half-step bend", () => assertRoundTripsExceptBendShape("7.1 { b (0 2) } 5.1 r r"));
+test("round trip: bend then release on the next note", () =>
+  assertRoundTripsExceptBendShape("7.1 { b (0 4) } r r r | 5.1 { b release (4 0) } r r r"));
+test("round trip: bend then hold", () => assertRoundTripsExceptBendShape("7.1 { b (0 4) } 7.1 { b hold (4 4) } r r"));
+
+test("a bend reaches its target within 0.12 s and holds, however long the note", () => {
+  // A half note at 120 BPM (1 s): a straight-line bend would still be climbing until the end.
+  const tab: Tab = {
+    beats: [{ position: 0, bar: 0, duration: 2, notes: [{ string: 4, fret: 8, techniques: ["b"], bendTo: 10, bendAmount: 4 }] }],
+  };
+  const bends = summarize(tabToScore(tab, { tempo: 120 })).filter(isBend);
+  const target = bends[bends.length - 1].value!;
+  const riseTicks = 0.12 * 2 * 960; // 0.12 s at 2 quarters per second
+  const firstAtTarget = bends.find((e) => e.value === target)!.tick;
+  assert.ok(firstAtTarget <= Math.ceil(riseTicks), `target reached at tick ${firstAtTarget}, expected by ${riseTicks}`);
+  assert.ok(bends.filter((e) => e.tick > firstAtTarget).every((e) => e.value === target), "holds at the target");
+});
 test("round trip: natural harmonic", () => assertRoundTrips("12.1 { nh } 5.1 r r"));
 test("round trip: pinch harmonic", () => assertRoundTrips("3.1 { ph } 5.1 r r"));
 test("round trip: tap harmonic", () => assertRoundTrips("3.1 { th } 5.1 r r"));

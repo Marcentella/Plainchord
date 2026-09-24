@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Tab } from "./tab";
 import type { OutMessage } from "./synth/synthWorker";
+import { createToneChain, TONE_DEFAULT, type ToneSettings } from "./toneChain";
 
 // Same size the /dev/synth prototype settled on. Pause and seek drop the
 // worklet's buffer (see synth-worklet.js "flush"), so its size no longer
@@ -39,6 +40,7 @@ type Pipeline = {
   worker: Worker;
   gain: GainNode;
   worklet: AudioWorkletNode;
+  tone: ReturnType<typeof createToneChain>;
 };
 
 /**
@@ -60,6 +62,11 @@ export function useAudioPlayback(onFinished: () => void) {
   const pipelineRef = useRef<Promise<Pipeline | null> | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  // The shipped preset (lib/toneChain.ts); /dev/synth changes it live for A/B.
+  const toneRef = useRef<{ settings: ToneSettings; chain: ReturnType<typeof createToneChain> | null }>({
+    settings: TONE_DEFAULT,
+    chain: null,
+  });
   const loadedRef = useRef<{ tab: Tab; bpm: number } | null>(null);
   const resolveReadyRef = useRef<((ok: boolean) => void) | null>(null);
   const failedRef = useRef(false); // sticky: once audio fails, stay on the silent clock
@@ -78,6 +85,7 @@ export function useAudioPlayback(onFinished: () => void) {
       void pipelineRef.current?.then((p) => {
         p?.worker.terminate();
         p?.worklet.disconnect();
+        p?.tone.dispose();
         void p?.ctx.close();
       });
     };
@@ -135,7 +143,13 @@ export function useAudioPlayback(onFinished: () => void) {
           processorOptions: { bufferTimeInMilliseconds: BUFFER_TIME_MS },
         });
         const gain = new GainNode(ctx, { gain: muted ? 0 : VOLUME });
-        worklet.connect(gain).connect(ctx.destination);
+        // After the master gain, so the chain's saturation sees peaks that
+        // are already under 1 (the raw synth peaks around 1.5).
+        const tone = createToneChain(ctx);
+        tone.apply(toneRef.current.settings);
+        toneRef.current.chain = tone;
+        worklet.connect(gain).connect(tone.input);
+        tone.output.connect(ctx.destination);
         gainRef.current = gain;
 
         const worker = new Worker(new URL("./synth/synthWorker.ts", import.meta.url), { type: "module" });
@@ -150,7 +164,7 @@ export function useAudioPlayback(onFinished: () => void) {
         post({ type: "init", port: channel.port1, sampleRate: ctx.sampleRate, bufferTimeInMilliseconds: BUFFER_TIME_MS }, [
           channel.port1,
         ]);
-        return { ctx, worker, gain, worklet };
+        return { ctx, worker, gain, worklet, tone };
       } catch {
         fail();
         void ctx.close();
@@ -221,5 +235,10 @@ export function useAudioPlayback(onFinished: () => void) {
     for (const listener of mutedListeners) listener();
   }
 
-  return { status, progress, muted, setMuted, ensureReady, play, pause, stop, seek, getElapsedSeconds };
+  function setTone(settings: ToneSettings) {
+    toneRef.current.settings = settings;
+    toneRef.current.chain?.apply(settings);
+  }
+
+  return { status, progress, muted, setMuted, ensureReady, play, pause, stop, seek, getElapsedSeconds, setTone };
 }
