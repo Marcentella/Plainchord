@@ -12,6 +12,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Square } from "lucide-react";
 import type { OutMessage } from "@/lib/synth/synthWorker";
+import { useAudioPlayback } from "@/lib/useAudioPlayback";
+import { parseTab } from "@/lib/parseTab";
 
 // Sizes the worklet's ring buffer (see public/synth-worklet.js). 200ms
 // only had room for ~4 in-flight synthesize replies without risking
@@ -328,6 +330,99 @@ export default function SynthDevPage() {
           ))}
         </div>
       </section>
+
+      <RealTabSection />
     </main>
+  );
+}
+
+// Step 2 test bench: the production pipeline (useAudioPlayback -> worker
+// loadTab -> worklet -> gain) on a plain-text tab, before it's wired into
+// /tablatura. Deleted with the rest of this page in Step 3.
+const TEST_TAB = parseTab(
+  [
+    // C, G, Am, E: 16 strummed quarters, 16 s at the default 60 BPM.
+    "e|--0---0---0---0---|--3---3---3---3---|--0---0---0---0---|--0---0---0---0---|",
+    "B|--1---1---1---1---|--0---0---0---0---|--1---1---1---1---|--0---0---0---0---|",
+    "G|--0---0---0---0---|--0---0---0---0---|--2---2---2---2---|--1---1---1---1---|",
+    "D|--2---2---2---2---|--0---0---0---0---|--2---2---2---2---|--2---2---2---2---|",
+    "A|--3---3---3---3---|--2---2---2---2---|--0---0---0---0---|--2---2---2---2---|",
+    "E|------------------|--3---3---3---3---|------------------|--0---0---0---0---|",
+  ].join("\n"),
+);
+
+function RealTabSection() {
+  const [bpm, setBpm] = useState(60);
+  const [playing, setPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const audio = useAudioPlayback(() => setPlaying(false));
+  const audioRef = useRef(audio);
+  useEffect(() => {
+    audioRef.current = audio;
+  });
+
+  useEffect(() => {
+    let raf: number;
+    const tick = () => {
+      setElapsed(audioRef.current.getElapsedSeconds());
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  if (!TEST_TAB.ok) return <p>parseTab falló</p>;
+  const tab = TEST_TAB.tab;
+
+  async function handlePlay() {
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+      return;
+    }
+    if (!(await audio.ensureReady(tab, bpm))) return;
+    audio.play();
+    setPlaying(true);
+  }
+
+  return (
+    <section className="mt-10 border-t border-border pt-6">
+      <h2 className="font-semibold">Paso 2: pipeline real (useAudioPlayback + loadTab)</h2>
+      <p className="mt-1 text-sm text-muted">
+        estado: <span data-testid="status">{audio.status}</span> · soundfont {Math.round(audio.progress * 100)}% ·
+        posición <span data-testid="elapsed">{elapsed.toFixed(3)}</span> s
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" className="rounded border border-border px-3 py-1" onClick={handlePlay}>
+          {playing ? "Pausa" : "Play"}
+        </button>
+        <button
+          type="button"
+          className="rounded border border-border px-3 py-1"
+          onClick={() => {
+            audio.stop();
+            setPlaying(false);
+          }}
+        >
+          Stop
+        </button>
+        <button type="button" className="rounded border border-border px-3 py-1" onClick={() => audio.seek(2)}>
+          Ir a 2 s
+        </button>
+        <button type="button" className="rounded border border-border px-3 py-1" onClick={() => audio.setMuted(!audio.muted)}>
+          {audio.muted ? "Activar sonido" : "Silenciar"}
+        </button>
+        <label className="text-sm">
+          BPM{" "}
+          <input
+            type="number"
+            className="w-16 rounded border border-border px-1"
+            value={bpm}
+            disabled={playing}
+            onChange={(e) => setBpm(Number(e.target.value) || 60)}
+          />
+        </label>
+      </div>
+    </section>
   );
 }
