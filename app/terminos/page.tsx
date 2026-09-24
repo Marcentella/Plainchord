@@ -7,7 +7,7 @@ export default function Terminos() {
         <div>
           <h1 className="text-2xl font-medium">Términos de Servicio | PlainChord</h1>
           <p className="text-xs text-muted mt-1">
-            Última actualización: 12 de septiembre de 2026
+            Última actualización: 24 de septiembre de 2026
           </p>
         </div>
 
@@ -123,7 +123,28 @@ export default function Terminos() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-medium">8. Contacto</h2>
+          <h2 className="text-lg font-medium">8. Créditos de terceros</h2>
+          <p className="text-sm">
+            La reproducción de tablaturas usa el sonido de guitarra del
+            SoundFont Fluid R3 GM, © 2000-2002, 2008 Frank Wen y © 2008 Toby
+            Smithe, distribuido bajo la{" "}
+            <a href="/soundfont/LICENSE" className="text-accent underline">
+              licencia MIT
+            </a>
+            . PlainChord incluye una versión modificada: solo los sonidos de
+            guitarra, convertidos a mono.
+          </p>
+          <p className="text-sm">
+            La importación de archivos Guitar Pro y la síntesis de audio usan{" "}
+            <a href="https://github.com/CoderLine/alphaTab" className="text-accent underline">
+              alphaTab
+            </a>{" "}
+            de CoderLine, distribuido bajo la Mozilla Public License 2.0.
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-medium">9. Contacto</h2>
           <p className="text-sm">
             Para consultas sobre estos Términos: example@placeholder.app
           </p>
