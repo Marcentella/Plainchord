@@ -7,10 +7,10 @@
 import { model, Settings } from "@coderline/alphatab";
 import type { Tab, TabBeat, TabNote } from "./tab";
 
-/** GM program 27 — "Clean Guitar" in public/soundfont/FluidR3_GM.sf3. */
+/** GM program 27 — "Clean Guitar" in public/soundfont/FluidR3_GM_guitars-v1.sf2. */
 const DEFAULT_PROGRAM = 27;
 /**
- * The only presets public/soundfont/FluidR3_GM.sf3 keeps (it was trimmed to
+ * The only presets public/soundfont/FluidR3_GM_guitars-v1.sf2 keeps (it was trimmed to
  * GM guitars 25-31: steel, jazz, clean, muted, overdrive, distortion,
  * harmonics). Any other program resolves to no preset and plays silence.
  */

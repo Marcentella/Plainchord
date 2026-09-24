@@ -165,9 +165,13 @@ function regenerateMidi(generatorSettings: Settings = settings): void {
   player.loadMidiFile(midiFile);
 }
 
+// Versioned name: next.config.ts serves /soundfont/* as immutable for a
+// year, so a changed font must get a new filename to reach returning visitors.
+const SOUNDFONT_URL = "/soundfont/FluidR3_GM_guitars-v1.sf2";
+
 /** Streams the soundfont so the page can show real progress (it's ~9.6 MB). */
 async function loadSoundFont(): Promise<Uint8Array> {
-  const response = await fetch("/soundfont/FluidR3_GM.sf3");
+  const response = await fetch(SOUNDFONT_URL);
   if (!response.ok || !response.body) throw new Error(`soundfont: ${response.status} ${response.statusText}`);
   const total = Number(response.headers.get("content-length")) || 0;
   const chunks: Uint8Array[] = [];

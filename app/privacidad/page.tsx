@@ -7,7 +7,7 @@ export default function Privacidad() {
         <div>
           <h1 className="text-2xl font-medium">Política de Privacidad | PlainChord</h1>
           <p className="text-xs text-muted mt-1">
-            Última actualización: 20 de septiembre de 2026
+            Última actualización: 24 de septiembre de 2026
           </p>
         </div>
 
@@ -54,6 +54,12 @@ export default function Privacidad() {
           <ul className="text-sm list-disc pl-5 flex flex-col gap-1">
             <li>No se comparte con otros usuarios.</li>
             <li>No se revisa manualmente por PlainChord.</li>
+            <li>
+              Al reproducirla, el sonido se genera en el propio navegador; la
+              tablatura no se envía a ningún servidor. Lo único que se
+              descarga es el sonido de guitarra que usa el reproductor, y la
+              preferencia de silenciar el audio se guarda solo en el navegador.
+            </li>
             <li>
               El usuario es responsable de dicho contenido, según se detalla
               en los Términos de Servicio.
