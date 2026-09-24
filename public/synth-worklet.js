@@ -103,6 +103,14 @@ class PlainChordSynthProcessor extends AudioWorkletProcessor {
     } else if (data.type === "resetSamples") {
       this.ring.clear();
       this.primed = false;
+    } else if (data.type === "flush") {
+      // Pause: drop what's buffered so the sound stops now, not up to a
+      // buffer later. Unprimed, process() reports no more samplesPlayed, and
+      // this port is ordered, so when "flushed" reaches the worker every
+      // samplesPlayed before it has too: its position is final.
+      this.ring.clear();
+      this.primed = false;
+      this.audioPort.postMessage({ type: "flushed" });
     }
   }
 

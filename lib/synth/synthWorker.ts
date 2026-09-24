@@ -18,6 +18,8 @@
 // protocol below still switches on `type`, `cmd` is only there for their
 // listener's benefit.
 import { synth, midi, importer, model, Settings } from "@coderline/alphatab";
+import { tabToScore, createPlaybackSettings } from "../tabToScore";
+import type { Tab } from "../tab";
 
 type VibratoSettings = {
   noteSlightLength: number;
@@ -33,6 +35,7 @@ type VibratoSettings = {
 type InMessage =
   | { type: "init"; port: MessagePort; sampleRate: number; bufferTimeInMilliseconds: number }
   | { type: "load"; tex: string; program: number }
+  | { type: "loadTab"; tab: Tab; bpm: number }
   | { type: "play" }
   | { type: "pause" }
   | { type: "stop" }
@@ -43,6 +46,7 @@ type InMessage =
 export type OutMessage =
   | { type: "ready" }
   | { type: "error"; message: string }
+  | { type: "soundFontProgress"; loaded: number; total: number }
   | { type: "positionChanged"; currentTime: number; endTime: number }
   | { type: "stateChanged"; playing: boolean }
   | { type: "finished" };
@@ -76,6 +80,7 @@ class WorkletBridgeOutput implements synth.ISynthOutput {
   readonly sampleRequest = new Emitter<void>();
   readonly samplesPlayed = new Emitter<number>();
   private port: MessagePort | null = null;
+  onFlushed: (() => void) | null = null;
 
   constructor(readonly sampleRate: number) {}
 
@@ -85,6 +90,7 @@ class WorkletBridgeOutput implements synth.ISynthOutput {
       const data = e.data as { type: string; samples?: number };
       if (data.type === "sampleRequest") this.sampleRequest.trigger();
       else if (data.type === "samplesPlayed" && data.samples != null) this.samplesPlayed.trigger(data.samples);
+      else if (data.type === "flushed") this.onFlushed?.();
     };
   }
 
@@ -103,6 +109,10 @@ class WorkletBridgeOutput implements synth.ISynthOutput {
   resetSamples(): void {
     this.port?.postMessage({ type: "resetSamples" });
   }
+  /** Drops the worklet's buffered audio; onFlushed runs once it's gone (see synth-worklet.js). */
+  flush(): void {
+    this.port?.postMessage({ type: "flush" });
+  }
   async enumerateOutputDevices(): Promise<synth.ISynthOutputDevice[]> {
     return [];
   }
@@ -114,6 +124,7 @@ class WorkletBridgeOutput implements synth.ISynthOutput {
 
 const settings = new Settings();
 let player: synth.AlphaSynth | null = null;
+let output: WorkletBridgeOutput | null = null;
 let score: model.Score | null = null;
 
 function post(message: OutMessage): void {
@@ -146,27 +157,36 @@ function applyProgram(score: model.Score, program: number): void {
  * playback time. Reloading the MIDI resets the playhead to 0, which is fine
  * for this prototype (Step 2 will need to preserve position across this).
  */
-function regenerateMidi(): void {
+function regenerateMidi(generatorSettings: Settings = settings): void {
   if (!score || !player) return;
   const midiFile = new midi.MidiFile();
   const handler = new midi.AlphaSynthMidiFileHandler(midiFile);
-  new midi.MidiFileGenerator(score, settings, handler).generate();
+  new midi.MidiFileGenerator(score, generatorSettings, handler).generate();
   player.loadMidiFile(midiFile);
 }
 
+/** Streams the soundfont so the page can show real progress (it's ~9.6 MB). */
 async function loadSoundFont(): Promise<Uint8Array> {
-  const urls = ["/soundfont/FluidR3_GM.sf3"];
-  let lastError: unknown;
-  for (const url of urls) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-      return new Uint8Array(await response.arrayBuffer());
-    } catch (error) {
-      lastError = error;
-    }
+  const response = await fetch("/soundfont/FluidR3_GM.sf3");
+  if (!response.ok || !response.body) throw new Error(`soundfont: ${response.status} ${response.statusText}`);
+  const total = Number(response.headers.get("content-length")) || 0;
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  const reader = response.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    post({ type: "soundFontProgress", loaded, total });
   }
-  throw lastError instanceof Error ? lastError : new Error("No se pudo cargar el soundfont");
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
 }
 
 async function init(message: Extract<InMessage, { type: "init" }>): Promise<void> {
@@ -175,8 +195,15 @@ async function init(message: Extract<InMessage, { type: "init" }>): Promise<void
   // constructor reads output.sampleRate synchronously to build its
   // synthesizer (`new TinySoundFont(output.sampleRate)`), so this has to be
   // set before construction below, not patched in after -- it is.
-  const output = new WorkletBridgeOutput(message.sampleRate);
+  output = new WorkletBridgeOutput(message.sampleRate);
   output.connect(message.port);
+  // Pause, part 2: the worklet's buffer is gone and every samplesPlayed
+  // before it has arrived, so timePosition is exactly what was heard. The
+  // sequencer had synthesized that dropped buffer already; seeking it back
+  // to the heard position makes resume pick up exactly there.
+  output.onFlushed = () => {
+    if (player && player.state === synth.PlayerState.Paused) player.timePosition = player.timePosition;
+  };
 
   player = new synth.AlphaSynth(output, message.bufferTimeInMilliseconds);
   // positionChanged fires once per worklet render quantum -- roughly every
@@ -186,7 +213,8 @@ async function init(message: Extract<InMessage, { type: "init" }>): Promise<void
   let lastPositionPost = 0;
   player.positionChanged.on((e) => {
     const now = Date.now();
-    if (now - lastPositionPost < 100) return;
+    // A seek always goes out, so the page can re-anchor to it at once.
+    if (!e.isSeek && now - lastPositionPost < 100) return;
     lastPositionPost = now;
     post({ type: "positionChanged", currentTime: e.currentTime, endTime: e.endTime });
   });
@@ -222,8 +250,20 @@ self.onmessage = (event: MessageEvent<InMessage>) => {
     case "play":
       player?.play();
       break;
+    case "loadTab":
+      try {
+        score = tabToScore(message.tab, { tempo: message.bpm });
+        regenerateMidi(createPlaybackSettings());
+      } catch (error) {
+        post({ type: "error", message: error instanceof Error ? error.message : String(error) });
+      }
+      break;
     case "pause":
+      // Pause, part 1: stop synthesizing and drop the worklet's buffered
+      // audio (up to a whole buffer, which would otherwise keep sounding --
+      // and moving the position -- after Pause). Part 2 is onFlushed above.
       player?.pause();
+      output?.flush();
       break;
     case "stop":
       player?.stop();
