@@ -105,6 +105,8 @@ export type Tab = {
   tempo?: number;
   /** Low string to high, e.g. ["E", "A", "D", "G", "B", "E"] — display names, not MIDI values. */
   tuning?: string[];
+  /** Same strings as `tuning`, low to high, but as exact MIDI note numbers (standard = [40, 45, 50, 55, 59, 64]) — `tuning` carries no octaves, so playback can't recover pitch from it. Guitar Pro imports only; unset means standard tuning. */
+  tuningMidi?: number[];
   /** e.g. {numerator:4, denominator:4} for 4/4. Guitar Pro imports only, same limitation as title/artist/tempo/tuning above. */
   timeSignature?: { numerator: number; denominator: number };
 };

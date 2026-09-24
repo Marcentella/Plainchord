@@ -274,6 +274,7 @@ export function scoreToTab(score: model.Score): ImportGuitarProResult {
     artist: score.artist || undefined,
     tempo: score.tempo,
     tuning: tuningNames(staff),
+    tuningMidi: [...staff.tuning].reverse(),
     timeSignature: score.masterBars[0]
       ? {
           numerator: score.masterBars[0].timeSignatureNumerator,
