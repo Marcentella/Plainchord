@@ -65,6 +65,7 @@
   "tab.bpmHint": "Ingresa el BPM para activar la guía visual",
   "tab.seekAriaLabel": "Saltar al compás {bar}, tiempo {beat}",
   "tab.resetBpmAriaLabel": "Restablecer BPM original",
+  "tab.autoScroll": "Auto-scroll",
   "tabHistory.ariaLabel": "Tablaturas importadas recientemente",
   "tabHistory.empty": "Todavía no importaste ninguna tablatura.",
   "tabHistory.deleteAriaLabel": "Eliminar {title} del historial",

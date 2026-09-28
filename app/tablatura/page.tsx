@@ -458,8 +458,8 @@ export default function Tablatura() {
                   max={400}
                   value={bpmOverride ?? state.tab.tempo ?? ""}
                   disabled={isPlaying || isLoading}
-                  onChange={(e) => setBpmOverride(e.target.value ? Number(e.target.value) : null)}
-                  className="w-16 rounded-md border border-line bg-transparent px-2 py-1 text-foreground focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2 disabled:opacity-50"
+                  onChange={(e) => setBpmOverride(e.target.value ? Math.min(Number(e.target.value), 400) : null)}
+                  className="w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none rounded-md border border-line bg-transparent px-2 py-1 text-foreground focus:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2 disabled:opacity-50"
                 />
               </label>
               {bpmOverride !== null && bpmOverride !== state.tab.tempo && (
@@ -536,7 +536,7 @@ export default function Tablatura() {
               </div>
             )
           ) : (
-            state.kind === "ok" && <TabRenderer ref={tabRendererRef} tab={state.tab} onSeek={seek} />
+            state.kind === "ok" && <TabRenderer ref={tabRendererRef} tab={state.tab} onSeek={seek} playing={isPlaying} />
           )}
         </div>
       )}
