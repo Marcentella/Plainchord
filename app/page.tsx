@@ -359,7 +359,6 @@ export default function Home() {
                 {t(playAlong.status === "denied" ? "tuner.permissionDenied" : "tuner.noMicrophone")}
               </p>
             )}
-            {micActive && <p className="text-xs">{t("tuner.privacyNote")}</p>}
           </div>
         )}
         <p className="sr-only" aria-live="polite">
