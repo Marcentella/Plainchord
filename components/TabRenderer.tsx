@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, type Ref, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { Tab, TabBeat, TabNote, TechniqueSymbol } from "@/lib/tab";
 import { CONNECTING_TECHNIQUES } from "@/lib/tab";
 import { groupIntoBars } from "@/lib/groupIntoBars";
@@ -9,6 +18,9 @@ import type { BeatLocation } from "@/lib/playhead";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import TechniquePopup from "@/components/TechniquePopup";
 import { t } from "@/i18n";
+import { ArrowDownToLine } from "lucide-react";
+
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 
 export type TabRendererHandle = {
   setPlayheadPosition: (location: BeatLocation | null, animate?: boolean) => void;
@@ -162,6 +174,8 @@ const CUTOUT_MAX_WIDTH = COL_W - 4;
 // everywhere, not left to font/platform differences. 9 read as touching a
 // 2-digit fret's own right edge (a plain digit's cutout half-width alone is
 // ~7.5px) — 13 gives it real clearance, same outer reach as the diamond.
+// A minimum, not fixed: a wider label ("h10") pushes it further out (see
+// accentOffset in noteEls), or the chevron lands on the last digit.
 const ACCENT_MARK_OFFSET = 13;
 // Reserved below every bar, always, for the seek rail. Lives below rather
 // than above for the same reason bend arrows only ever grow upward into
@@ -235,17 +249,22 @@ function bendGroupLabel(amounts: number[]): string {
 }
 
 /**
- * Reorders a note's own techniques so "b" (bend) comes first — used only
- * when opening the popup FROM the bend arrow itself, not from the note's
- * own digit. Hovering a note's digit can reasonably show its techniques in
- * whatever order they were tagged (e.g. pinch harmonic before bend); but
- * hovering the bend arrow specifically is an unambiguous request for bend
- * info, so that popup should lead with Bend rather than whatever else
- * happens to be stacked on the same note.
+ * One popup per symbol: a technique that has its own mark (the bend arrow,
+ * the vibrato squiggle) opens from that mark only, so the digit's popup
+ * doesn't stack it on top of the note's other techniques — the popup
+ * scrolls, and a second entry below the fold reads as missing.
  */
-function withBendFirst(note: TabNote): TabNote {
-  if (!note.techniques.includes("b")) return note;
-  return { ...note, techniques: ["b", ...note.techniques.filter((t) => t !== "b")] };
+function withTechniques(note: TabNote, keep: (symbol: TechniqueSymbol) => boolean): TabNote {
+  return { ...note, techniques: note.techniques.filter(keep) };
+}
+
+// Techniques drawn as their own separate mark, each opening its own popup.
+const OWN_MARK_TECHNIQUES: TechniqueSymbol[] = ["~", ">"];
+
+/** The digit's own popup: everything without its own mark (vibrato, accent) — unless that's all there is. */
+function digitPopupNote(note: TabNote): TabNote {
+  const rest = withTechniques(note, (s) => !OWN_MARK_TECHNIQUES.includes(s));
+  return rest.techniques.length > 0 ? rest : note;
 }
 
 /**
@@ -300,12 +319,16 @@ type Selected = {
   // or keyboard-open is deliberate and needs an explicit dismissal
   // (Escape / outside click), same as before this distinction existed.
   openedVia: "hover" | "click";
+  // Which mark opened it — compared on mouse-leave instead of `note`,
+  // since the popup's note is derived fresh each render (withTechniques).
+  triggerId: string;
 };
 
 export default function TabRenderer({
   tab,
   ref,
   onSeek,
+  playing = false,
 }: {
   tab: Tab;
   ref?: Ref<TabRendererHandle>;
@@ -315,6 +338,9 @@ export default function TabRenderer({
   // reimport-snapshot TabRenderer in app/tablatura/page.tsx has no playhead
   // at all, so it never passes this.
   onSeek?: (location: BeatLocation) => void;
+  // Only gates the manual-scroll detach below — autoscroll itself is driven
+  // by setPlayheadPosition, not by this.
+  playing?: boolean;
 }) {
   const bars = groupIntoBars(tab.beats);
   const [selected, setSelected] = useState<Selected | null>(null);
@@ -324,6 +350,14 @@ export default function TabRenderer({
   // "keep it mounted a beat longer" idea as app/page.tsx's chord-card exit,
   // just for a single item instead of a list.
   const [closing, setClosing] = useState(false);
+  // Starting playback fades out a hover-opened popup (see popupTrigger's
+  // hover gate); a click-opened one was asked for and stays. Adjusted
+  // during render on the prop change, not in an effect.
+  const [wasPlaying, setWasPlaying] = useState(playing);
+  if (playing !== wasPlaying) {
+    setWasPlaying(playing);
+    if (playing && selected?.openedVia === "hover") setClosing(true);
+  }
   // Pending "close after leaving hover" — cancelled if the pointer lands
   // back on the note or on the popup itself before it fires.
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -417,19 +451,68 @@ export default function TabRenderer({
     barsRef.current = bars;
   });
 
-  // Shared by the real playhead and the ghost preview — both are one shared
-  // overlay div positioned via translate() from a bar's own real on-screen
-  // rect (not bar-local SVG coordinates), so either can glide continuously
-  // to literally anywhere, including across a wrapped row.
-  function positionOverlay(el: HTMLDivElement, location: BeatLocation): boolean {
+  // Autoscroll follows the playhead until the user scrolls by hand (wheel,
+  // touch drag, scroll keys) — then it lets go and shows the "Auto-scroll"
+  // button to re-attach. Touch has no spacebar to pause with, so this is
+  // the only way to read ahead on mobile. Every new play() re-attaches.
+  // ponytail: dragging the desktop scrollbar itself isn't detected (no
+  // event tells it apart from our own smooth scroll).
+  const followRef = useRef(true);
+  const [detached, setDetached] = useState(false);
+  useEffect(() => {
+    if (!playing) return;
+    function detach() {
+      if (!followRef.current) return;
+      followRef.current = false;
+      setDetached(true);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (SCROLL_KEYS.has(e.key)) detach();
+    }
+    window.addEventListener("wheel", detach, { passive: true });
+    window.addEventListener("touchmove", detach, { passive: true });
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("wheel", detach);
+      window.removeEventListener("touchmove", detach);
+      document.removeEventListener("keydown", onKeyDown);
+      followRef.current = true;
+      setDetached(false);
+    };
+  }, [playing]);
+
+  function scrollToBar(barIdx: number) {
+    svgRefs.current.get(barIdx)?.scrollIntoView({
+      block: "center",
+      behavior: reducedMotionRef.current ? "auto" : "smooth",
+    });
+  }
+
+  // A point in a bar's own SVG units -> wrapper-relative page px, plus the
+  // bar's rendered scale. Not just barRect + raw units: a bar wider than the
+  // wrapper (e.g. a 32-beat bar, or most bars on a phone) gets shrunk by its
+  // viewBox — and centered vertically — so raw units overshoot right and
+  // sit too low. The SVG's own CTM already knows the exact mapping.
+  function barPoint(barIdx: number, x: number, y: number): { x: number; y: number; scale: number } | null {
     const wrapper = wrapperRef.current;
-    const barSvg = svgRefs.current.get(location.barIdx);
-    if (!wrapper || !barSvg) return false;
+    const ctm = svgRefs.current.get(barIdx)?.getScreenCTM();
+    if (!wrapper || !ctm) return null;
     const wrapperRect = wrapper.getBoundingClientRect();
-    const barRect = barSvg.getBoundingClientRect();
-    const x = barRect.left - wrapperRect.left + location.colIdx * COL_W;
-    const y = barRect.top - wrapperRect.top + PLAYHEAD_Y_OFFSET;
-    el.style.transform = `translate(${x}px, ${y}px)`;
+    const p = new DOMPoint(x, y).matrixTransform(ctm);
+    return { x: p.x - wrapperRect.left, y: p.y - wrapperRect.top, scale: ctm.a };
+  }
+
+  // Shared by the real playhead and the ghost preview — both are one shared
+  // overlay div positioned via translate() in wrapper coordinates (not
+  // bar-local SVG coordinates), so either can glide continuously to
+  // literally anywhere, including across a wrapped row. scale() matches a
+  // shrunk bar's own scale (see barPoint).
+  function positionOverlay(el: HTMLDivElement, location: BeatLocation): boolean {
+    const p = barPoint(location.barIdx, location.colIdx * COL_W, PLAYHEAD_Y_OFFSET);
+    if (!p) return false;
+    el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${p.scale})`;
     el.style.setProperty("opacity", "1");
     return true;
   }
@@ -468,15 +551,10 @@ export default function TabRenderer({
   // playheadRef/ghostRef, not per bar (see railThumbRef's own comment for
   // why). `fraction` can be continuous (a drag) or discrete (a beat).
   function positionRailDot(dot: HTMLDivElement | null, barIdx: number, fraction: number) {
-    const wrapper = wrapperRef.current;
-    const barSvg = svgRefs.current.get(barIdx);
-    if (!dot || !wrapper || !barSvg) return;
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const barRect = barSvg.getBoundingClientRect();
     const barWidth = barsRef.current[barIdx].length * COL_W;
-    const x = barRect.left - wrapperRect.left + fraction * barWidth;
-    const y = barRect.top - wrapperRect.top + RAIL_Y + SEEK_RAIL_VISUAL_HEIGHT / 2;
-    dot.style.transform = `translate(${x}px, ${y}px)`;
+    const p = dot && barPoint(barIdx, fraction * barWidth, RAIL_Y + SEEK_RAIL_VISUAL_HEIGHT / 2);
+    if (!dot || !p) return;
+    dot.style.transform = `translate(${p.x}px, ${p.y}px)`;
     dot.style.setProperty("opacity", "1");
   }
 
@@ -661,13 +739,7 @@ export default function TabRenderer({
         overlay.style.transitionProperty = animate ? "" : "opacity";
         if (!positionOverlay(overlay, location)) return;
         playheadCreepRef.current?.style.setProperty("transform", "translateX(0px)");
-        const barSvg = svgRefs.current.get(location.barIdx)!;
-        if (location.barIdx !== activeBarRef.current) {
-          barSvg.scrollIntoView({
-            block: "center",
-            behavior: reducedMotionRef.current ? "auto" : "smooth",
-          });
-        }
+        if (followRef.current && location.barIdx !== activeBarRef.current) scrollToBar(location.barIdx);
         activeBarRef.current = location.barIdx;
         currentLocationRef.current = location;
         const fraction = committedRailFraction(location.barIdx, location.colIdx);
@@ -709,12 +781,43 @@ export default function TabRenderer({
 
   useEffect(() => cancelHoverClose, []);
 
-  function openFrom(note: TabNote, target: SVGGraphicsElement, openedVia: Selected["openedVia"]) {
+  // Everything that makes an SVG mark open `note`'s popup — shared by the
+  // digit, the bend arrow and the vibrato mark. Hover only on a real mouse;
+  // a hover-opened popup closes itself on leave (scheduled, so the pointer
+  // can still reach the popup to read or scroll it — its own onMouseEnter
+  // cancels that). Click/keyboard-opened ones need Escape or an outside click.
+  function popupTrigger(note: TabNote, triggerId: string) {
+    return {
+      role: "button",
+      tabIndex: 0,
+      "aria-label": noteAriaLabel(note),
+      style: { cursor: "pointer" },
+      onClick: (e: ReactMouseEvent<SVGGraphicsElement>) => openFrom(note, e.currentTarget, "click", triggerId),
+      onKeyDown: (e: ReactKeyboardEvent<SVGGraphicsElement>) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openFrom(note, e.currentTarget, "click", triggerId);
+        }
+      },
+      onMouseEnter: (e: ReactMouseEvent<SVGGraphicsElement>) => {
+        // Not while playing: a drifting mouse would keep popping popups over
+        // the tab being followed. Click still opens one — that's deliberate.
+        if (!playing && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+          openFrom(note, e.currentTarget, "hover", triggerId);
+        }
+      },
+      onMouseLeave: () => {
+        if (selected?.openedVia === "hover" && selected.triggerId === triggerId) scheduleHoverClose();
+      },
+    };
+  }
+
+  function openFrom(note: TabNote, target: SVGGraphicsElement, openedVia: Selected["openedVia"], triggerId: string) {
     if (note.techniques.length === 0) return;
     cancelHoverClose();
     const rect = target.getBoundingClientRect();
     setClosing(false);
-    setSelected({ note, anchor: { x: rect.x, top: rect.top, bottom: rect.bottom }, openedVia });
+    setSelected({ note, anchor: { x: rect.x, top: rect.top, bottom: rect.bottom }, openedVia, triggerId });
     // Only for a deliberate click/keyboard-activate, not a hover preview —
     // same reason as commitSeek's own blur: leaves nothing focused to catch
     // a later, unrelated Space press meant for the global play/pause
@@ -755,7 +858,7 @@ export default function TabRenderer({
           transform (see playheadCreepRef's own comment for why these are
           split). pointer-events-none since it's a pure visual overlay
           sitting on top of real, clickable note content. */}
-      <div ref={playheadRef} aria-hidden className="playhead-rect pointer-events-none absolute left-0 top-0" style={{ opacity: 0 }}>
+      <div ref={playheadRef} aria-hidden className="playhead-rect pointer-events-none absolute left-0 top-0 origin-top-left" style={{ opacity: 0 }}>
         <div
           ref={playheadCreepRef}
           style={{
@@ -780,7 +883,7 @@ export default function TabRenderer({
       <div
         ref={ghostRef}
         aria-hidden
-        className="ghost-rect pointer-events-none absolute left-0 top-0"
+        className="ghost-rect pointer-events-none absolute left-0 top-0 origin-top-left"
         style={{
           width: COL_W,
           height: PLAYHEAD_HEIGHT,
@@ -859,9 +962,9 @@ export default function TabRenderer({
         // as pointing at every one of them, not just the one it's flush
         // against. Hovering/clicking it opens the same popup as its note —
         // it isn't pure decoration, the same way the note's own digit
-        // isn't. withBendFirst: an unambiguous request for bend info, so it
-        // should lead with Bend even on a note stacked with other
-        // techniques. Plain SVG shapes throughout, not a Unicode arrow
+        // isn't. Bend only: the arrow is an unambiguous request for bend
+        // info, the note's other techniques open from their own marks (see
+        // withTechniques). Plain SVG shapes throughout, not a Unicode arrow
         // character: those render inconsistently across platforms/fonts,
         // exactly what this app already avoids elsewhere (see CLAUDE.md's
         // lucide-react icon rule).
@@ -869,7 +972,7 @@ export default function TabRenderer({
           if (notes.length === 0) return null;
           const edgeY =
             Math.max(...notes.map((n) => topOffset + (5 - n.string) * STRING_GAP)) - CUTOUT_R - 2;
-          const representativeNote = withBendFirst(notes[0]);
+          const representativeNote = withTechniques(notes[0], (s) => s === "b");
 
           const shaftTopY = direction === "up" ? BEND_ARROWHEAD_BASE_Y : BEND_ARROWHEAD_TIP_Y;
           const arrowheadTipY = direction === "up" ? BEND_ARROWHEAD_TIP_Y : edgeY;
@@ -886,27 +989,7 @@ export default function TabRenderer({
           return (
             <g
               key={`${barIdx}-${colIdx}-bend-${direction}`}
-              role="button"
-              tabIndex={0}
-              aria-label={noteAriaLabel(representativeNote)}
-              style={{ cursor: "pointer" }}
-              onClick={(e) => openFrom(representativeNote, e.currentTarget, "click")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openFrom(representativeNote, e.currentTarget, "click");
-                }
-              }}
-              onMouseEnter={(e) => {
-                if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-                  openFrom(representativeNote, e.currentTarget, "hover");
-                }
-              }}
-              onMouseLeave={() => {
-                if (selected?.openedVia === "hover" && selected.note === representativeNote) {
-                  scheduleHoverClose();
-                }
-              }}
+              {...popupTrigger(representativeNote, `${barIdx}-${colIdx}-bend-${direction}`)}
             >
               {/* Wider than the visible 1.5px shaft — a hairline is too thin
                   to reliably hover; this invisible rect is the real hit
@@ -1006,14 +1089,23 @@ export default function TabRenderer({
               // comment for why it lives above the staff instead of beside
               // the digit, and why it's shared rather than drawn once per
               // vibrato'd note in a chord.
-              const vibratoMark = beat.notes.some((n) => n.techniques.includes("~")) ? (
-                <path
+              // Opens vibrato alone (see withTechniques) — the digit's own
+              // popup leaves it out. The hit rect stops just above the bend
+              // label's own hit area (BEND_LABEL_Y - 9) so the two never overlap.
+              const vibratoNote = beat.notes.find((n) => n.techniques.includes("~"));
+              const vibratoMark = vibratoNote ? (
+                <g
                   key={`${barIdx}-${colIdx}-vibrato`}
-                  d={`M ${x - 4} ${VIBRATO_Y} Q ${x - 2} ${VIBRATO_Y - 2.5} ${x} ${VIBRATO_Y} Q ${x + 2} ${VIBRATO_Y + 2.5} ${x + 4} ${VIBRATO_Y}`}
-                  stroke="var(--accent)"
-                  strokeWidth={1.5}
-                  fill="none"
-                />
+                  {...popupTrigger(withTechniques(vibratoNote, (s) => s === "~"), `${barIdx}-${colIdx}-vibrato`)}
+                >
+                  <rect x={x - 13} y={VIBRATO_Y - 6} width={26} height={BEND_LABEL_Y - 9 - (VIBRATO_Y - 6)} fill="transparent" />
+                  <path
+                    d={`M ${x - 4} ${VIBRATO_Y} Q ${x - 2} ${VIBRATO_Y - 2.5} ${x} ${VIBRATO_Y} Q ${x + 2} ${VIBRATO_Y + 2.5} ${x + 4} ${VIBRATO_Y}`}
+                    stroke="var(--accent)"
+                    strokeWidth={1.5}
+                    fill="none"
+                  />
+                </g>
               ) : null;
 
               // One label per beat, not per note — same "shared, not
@@ -1107,7 +1199,11 @@ export default function TabRenderer({
                 // half-width too. Adding them left a wide dead strip of
                 // erased string with no mark drawn over most of it.
                 const cutoutLeftHalf = cutoutWidth / 2;
-                const cutoutRightHalf = hasAccent ? Math.max(cutoutWidth / 2, ACCENT_MARK_OFFSET + 2) : cutoutWidth / 2;
+                // The chevron's own point: clear of the label's right edge by
+                // its own 4px depth plus a 1px gap, never closer than the
+                // single-digit default.
+                const accentOffset = Math.max(ACCENT_MARK_OFFSET, cutoutWidth / 2 + 5);
+                const cutoutRightHalf = hasAccent ? Math.max(cutoutWidth / 2, accentOffset + 2) : cutoutWidth / 2;
 
                 return (
                   <g key={`${barIdx}-${colIdx}-${note.string}`}>
@@ -1125,12 +1221,18 @@ export default function TabRenderer({
                       fill="var(--background)"
                     />
                     {hasAccent && (
-                      <polyline
-                        points={`${x + ACCENT_MARK_OFFSET - 4},${y - 3} ${x + ACCENT_MARK_OFFSET},${y} ${x + ACCENT_MARK_OFFSET - 4},${y + 3}`}
-                        stroke="var(--accent)"
-                        strokeWidth={1.5}
-                        fill="none"
-                      />
+                      // Opens accent alone; the digit's popup leaves it out
+                      // (see digitPopupNote). Hit rect starts just right of
+                      // the label so the two never share a pixel.
+                      <g {...popupTrigger(withTechniques(note, (s) => s === ">"), `${barIdx}-${colIdx}-${note.string}-accent`)}>
+                        <rect x={x + accentOffset - 5} y={y - 6} width={8} height={12} fill="transparent" />
+                        <polyline
+                          points={`${x + accentOffset - 4},${y - 3} ${x + accentOffset},${y} ${x + accentOffset - 4},${y + 3}`}
+                          stroke="var(--accent)"
+                          strokeWidth={1.5}
+                          fill="none"
+                        />
+                      </g>
                     )}
                     {harmonicLabel && (
                       <polygon
@@ -1144,34 +1246,7 @@ export default function TabRenderer({
                       textAnchor="middle"
                       fontSize={12}
                       fill={interactive ? "var(--accent)" : "var(--foreground)"}
-                      role={interactive ? "button" : undefined}
-                      tabIndex={interactive ? 0 : undefined}
-                      aria-label={interactive ? noteAriaLabel(note) : undefined}
-                      style={interactive ? { cursor: "pointer" } : undefined}
-                      onClick={(e) => interactive && openFrom(note, e.currentTarget, "click")}
-                      onKeyDown={(e) => {
-                        if (interactive && (e.key === "Enter" || e.key === " ")) {
-                          e.preventDefault();
-                          openFrom(note, e.currentTarget, "click");
-                        }
-                      }}
-                      onMouseEnter={(e) => {
-                        if (interactive && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-                          openFrom(note, e.currentTarget, "hover");
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        // Only a hover-opened popup closes itself this way —
-                        // a click/keyboard-opened one still needs Escape or
-                        // an outside click, same as before this existed.
-                        // Schedules the close rather than firing it
-                        // immediately — the pointer is very likely headed
-                        // for the popup itself (to read or scroll it), which
-                        // cancels this via its own onMouseEnter below.
-                        if (selected?.openedVia === "hover" && selected.note === note) {
-                          scheduleHoverClose();
-                        }
-                      }}
+                      {...(interactive ? popupTrigger(digitPopupNote(note), `${barIdx}-${colIdx}-${note.string}`) : {})}
                     >
                       {/* Touches the fret number directly, same size, same as the plain-text source ("5h7", "/12") — no gap, no size mismatch. */}
                       {connecting && <tspan>{CONNECTOR_LABEL[connecting]}</tspan>}
@@ -1316,6 +1391,20 @@ export default function TabRenderer({
           onMouseEnter={selected.openedVia === "hover" ? cancelHoverClose : undefined}
           onMouseLeave={selected.openedVia === "hover" ? scheduleHoverClose : undefined}
         />
+      )}
+      {playing && detached && (
+        <button
+          type="button"
+          onClick={() => {
+            followRef.current = true;
+            setDetached(false);
+            if (activeBarRef.current !== null) scrollToBar(activeBarRef.current);
+          }}
+          className="fixed right-4 bottom-4 z-20 flex items-center gap-1.5 rounded-full border border-line bg-background px-4 py-2 text-sm text-foreground shadow-lg hover:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
+        >
+          <ArrowDownToLine size={16} aria-hidden />
+          {t("tab.autoScroll")}
+        </button>
       )}
     </div>
   );
