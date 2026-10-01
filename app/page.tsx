@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Check, Loader2, Mic, Square } from "lucide-react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -10,6 +11,7 @@ import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { cssDurationMs } from "@/lib/cssTiming";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { useChordPlayAlong } from "@/lib/useChordPlayAlong";
 import { t } from "@/i18n";
 
 const CHORD_LIMIT = 16;
@@ -69,6 +71,17 @@ export default function Home() {
   // comment for why an edit anywhere in the list can still affect what
   // falls inside vs outside this window.
   const tokens = allTokens.slice(0, CHORD_LIMIT);
+
+  // Play-along walks the same chords the grid shows (first CHORD_LIMIT),
+  // index-aligned with `tokens` so a grid slot and a play-along index are
+  // the same number.
+  const playAlongTargets = useMemo(
+    () => allTokens.slice(0, CHORD_LIMIT).map((token) => findChord(token)),
+    [allTokens],
+  );
+  const playAlong = useChordPlayAlong(playAlongTargets);
+  const listening = playAlong.status === "listening";
+  const micActive = listening || playAlong.status === "requesting";
 
   // Removed cards stay mounted (rendered as their own trailing group,
   // "exiting") for --chord-card-transition-duration so they can fade+sink
@@ -307,7 +320,53 @@ export default function Home() {
               ? t("home.hideDifficulty")
               : t("home.showDifficulty")}
           </button>
+          {/* Text + icon, not another bordered pill: the mic is the one
+              control here that starts something happening, and it reads as
+              an action in the accent color without adding a third outlined
+              shape to the row. */}
+          <button
+            onClick={micActive ? playAlong.stop : playAlong.start}
+            disabled={!micActive && playAlong.index < 0}
+            title={!micActive && playAlong.index < 0 ? t("playAlong.noChords") : undefined}
+            className="flex items-center gap-1.5 text-sm font-medium text-accent transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100"
+          >
+            {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden />}
+            {micActive ? t("playAlong.stop") : t("playAlong.start")}
+          </button>
         </div>
+        {playAlong.status !== "idle" && (
+          <div className="flex flex-col items-center gap-1 text-center text-sm text-muted">
+            {playAlong.status === "requesting" && (
+              <p className="flex items-center gap-1.5">
+                <Loader2 size={14} className="animate-spin text-accent" aria-hidden />
+                {t("tuner.requesting")}
+              </p>
+            )}
+            {listening && (
+              // What the mic thinks it hears, right or wrong — playing Am
+              // when C is lit shows "Escuchando: Am", so a chord that won't
+              // advance explains itself. aria-hidden: it changes ~10x a
+              // second; the polite "Ahora: X" line below is the
+              // screen-reader channel.
+              <p className="tabular-nums" aria-hidden>
+                {playAlong.hearing
+                  ? t("playAlong.hearing", { chord: playAlong.hearing })
+                  : t("playAlong.quiet")}
+              </p>
+            )}
+            {(playAlong.status === "denied" || playAlong.status === "unavailable") && (
+              <p className="text-difficulty-dificil">
+                {t(playAlong.status === "denied" ? "tuner.permissionDenied" : "tuner.noMicrophone")}
+              </p>
+            )}
+            {micActive && <p className="text-xs">{t("tuner.privacyNote")}</p>}
+          </div>
+        )}
+        <p className="sr-only" aria-live="polite">
+          {listening && playAlongTargets[playAlong.index]
+            ? t("playAlong.now", { chord: playAlongTargets[playAlong.index]!.name })
+            : ""}
+        </p>
         {showSuggestions && (
           <div className="flex flex-wrap justify-center gap-2">
             {COMMON_PROGRESSIONS.map((p) => (
@@ -419,6 +478,17 @@ export default function Home() {
               ? findChord(nextSlot.token)
               : undefined;
 
+          // Play-along states (real slots only — `i` is the chord's index in
+          // `tokens` for those, since real slots come first in cardSlots).
+          // Just heard: green check, full brightness for a moment. Played
+          // earlier in this pass: check, dimmed. Current: full brightness
+          // with an accent bar under it. Everything else: dimmed.
+          const playing = listening && !slot.exiting;
+          const isJustHeard = playing && i === playAlong.justMatched;
+          const isPlayed = playing && playAlong.played.includes(i);
+          const isCurrent = playing && i === playAlong.index;
+          const dimmed = playing && !isCurrent && !isJustHeard;
+
           return (
             <div
               // Slot's permanent id (see slotIdsRef/cardSlots above), not
@@ -445,7 +515,7 @@ export default function Home() {
               // for why (badge shouldn't count toward the column's width).
               className={`chord-card relative flex items-center justify-start ${
                 slot.exiting ? "chord-card-exiting" : ""
-              }`}
+              } ${dimmed ? "chord-card-dimmed" : ""}`}
               // Exiting cards only: frozen at the exact spot they occupied
               // as a real, in-flow grid item the instant before they
               // started exiting (see cardPositionsRef/gridRef above) —
@@ -470,6 +540,19 @@ export default function Home() {
                 <ChordDiagram chord={chord} />
               ) : (
                 <ChordNotFound name={slot.token} />
+              )}
+              {(isJustHeard || isPlayed || isCurrent) && (
+                // Under the diagram, inside the grid's row gap — never over
+                // it, where it would cover the open/muted markers or a dot.
+                // Check (not color alone) carries "heard"; the bar carries
+                // "now"; same never-color-only rule as the tuner.
+                <div className="absolute inset-x-0 top-full mt-1.5 flex justify-center" aria-hidden>
+                  {isJustHeard || isPlayed ? (
+                    <Check size={16} strokeWidth={2.5} className="text-difficulty-facil" />
+                  ) : (
+                    <span className="mt-1.5 h-0.5 w-12 rounded-full bg-accent" />
+                  )}
+                </div>
               )}
               {showDifficulty && !slot.exiting && chord && nextChord && (
                 // Absolute + left-full: starts right where the 110px

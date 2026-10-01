@@ -11,6 +11,7 @@
   "dependencies": {
     "@coderline/alphatab": "^1.8.4",
     "lucide-react": "^1.45.0",
+    "meyda": "^5.6.3",
     "next": "16.3.5",
     "pitchy": "^4.1.0",
     "react": "19.2.8",

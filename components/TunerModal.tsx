@@ -10,6 +10,7 @@ import {
   readingFor,
   type TunerReading,
 } from "@/lib/tuning";
+import { micErrorFor, openMic, type MicInput } from "@/lib/micInput";
 
 type MicState = "idle" | "requesting" | "listening" | "denied" | "unavailable";
 
@@ -32,8 +33,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
   const [presetId, setPresetId] = useState(TUNING_PRESETS[0].id);
   const [reading, setReading] = useState<TunerReading | null>(null);
 
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const micRef = useRef<MicInput | null>(null);
   const rafRef = useRef<number | null>(null);
   const recentRef = useRef<number[]>([]);
   const presetRef = useRef<number[] | null>(TUNING_PRESETS[0].strings);
@@ -53,13 +53,8 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
     requestTokenRef.current++;
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
-    // Stopping the tracks (not just closing the AudioContext) is what
-    // actually turns off the browser's "this tab is using your microphone"
-    // indicator and releases the hardware.
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    audioCtxRef.current?.close();
-    audioCtxRef.current = null;
+    micRef.current?.stop();
+    micRef.current = null;
     recentRef.current = [];
     setReading(null);
   }
@@ -77,30 +72,16 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
   }, [open]);
 
   async function activateMic() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setMicState("unavailable");
-      return;
-    }
     const token = ++requestTokenRef.current;
     setMicState("requesting");
     try {
-      // Browsers apply speech-tuned DSP (echo cancellation, noise
-      // suppression, auto gain) by default — actively harmful for
-      // instrument pitch detection, not neutral. Ask for the raw signal.
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
+      const mic = await openMic(2048);
       if (token !== requestTokenRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
+        mic.stop();
         return;
       }
-      streamRef.current = stream;
-      const audioCtx = new AudioContext();
-      audioCtxRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
-      source.connect(analyser);
+      micRef.current = mic;
+      const { analyser, audioCtx } = mic;
 
       // Dynamic import, same pattern as lib/importGuitarPro.ts's alphaTab
       // load: a browser-only dependency stays out of the main bundle until
@@ -129,7 +110,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
       rafRef.current = requestAnimationFrame(loop);
     } catch (err) {
       if (token !== requestTokenRef.current) return;
-      setMicState(err instanceof DOMException && err.name === "NotFoundError" ? "unavailable" : "denied");
+      setMicState(micErrorFor(err));
     }
   }
 

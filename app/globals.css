@@ -347,6 +347,17 @@ html {
   transform: translateY(8px);
 }
 
+/* "Tocar junto" (app/page.tsx): every chord but the one to play now steps
+   back, so the eye lands on the current one without anything moving. A
+   class here rather than Tailwind's opacity-40, which lives in
+   @layer utilities and would lose to .chord-card's own unlayered opacity.
+   Rides .chord-card's existing opacity transition; pure fade, so it stays
+   under reduced motion too. Never combined with .chord-card-exiting: an
+   exiting card gets no play-along state at all. */
+.chord-card-dimmed {
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chord-card {
     /* Drop the transform-based motion, keep the fade. */

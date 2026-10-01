@@ -89,5 +89,11 @@
   "tuner.preset.openG": "Open G (DGDGBD)",
   "tuner.preset.openD": "Open D (DADF#AD)",
   "tuner.preset.dadgad": "DADGAD",
-  "tuner.preset.chromatic": "Cromático"
+  "tuner.preset.chromatic": "Cromático",
+  "playAlong.start": "Tocar junto",
+  "playAlong.stop": "Detener",
+  "playAlong.hearing": "Escuchando: {chord}",
+  "playAlong.quiet": "Escuchando…",
+  "playAlong.now": "Ahora: {chord}",
+  "playAlong.noChords": "Escribe al menos un acorde de la biblioteca para tocar junto."
 }
