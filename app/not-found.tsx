@@ -15,7 +15,7 @@ export default function NotFound() {
       <h1 className="text-xl font-medium">{t("notFound.title")}</h1>
       <p className="text-sm text-muted max-w-sm">{t("notFound.message")}</p>
       <Link
-        href="/"
+        href="/acordes"
         className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
       >
         {t("notFound.backLink")}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import NavMenu from "@/components/NavMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import PalettePicker from "@/components/PalettePicker";
@@ -55,9 +56,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               mark replaces this later, prefer an inline SVG with
               fill="currentColor" over a raster image for the same reason
               — see ChordDiagram.tsx for the existing pattern. */}
-          <span className="text-2xl font-semibold tracking-tight text-foreground">
+          <Link
+            href="/"
+            className="text-2xl font-semibold tracking-tight text-foreground transition-colors hover-fine:text-accent"
+          >
             PlainChord
-          </span>
+          </Link>
           <div className="flex items-center gap-2">
             <NavMenu />
             <PalettePicker />

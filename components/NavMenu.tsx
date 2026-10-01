@@ -11,7 +11,7 @@ import TunerModal from "@/components/TunerModal";
 // stacked string lines, the same way it already reads for anyone who's seen
 // a "rows" layout icon elsewhere.
 const ITEMS = [
-  { href: "/", labelKey: "nav.chords", Icon: Guitar },
+  { href: "/acordes", labelKey: "nav.chords", Icon: Guitar },
   { href: "/glosario", labelKey: "nav.glossary", Icon: BookOpen },
   { href: "/tablatura", labelKey: "nav.tab", Icon: Rows3 },
 ] as const;
