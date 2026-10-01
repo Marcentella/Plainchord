@@ -202,7 +202,9 @@ test("a match that breaks off before holdMs starts over", () => {
 });
 
 test("loops back to the start and clears what was played", () => {
-  const { state, matched } = run([G, D], [hit, hit, hit, hit, hit, hit, hit, hit]);
+  // G counts at 300 ms; D can't until the cooldown ends (1300 ms) and has
+  // held for holdMs (1600 ms) — frame 16.
+  const { state, matched } = run([G, D], Array(17).fill(hit));
   assert.deepEqual(matched, [0, 1]);
   assert.equal(state.index, 0);
   assert.deepEqual(state.played, []);
@@ -224,10 +226,23 @@ test("unknown chords are skipped, and an all-unknown progression can't start", (
 });
 
 test("a repeated chord needs a fresh strum, not the same one still ringing", () => {
-  const decaying = [0.2, 0.18, 0.16, 0.14, 0.12, 0.1, 0.09, 0.08].map((rms) => ({ matches: true, rms }));
+  // One strum fading out over 1.4 s — well past the cooldown.
+  const decaying = Array.from({ length: 14 }, (_, i) => ({ matches: true, rms: 0.2 * 0.92 ** i }));
   // G G: the first G counts at 300 ms, then the second G must not count off the same decay.
   assert.deepEqual(run([G, G, D], [...decaying]).matched, [0]);
-  // A new strum (loudness jumps well above the decayed floor) re-arms it.
+  // A new strum after the cooldown (loudness jumps well above the decayed floor) re-arms it.
   const restrum = [0.25, 0.25, 0.25, 0.25].map((rms) => ({ matches: true, rms }));
   assert.deepEqual(run([G, G, D], [...decaying, ...restrum]).matched, [0, 1]);
+});
+
+test("one strum can't count two chords: nothing counts during the cooldown", () => {
+  const Dm = byName("Dm");
+  // The real-guitar case: a single D strum, and for a split second the
+  // next chord (Dm) also matches. D counts at 300 ms; Dm keeps matching
+  // until 900 ms — long enough to pass holdMs on its own (it would count
+  // at 700 ms without a cooldown), but it's all the same strum.
+  assert.deepEqual(run([D, Dm], [...Array(10).fill(hit), miss, miss]).matched, [0]);
+  assert.deepEqual(run([D, Dm], Array(13).fill(hit)).matched, [0]); // up to 1200 ms
+  // Once the cooldown is over, a real Dm that holds counts as usual.
+  assert.deepEqual(run([D, Dm], Array(17).fill(hit)).matched, [0, 1]);
 });

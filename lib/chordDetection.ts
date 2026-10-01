@@ -48,6 +48,14 @@ export const DETECTION = {
   holdMs: 300,
   /** A repeated chord (G G D) needs a fresh strum: loudness must jump this much above its quietest point since the last advance. */
   onsetRatio: 1.5,
+  /**
+   * After a chord counts, nothing else can for this long. A strum isn't
+   * clean for its first instants or while the previous chord still rings,
+   * and on a real guitar that split second was enough to count D and then
+   * Dm (the next chord in the progression) off a single D strum. One second
+   * is about the fastest a learner changes chords anyway.
+   */
+  cooldownMs: 1000,
 };
 
 export type DetectionSettings = typeof DETECTION;
@@ -220,6 +228,8 @@ export type PlayAlongState = {
   armed: boolean;
   /** Quietest loudness since the last advance — the baseline a fresh strum has to jump above. */
   rmsFloor: number;
+  /** No chord can count before this time (see DETECTION.cooldownMs). */
+  cooldownUntil: number;
 };
 
 function nextPlayable(targets: (Chord | undefined)[], from: number): number {
@@ -238,6 +248,7 @@ export function initialPlayAlong(targets: (Chord | undefined)[]): PlayAlongState
     heardSince: null,
     armed: true,
     rmsFloor: Infinity,
+    cooldownUntil: -Infinity,
   };
 }
 
@@ -258,7 +269,9 @@ export function stepPlayAlong(
   const armed =
     state.armed || (frame.rms >= settings.minRms && frame.rms > rmsFloor * settings.onsetRatio);
 
-  if (!armed || !frame.matches) {
+  // Loudness tracking (and re-arming) keeps running through the cooldown,
+  // so a fresh strum that lands inside it still counts as fresh after it.
+  if (frame.now < state.cooldownUntil || !armed || !frame.matches) {
     return { state: { ...state, rmsFloor, armed, heardSince: null }, matchedIndex: null };
   }
 
@@ -278,6 +291,7 @@ export function stepPlayAlong(
       // would otherwise match instantly: hold it until a new strum.
       armed: targets[next]!.name !== targets[state.index]!.name,
       rmsFloor: frame.rms,
+      cooldownUntil: frame.now + settings.cooldownMs,
     },
     matchedIndex: state.index,
   };
