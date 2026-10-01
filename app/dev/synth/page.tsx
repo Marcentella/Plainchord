@@ -14,6 +14,8 @@ import { Pause, Play, Square } from "lucide-react";
 import type { OutMessage } from "@/lib/synth/synthWorker";
 import { useAudioPlayback } from "@/lib/useAudioPlayback";
 import { parseTab } from "@/lib/parseTab";
+import type { Tab, TabNote, TechniqueSymbol } from "@/lib/tab";
+import { TONE_DEFAULT, TONE_OFF, type ToneSettings } from "@/lib/toneChain";
 
 // Sizes the worklet's ring buffer (see public/synth-worklet.js). 200ms
 // only had room for ~4 in-flight synthesize replies without risking
@@ -39,7 +41,7 @@ const SNIPPETS = {
 type SnippetKey = keyof typeof SNIPPETS;
 
 // Standard General MIDI guitar programs, which is what Guitar Pro files
-// carry -- public/soundfont/FluidR3_GM.sf3 keeps just these presets.
+// carry -- public/soundfont/FluidR3_GM_guitars-v1.sf2 keeps just these presets.
 const PROGRAMS = {
   steel: { label: "Cuerdas de acero", program: 25 },
   jazz: { label: "Jazz", program: 26 },
@@ -351,10 +353,60 @@ const TEST_TAB = parseTab(
   ].join("\n"),
 );
 
+// A lead lick heavy on bends and vibrato, built as a Tab directly: plain-text
+// tabs can't express held/released bends, and parseTab's columns drift across
+// bars when several strings carry techniques. Strings: 5 = high e, 4 = B, 3 = G.
+function leadNote(string: number, fret: number, techniques: TechniqueSymbol[] = [], bendTo?: number): TabNote {
+  return { string, fret, techniques, ...(bendTo !== undefined && { bendTo, bendAmount: (bendTo - fret) * 2 }) };
+}
+const LEAD_BARS: [TabNote, number][][] = [
+  [
+    [leadNote(4, 8, ["b"], 10), 1],
+    [leadNote(4, 8, ["b", "~"], 10), 2],
+    [leadNote(4, 8), 0.5],
+    [leadNote(3, 10), 0.5],
+  ],
+  [
+    [leadNote(4, 10, ["~"]), 2],
+    [leadNote(3, 9, ["b"], 11), 1],
+    [leadNote(3, 9, ["b", "~"], 11), 1],
+  ],
+  [
+    [leadNote(4, 8, ["b", "~"], 9), 1],
+    [leadNote(4, 6), 0.5],
+    [leadNote(4, 8, ["h"]), 0.5],
+    [leadNote(4, 6, ["p"]), 0.5],
+    [leadNote(3, 7), 0.5],
+    [leadNote(3, 9, ["/", "~"]), 1],
+  ],
+  [
+    // Bend, hold it, release it (Guitar Pro style), then a note on the e string.
+    [leadNote(4, 10, ["b"], 12), 1],
+    [{ string: 4, fret: 10, techniques: ["b"], bendHold: true }, 1],
+    [{ string: 4, fret: 10, techniques: ["b"], bendAmount: 4, bendReleasing: true }, 1],
+    [leadNote(5, 10, ["~"]), 1],
+  ],
+  [[leadNote(5, 12, ["~"]), 4]],
+];
+const LEAD_TAB: Tab = {
+  beats: LEAD_BARS.flatMap((bar, barIdx) => bar.map(([note, duration]) => ({ bar: barIdx, duration, notes: [note] }))).map(
+    (beat, position) => ({ ...beat, position }),
+  ),
+};
+
+const SAMPLES = {
+  chords: { label: "Acordes (C G Am E)", bpm: 60 },
+  lead: { label: "Solo con bends y vibrato", bpm: 80 },
+} as const;
+
 function RealTabSection() {
-  const [bpm, setBpm] = useState(60);
+  const [sample, setSample] = useState<keyof typeof SAMPLES>("lead");
+  const [bpm, setBpm] = useState<number>(SAMPLES.lead.bpm);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [gpTab, setGpTab] = useState<Tab | null>(null);
+  const [gpError, setGpError] = useState<string | null>(null);
+  const [tone, setToneState] = useState<ToneSettings>(TONE_DEFAULT);
   const audio = useAudioPlayback(() => setPlaying(false));
   const audioRef = useRef(audio);
   useEffect(() => {
@@ -372,7 +424,36 @@ function RealTabSection() {
   }, []);
 
   if (!TEST_TAB.ok) return <p>parseTab falló</p>;
-  const tab = TEST_TAB.tab;
+  const tab = gpTab ?? (sample === "lead" ? LEAD_TAB : TEST_TAB.tab);
+
+  function chooseSample(next: keyof typeof SAMPLES) {
+    audio.stop();
+    setPlaying(false);
+    setGpTab(null);
+    setSample(next);
+    setBpm(SAMPLES[next].bpm);
+  }
+
+  function updateTone(patch: Partial<ToneSettings>) {
+    const next = { ...tone, ...patch };
+    setToneState(next);
+    audio.setTone(next);
+  }
+
+  // The user's own file, parsed in the browser like on /tablatura; nothing is uploaded.
+  async function handleGpFile(file: File) {
+    audio.stop();
+    setPlaying(false);
+    setGpError(null);
+    const { importGuitarProFile } = await import("@/lib/importGuitarPro");
+    const result = await importGuitarProFile(new Uint8Array(await file.arrayBuffer()));
+    if (!result.ok) {
+      setGpError(result.error);
+      return;
+    }
+    setGpTab(result.tab);
+    setBpm(result.tab.tempo ?? 120);
+  }
 
   async function handlePlay() {
     if (playing) {
@@ -423,6 +504,71 @@ function RealTabSection() {
           />
         </label>
       </div>
+
+      <div className="mt-3 flex flex-wrap gap-3 text-sm">
+        {(Object.keys(SAMPLES) as (keyof typeof SAMPLES)[]).map((key) => (
+          <label key={key} className="flex items-center gap-1">
+            <input type="radio" name="sample" checked={!gpTab && sample === key} onChange={() => chooseSample(key)} />
+            {SAMPLES[key].label}
+          </label>
+        ))}
+      </div>
+
+      <div className="mt-3 text-sm">
+        <label>
+          Guitar Pro propio:{" "}
+          <input
+            type="file"
+            accept=".gp3,.gp4,.gp5,.gpx,.gp"
+            onChange={(e) => e.target.files?.[0] && void handleGpFile(e.target.files[0])}
+          />
+        </label>
+        <span className="ml-2 text-muted">
+          {gpError ? `error: ${gpError}` : gpTab ? `${gpTab.title ?? "sin título"} (${gpTab.tempo ?? "?"} BPM)` : `usando: ${SAMPLES[sample].label}`}
+        </span>
+      </div>
+
+      <h3 className="mt-6 font-semibold">Cadena de tono (A/B)</h3>
+      <p className="mt-1 text-sm text-muted">
+        Cambia en vivo mientras suena. Compara siempre con &quot;Activar cadena&quot; a volumen parecido (ajusta
+        &quot;Salida&quot;).
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <label className="flex items-center gap-1 font-medium">
+          <input type="checkbox" checked={tone.enabled} onChange={(e) => updateTone({ enabled: e.target.checked })} />
+          Activar cadena (B)
+        </label>
+        <button type="button" className="rounded border border-border px-3 py-1" onClick={() => updateTone(TONE_OFF)}>
+          Apagado
+        </button>
+        <button type="button" className="rounded border border-border px-3 py-1" onClick={() => updateTone(TONE_DEFAULT)}>
+          Elegido
+        </button>
+      </div>
+      <div className="mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 text-sm">
+        <span>Compresor</span>
+        <input type="checkbox" className="justify-self-start" checked={tone.compressor} onChange={(e) => updateTone({ compressor: e.target.checked })} />
+        <span />
+        <span>Saturación (amp)</span>
+        <input type="range" min={0} max={10} step={0.5} value={tone.drive} onChange={(e) => updateTone({ drive: Number(e.target.value) })} />
+        <span>{tone.drive === 0 ? "limpio" : tone.drive}</span>
+        <span>Gabinete</span>
+        <input type="checkbox" className="justify-self-start" checked={tone.cab} onChange={(e) => updateTone({ cab: e.target.checked })} />
+        <span />
+        <span>Corte de agudos del gabinete</span>
+        <input type="range" min={2000} max={9000} step={250} value={tone.cabLowpassHz} disabled={!tone.cab} onChange={(e) => updateTone({ cabLowpassHz: Number(e.target.value) })} />
+        <span>{tone.cabLowpassHz} Hz</span>
+        <span>Chorus / doblaje</span>
+        <input type="range" min={0} max={1} step={0.05} value={tone.chorusMix} onChange={(e) => updateTone({ chorusMix: Number(e.target.value) })} />
+        <span>{tone.chorusMix.toFixed(2)}</span>
+        <span>Reverb (sala)</span>
+        <input type="range" min={0} max={0.6} step={0.02} value={tone.reverbMix} onChange={(e) => updateTone({ reverbMix: Number(e.target.value) })} />
+        <span>{tone.reverbMix.toFixed(2)}</span>
+        <span>Salida</span>
+        <input type="range" min={0.3} max={2} step={0.05} value={tone.outputGain} onChange={(e) => updateTone({ outputGain: Number(e.target.value) })} />
+        <span>{tone.outputGain.toFixed(2)}</span>
+      </div>
+      <pre className="mt-3 overflow-x-auto rounded border border-border p-2 text-xs">{JSON.stringify(tone)}</pre>
     </section>
   );
 }
