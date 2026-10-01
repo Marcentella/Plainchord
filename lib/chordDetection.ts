@@ -23,6 +23,16 @@ export const DETECTION = {
   fftSize: 16384,
   /** How fast a string's overtones fade in the templates (see chordTemplate). 0.8 ranked every library chord first on synthetic strums; plain note-count templates (no overtones) only managed 16-22 of 28. */
   harmonicDecay: 0.8,
+  /**
+   * Which octave the chroma listens to most (see chromaFilterBank). Meyda's
+   * default, 5 (~880 Hz), sits above a guitar chord's fundamentals and right
+   * on their 7th harmonics — on a bright direct-input signal a played D
+   * scored the same as D7 (the 7th harmonic of D is a C). 3.5 (~311 Hz)
+   * centers on the guitar's own range: across 5 synthetic tone colors,
+   * chords wrongly rejected fell from 29/140 to 3/140 and wrong chords
+   * accepted from 58 to 25 (all near-twins like G/G7).
+   */
+  chromaCenterOctave: 3.5,
   /** Below this loudness the frame counts as silence: no match, no "Escuchando" readout. */
   minRms: 0.01,
   /** Cosine similarity the target chord needs to count as heard. Synthetic strums of every library chord scored >= 0.90 against their own template. */
@@ -51,10 +61,14 @@ export function chordPitchClasses(chord: Chord): number[] {
 }
 
 /**
- * Pitch-class offset of a string's 1st..6th harmonics: octave, octave, a
- * fifth up (3rd harmonic), two octaves, a major third up (5th), a fifth (6th).
+ * Pitch-class offset of a string's 1st..10th harmonics: the note itself
+ * (1st), octave (2nd), a fifth up (3rd), two octaves (4th), a major third
+ * (5th), a fifth (6th), a minor seventh (7th), three octaves (8th), a
+ * major second (9th), a major third (10th). The 7th-10th matter on a bright
+ * signal (a pickup straight into an interface): without them, a D's own
+ * 7th harmonics (C, G, E) read as D7, Dsus4 or Asus4.
  */
-const HARMONIC_OFFSETS = [0, 0, 7, 0, 4, 7];
+const HARMONIC_OFFSETS = [0, 0, 7, 0, 4, 7, 10, 0, 2, 4];
 
 /**
  * 12 numbers, C first (Meyda's chroma also starts at C): what the chord
@@ -96,19 +110,72 @@ export type MeydaLike = {
 export type Frame = { chroma: number[]; rms: number };
 
 /**
+ * The 12 x (bufferSize/2+1) weights that fold an FFT spectrum into chroma.
+ * Ported from meyda@5.6.3's utilities.createChromaFilterBank (MIT, itself
+ * after librosa) so the octave emphasis can be moved: Meyda only builds it
+ * with its defaults and doesn't export the function in an importable way
+ * (its ESM build omits file extensions). Each FFT bin is spread over the
+ * pitch classes near it with a Gaussian, then weighted by a second Gaussian
+ * over octaves centered on `centerOctave` (octaves above A0/2 ≈ 13.75 Hz
+ * times 2, i.e. 5 ≈ 880 Hz, 3.5 ≈ 311 Hz) `octaveWidth` octaves wide.
+ */
+export function chromaFilterBank(
+  sampleRate: number,
+  bufferSize: number,
+  centerOctave: number,
+  octaveWidth = 2,
+): number[][] {
+  const bands = 12;
+  const hzToOctaves = (hz: number) => Math.log2((16 * hz) / 440);
+  const frequencyBins = Array.from({ length: bufferSize }, (_, i) => bands * hzToOctaves((sampleRate * i) / bufferSize));
+  // The 0 Hz bin gets a value 1.5 octaves below bin 1 (broad, half-rotated).
+  frequencyBins[0] = frequencyBins[1] - 1.5 * bands;
+  // Meyda's source reads `.map((v, i) => Math.max(v - frequencyBins[i]), 1)`:
+  // the 1 is map's thisArg, not a floor, so the width is the plain
+  // difference. Kept that way on purpose — it's what the thresholds above
+  // were measured against.
+  const binWidths = frequencyBins.slice(1).map((v, i) => v - frequencyBins[i]).concat([1]);
+  const half = Math.round(bands / 2);
+  let weights = Array.from({ length: bands }, (_, i) =>
+    frequencyBins.map((frq, j) => {
+      const peak = ((10 * bands + half + frq - i) % bands) - half;
+      return Math.exp(-0.5 * ((2 * peak) / binWidths[j]) ** 2);
+    }),
+  );
+  // Normalize each FFT bin's column so every bin contributes equally overall.
+  const norms = frequencyBins.map((_, j) => Math.sqrt(weights.reduce((acc, row) => acc + row[j] ** 2, 0)) || 1);
+  const octaveWeights = frequencyBins.map((v) => Math.exp(-0.5 * ((v / bands - centerOctave) / octaveWidth) ** 2));
+  weights = weights.map((row) => row.map((cell, j) => (cell / norms[j]) * octaveWeights[j]));
+  // Rows were built A-first; rotate so C is row 0, matching chordTemplate.
+  weights = [...weights.slice(3), ...weights.slice(0, 3)];
+  const outputBins = Math.floor(bufferSize / 2) + 1;
+  return weights.map((row) => row.slice(0, outputBins));
+}
+
+/** Which bank Meyda currently holds, so it's only rebuilt when the buffer, rate or center actually change. */
+let bankKey = "";
+
+/**
  * One frame of audio -> chroma + loudness. Not Meyda's own analyzer
  * (createMeydaAnalyzer runs on the deprecated ScriptProcessorNode); callers
  * pull samples from a native AnalyserNode and hand them here instead.
  */
-export function extractFrame(meyda: MeydaLike, signal: Float32Array, sampleRate: number): Frame {
-  if (meyda.bufferSize !== signal.length || meyda.sampleRate !== sampleRate) {
+export function extractFrame(
+  meyda: MeydaLike,
+  signal: Float32Array,
+  sampleRate: number,
+  settings: DetectionSettings = DETECTION,
+): Frame {
+  const key = `${signal.length}|${sampleRate}|${settings.chromaCenterOctave}`;
+  if (bankKey !== key || meyda.bufferSize !== signal.length || meyda.sampleRate !== sampleRate) {
     meyda.bufferSize = signal.length;
     meyda.sampleRate = sampleRate;
-    // Meyda caches its chroma filter bank and only rebuilds it when the
-    // NUMBER of chroma bands changes (meyda@5.6.3 main.js) — not when the
-    // buffer size or sample rate does. Left alone, a buffer-size switch
-    // keeps folding the spectrum with bins computed for the old size.
-    meyda.chromaFilterBank = undefined;
+    // Always our own bank, never Meyda's cached default: Meyda only
+    // rebuilds its bank when the NUMBER of chroma bands changes
+    // (meyda@5.6.3 main.js), not the buffer size or sample rate, and it
+    // can't move the octave emphasis at all.
+    meyda.chromaFilterBank = chromaFilterBank(sampleRate, signal.length, settings.chromaCenterOctave);
+    bankKey = key;
   }
   const features = meyda.extract(["chroma", "rms"], signal);
   return { chroma: features?.chroma ?? new Array(12).fill(0), rms: features?.rms ?? 0 };

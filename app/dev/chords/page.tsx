@@ -73,7 +73,7 @@ export default function ChordCalibrationPage() {
         if (now - last < 100) return;
         last = now;
         mic.analyser.getFloatTimeDomainData(buffer);
-        const frame = extractFrame(Meyda, buffer, mic.audioCtx.sampleRate);
+        const frame = extractFrame(Meyda, buffer, mic.audioCtx.sampleRate, settingsRef.current);
         setSnap({ frame, ranked: rankChords(frame.chroma, allChords, settingsRef.current) });
       };
       rafRef.current = requestAnimationFrame(loop);
@@ -101,7 +101,7 @@ export default function ChordCalibrationPage() {
       const hop = Math.round(audio.sampleRate / 10);
       const out: Segment[] = [];
       for (let start = 0; start + settings.fftSize <= samples.length; start += hop) {
-        const frame = extractFrame(Meyda, samples.slice(start, start + settings.fftSize), audio.sampleRate);
+        const frame = extractFrame(Meyda, samples.slice(start, start + settings.fftSize), audio.sampleRate, settings);
         const t = start / audio.sampleRate;
         if (frame.rms < settings.minRms) continue;
         const ranked = rankChords(frame.chroma, allChords, settings);
@@ -125,7 +125,7 @@ export default function ChordCalibrationPage() {
   const targetMatch = snap && loud ? matchesTarget(snap.ranked, targetChord, settings) : false;
   const targetScore = snap?.ranked.find((r) => r.chord.name === target)?.score;
 
-  const slider = (key: "accept" | "margin" | "minRms" | "harmonicDecay", min: number, max: number, step: number) => (
+  const slider = (key: "accept" | "margin" | "minRms" | "harmonicDecay" | "chromaCenterOctave", min: number, max: number, step: number) => (
     <label className="grid grid-cols-[9rem_1fr_4rem] items-center gap-3 text-sm">
       <span>{key}</span>
       <input type="range" min={min} max={max} step={step} value={settings[key]} onChange={(e) => setSettings((s) => ({ ...s, [key]: Number(e.target.value) }))} />
@@ -215,6 +215,7 @@ export default function ChordCalibrationPage() {
         {slider("margin", 0, 0.1, 0.005)}
         {slider("minRms", 0, 0.1, 0.001)}
         {slider("harmonicDecay", 0, 1, 0.05)}
+        {slider("chromaCenterOctave", 2, 6, 0.25)}
         <pre className="mt-2 overflow-x-auto rounded border border-line p-2 text-xs">{JSON.stringify(settings)}</pre>
       </section>
 

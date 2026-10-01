@@ -37,7 +37,7 @@ function rng(seed: number) {
 }
 
 /**
- * A strummed chord, roughly: every sounding string with 6 harmonics, plus a
+ * A strummed chord, roughly: every sounding string with 12 harmonics, plus a
  * little noise. `amp` shapes the overtones so the tests don't only pass for
  * the one tone color the templates happen to resemble most.
  */
@@ -52,7 +52,7 @@ function synthChord(
   chord.frets.forEach((fret, string) => {
     if (fret < 0) return;
     const hz = 440 * 2 ** ((OPEN_STRINGS[string] + fret - 69) / 12);
-    for (let h = 1; h <= 6; h++) {
+    for (let h = 1; h <= 12; h++) {
       const phase = rand() * 2 * Math.PI;
       const a = amp(h, string);
       for (let n = 0; n < size; n++) out[n] += a * Math.sin((2 * Math.PI * hz * h * n) / SAMPLE_RATE + phase);
@@ -97,36 +97,55 @@ test("every library chord, strummed synthetically, ranks itself first through th
 });
 
 // Chords one note away from another library chord, where that one note
-// sits on a single string (Fmaj7 = Am + F, Am7 = C + A, Cmaj7 = Em + C...).
+// sits on a single string (Cmaj7 = C + B, Cadd9 = C + D, Am7 = C + A,
+// Fmaj7 = F + E).
 // When that string rings quieter than the rest, the extra note fades out of
 // the chroma and the smaller chord genuinely matches better — no template
 // can recover a note that's barely there. Known limit of chroma matching
 // (an ML note-transcription upgrade like Basic Pitch is the fix, see
-// FEATURES.md); kept in this list, not hidden, so a change that fixes or
-// worsens it shows up here.
-const ONE_NOTE_APART = new Set(["Fmaj7", "Am", "Am7", "Cmaj7", "Asus2"]);
+// FEATURES.md); listed here, not hidden, and the test below fails if the
+// list goes stale in either direction.
+const ONE_NOTE_APART = new Set(["Am7", "Cadd9", "Cmaj7", "Fmaj7"]);
 
-test("each chord still counts as itself with a different tone color", () => {
+test("each chord still counts as itself across tone colors, mic-like and direct-input", () => {
   // Play-along only needs the played chord to be ACCEPTED as the target,
   // not to rank first (near-twins like Em/Em7 trade places).
-  const bright = (h: number) => 0.1 * 0.8 ** (h - 1);
-  for (const chord of LIBRARY) {
-    const ranked = rankChords(extractFrame(meyda, synthChord(chord, DETECTION.fftSize, 11, bright), SAMPLE_RATE).chroma, LIBRARY);
-    assert.ok(matchesTarget(ranked, chord), `bright ${chord.name}: ${top3(ranked)}`);
-  }
-  // Strings at uneven volumes, both ways round — closer to a real strum.
-  const uneven = [
-    (h: number, s: number) => (0.1 / h) * (s % 2 ? 1.4 : 0.6),
-    (h: number, s: number) => (0.1 / h) * (s % 2 ? 0.6 : 1.4),
-  ];
-  for (const amp of uneven) {
+  const shapes: Record<string, (h: number, s: number) => number> = {
+    bright: (h) => 0.1 * 0.8 ** (h - 1),
+    // A pickup straight into an interface: overtones barely fade. This is
+    // what made a real D read as D7 before the 7th-10th harmonics and the
+    // lower chroma center (DETECTION.chromaCenterOctave).
+    directInput: (h) => 0.1 / Math.sqrt(h),
+    directInputBright: (h) => 0.1 * 0.9 ** (h - 1),
+    // Strings at uneven volumes, both ways round — closer to a real strum.
+    unevenOdd: (h, s) => (0.1 / h) * (s % 2 ? 1.4 : 0.6),
+    unevenEven: (h, s) => (0.1 / h) * (s % 2 ? 0.6 : 1.4),
+    unevenDirectInput: (h, s) => (0.1 / Math.sqrt(h)) * (s % 2 ? 0.6 : 1.4),
+  };
+  const failures = new Map<string, string>();
+  for (const [shape, amp] of Object.entries(shapes)) {
     for (const seed of [5, 11, 99]) {
-      for (const chord of LIBRARY.filter((c) => !ONE_NOTE_APART.has(c.name))) {
+      for (const chord of LIBRARY) {
         const ranked = rankChords(extractFrame(meyda, synthChord(chord, DETECTION.fftSize, seed, amp), SAMPLE_RATE).chroma, LIBRARY);
-        assert.ok(matchesTarget(ranked, chord), `uneven ${chord.name} (seed ${seed}): ${top3(ranked)}`);
+        if (!matchesTarget(ranked, chord)) failures.set(chord.name, `${shape} seed ${seed}: ${top3(ranked)}`);
       }
     }
   }
+  // Exactly the known set: a new failure is a regression, a chord that
+  // stopped failing should come off the list.
+  assert.deepEqual(
+    [...failures.keys()].sort(),
+    [...ONE_NOTE_APART].sort(),
+    [...failures].map(([name, detail]) => `${name} — ${detail}`).join("\n"),
+  );
+});
+
+test("a D on a bright direct-input signal is a D, not a D7", () => {
+  // The real-guitar bug: D's own 7th harmonics (C, G, E) made it read as
+  // D7, Dsus4 or Asus4 when the signal came straight from the pickup.
+  const ranked = rankChords(extractFrame(meyda, synthChord(byName("D"), DETECTION.fftSize, 3, (h) => 0.1 * 0.9 ** (h - 1)), SAMPLE_RATE).chroma, LIBRARY);
+  assert.equal(ranked[0].chord.name, "D", top3(ranked));
+  assert.ok(ranked[0].score - ranked[1].score > 0.05, top3(ranked));
 });
 
 test("C and Am share two notes but are still told apart", () => {
