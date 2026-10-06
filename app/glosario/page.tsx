@@ -37,7 +37,7 @@ export default function Glosario() {
             <button
               key={entry.name}
               onClick={() => setSelectedName(entry.name)}
-              className={`rounded-full border px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out ${
+              className={`rounded border px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out ${
                 entry.name === selectedName
                   ? "border-accent text-accent"
                   : "border-line"

@@ -1400,7 +1400,7 @@ export default function TabRenderer({
             setDetached(false);
             if (activeBarRef.current !== null) scrollToBar(activeBarRef.current);
           }}
-          className="fixed right-4 bottom-4 z-20 flex items-center gap-1.5 rounded-full border border-line bg-background px-4 py-2 text-sm text-foreground shadow-lg hover:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
+          className="fixed right-4 bottom-4 z-20 flex items-center gap-1.5 rounded border border-line bg-background px-4 py-2 text-sm text-foreground shadow-lg hover:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
         >
           <ArrowDownToLine size={16} aria-hidden />
           {t("tab.autoScroll")}

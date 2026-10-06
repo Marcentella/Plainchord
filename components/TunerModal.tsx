@@ -180,7 +180,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
             <p className="text-sm text-muted">{t("tuner.privacyNote")}</p>
             <button
               onClick={activateMic}
-              className="rounded-full border border-line px-4 py-2 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+              className="rounded border border-line px-4 py-2 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
             >
               {t("tuner.activateMic")}
             </button>
