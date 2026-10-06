@@ -30,13 +30,16 @@ export const DETECTION = {
    * scored the same as D7 (the 7th harmonic of D is a C). 3.5 (~311 Hz)
    * centers on the guitar's own range: across 5 synthetic tone colors,
    * chords wrongly rejected fell from 29/140 to 3/140 and wrong chords
-   * accepted from 58 to 25 (all near-twins like G/G7).
+   * accepted from 58 to 25 (all near-twins like G/G7). 3.25 (~260 Hz),
+   * picked on a real guitar (2026-10-06): weighs the bass strings a bit
+   * more, which helped Am stand apart from Fmaj7. 3.0 went further but
+   * dropped D7 under `accept` on synthetic strums.
    */
-  chromaCenterOctave: 3.5,
+  chromaCenterOctave: 3.25,
   /** Below this loudness the frame counts as silence: no match, no "Escuchando" readout. */
   minRms: 0.01,
-  /** Cosine similarity the target chord needs to count as heard. Synthetic strums of every library chord scored >= 0.90 against their own template. */
-  accept: 0.88,
+  /** Cosine similarity the target chord needs to count as heard. Synthetic strums of every library chord scored >= 0.90 against their own template; 0.87 (real guitar, 2026-10-06) leaves a little room for a real D7. */
+  accept: 0.87,
   /**
    * How far behind the best-scoring chord the target may be and still count.
    * Real guitars are messier than the synthetic test, so a little slack; at
@@ -61,7 +64,7 @@ export const DETECTION = {
 export type DetectionSettings = typeof DETECTION;
 
 /** Standard tuning, low E to high e, as MIDI notes — same string order as Chord.frets. */
-const OPEN_STRINGS = [40, 45, 50, 55, 59, 64];
+export const OPEN_STRINGS = [40, 45, 50, 55, 59, 64];
 
 /** One entry per sounding string: the pitch class (0 = C ... 11 = B) it rings at. */
 export function chordPitchClasses(chord: Chord): number[] {
