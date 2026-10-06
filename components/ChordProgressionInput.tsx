@@ -18,6 +18,23 @@ function splitLastToken(value: string): { before: string; token: string } {
   return { before: value.slice(0, lastEnd), token: value.slice(lastEnd) };
 }
 
+/** Typing at the end, once a separator closes a chord: its root letter goes
+ * uppercase (am -> Am, fmaj7 -> Fmaj7, bb -> Bb) and the separator gets
+ * tidied — a dash becomes " - ", a comma ", " — so "d-am" reads "D - Am".
+ * A space typed right after a tidied separator is absorbed, not doubled.
+ * Only at the end, so editing earlier text never rewrites under the caret;
+ * deleting is never touched. */
+function tidyClosed(prev: string, next: string, caretAtEnd: boolean): string {
+  if (!caretAtEnd || next.length <= prev.length) return next;
+  const body = next.replace(/[\s,\-–—]+$/, "");
+  const run = next.slice(body.length);
+  if (!run || !body) return next; // last keystroke wasn't a separator, or nothing to close
+  const sep = /[-–—]/.test(run) ? " - " : run.includes(",") ? ", " : " ";
+  const { before, token } = splitLastToken(body);
+  const root = /^[a-g]/.test(token) ? token[0].toUpperCase() + token.slice(1) : token;
+  return before + root + sep;
+}
+
 /** Character offset in `value` right after the `limit`-th finished chord's
  * own text ends — everything from here on (its trailing separator, chord
  * 17+, and the chord still being typed) is past the render limit and
@@ -195,8 +212,10 @@ export default function ChordProgressionInput({
           id={id}
           value={value}
           onChange={(e) => {
-            applyChange(e.target.value);
-            retarget(e.target.value);
+            const input = e.target;
+            const next = tidyClosed(value, input.value, input.selectionEnd === input.value.length);
+            applyChange(next);
+            retarget(next);
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
@@ -250,7 +269,7 @@ export default function ChordProgressionInput({
               ? t("home.acceptSuggestionAria", { name: suggestion.name })
               : undefined
           }
-          className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+          className="rounded border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
         >
           ⇥ {suggestion?.name ?? ""}
         </button>
