@@ -358,10 +358,26 @@ html {
   opacity: 0.4;
 }
 
+/* The chord to play now settles in from slightly larger, once, as it
+   becomes current. A keyframe (not a transition) so it runs when the class
+   lands and then leaves transform alone. */
+.chord-card-current {
+  animation: chord-card-settle var(--chord-card-transition-duration) cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes chord-card-settle {
+  from {
+    transform: scale(1.07);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chord-card {
     /* Drop the transform-based motion, keep the fade. */
     transition-property: opacity;
+  }
+  .chord-card-current {
+    animation: none;
   }
 }
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, Loader2, Mic, Square } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Check, Code, Loader2, Mic, Square } from "lucide-react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
 import TransitionBadge from "@/components/TransitionBadge";
-import { PROGRESSION_STORAGE_KEY, findChord, parseProgression } from "@/lib/chords";
+import { PROGRESSION_STORAGE_KEY, allChords, findChord, parseProgression } from "@/lib/chords";
 import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { cssDurationMs } from "@/lib/cssTiming";
@@ -15,6 +15,9 @@ import { useChordPlayAlong } from "@/lib/useChordPlayAlong";
 import { t } from "@/i18n";
 
 const CHORD_LIMIT = 16;
+
+/** The URL's query never changes without a navigation, so nothing to subscribe to. */
+const noSubscribe = () => () => {};
 
 // Literal, curated progressions — no transposition, no matching logic (see
 // FEATURES.md's "evaluado y pausado" note on why the dynamic version isn't
@@ -74,7 +77,16 @@ export default function ChordLibrary() {
     () => allTokens.slice(0, CHORD_LIMIT).map((token) => findChord(token)),
     [allTokens],
   );
-  const playAlong = useChordPlayAlong(playAlongTargets);
+  // /acordes?demo: play-along hears a synthesized strum instead of the mic
+  // (see openDemoInput). useSyncExternalStore with a `false` server
+  // snapshot: hydration renders without the panel, matching the server,
+  // then React re-renders with the real URL.
+  const demo = useSyncExternalStore(
+    noSubscribe,
+    () => new URLSearchParams(location.search).has("demo"),
+    () => false,
+  );
+  const playAlong = useChordPlayAlong(playAlongTargets, demo);
   const listening = playAlong.status === "listening";
   const micActive = listening || playAlong.status === "requesting";
 
@@ -309,7 +321,7 @@ export default function ChordLibrary() {
           </button>
           <button
             onClick={() => setShowDifficulty((v) => !v)}
-            className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+            className="rounded border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
           >
             {showDifficulty
               ? t("home.hideDifficulty")
@@ -323,7 +335,7 @@ export default function ChordLibrary() {
             onClick={micActive ? playAlong.stop : playAlong.start}
             disabled={!micActive && playAlong.index < 0}
             title={!micActive && playAlong.index < 0 ? t("playAlong.noChords") : undefined}
-            className="flex items-center gap-1.5 text-sm font-medium text-accent transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100"
+            className={`flex items-center gap-1.5 text-sm font-medium ${micActive ? "text-difficulty-dificil" : "text-accent"} transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100`}
           >
             {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden />}
             {micActive ? t("playAlong.stop") : t("playAlong.start")}
@@ -338,15 +350,11 @@ export default function ChordLibrary() {
               </p>
             )}
             {listening && (
-              // What the mic thinks it hears, right or wrong — playing Am
-              // when C is lit shows "Escuchando: Am", so a chord that won't
-              // advance explains itself. aria-hidden: it changes ~10x a
-              // second; the polite "Ahora: X" line below is the
-              // screen-reader channel.
-              <p className="tabular-nums" aria-hidden>
-                {playAlong.hearing
-                  ? t("playAlong.hearing", { chord: playAlong.hearing })
-                  : t("playAlong.quiet")}
+              // The red "Detener" already says the mic is on; this line only
+              // speaks up when nothing at all has been heard for a while.
+              // Its height is kept either way so the grid doesn't jump.
+              <p className="min-h-5" role="status">
+                {playAlong.micSilent ? t("playAlong.checkMic") : ""}
               </p>
             )}
             {(playAlong.status === "denied" || playAlong.status === "unavailable") && (
@@ -356,6 +364,28 @@ export default function ChordLibrary() {
             )}
           </div>
         )}
+        {demo && (
+          // Hidden dev tool, like /dev/*: hardcoded copy on purpose. The
+          // progression's chords first, then the rest of the library, so a
+          // wrong chord is one click away too.
+          <div className="fixed bottom-4 right-4 z-50 w-64 rounded-lg border border-muted/30 bg-background p-3 shadow-lg">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted">
+              <Code size={14} aria-hidden />
+              Demo
+            </p>
+            <div className="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
+              {[...new Set([...playAlongTargets.filter((c) => c), ...allChords])].map((chord) => (
+                <button
+                  key={chord!.name}
+                  onClick={() => playAlong.strum(chord!)}
+                  className="rounded border border-muted/30 px-2 py-0.5 text-sm hover-fine:border-accent active:scale-[0.97]"
+                >
+                  {chord!.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="sr-only" aria-live="polite">
           {listening && playAlongTargets[playAlong.index]
             ? t("playAlong.now", { chord: playAlongTargets[playAlong.index]!.name })
@@ -363,18 +393,26 @@ export default function ChordLibrary() {
         </p>
         {showSuggestions && (
           <div className="flex flex-wrap justify-center gap-2">
-            {COMMON_PROGRESSIONS.map((p) => (
-              <button
-                key={p}
-                onClick={() => {
-                  forceFullReplaceRef.current = true;
-                  setInput(p);
-                }}
-                className="rounded-full border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
-              >
-                {p}
-              </button>
-            ))}
+            {COMMON_PROGRESSIONS.map((p) => {
+              // Dimmed unless it's the progression loaded right now (same
+              // chords, any spacing or case), so the row stays quiet.
+              const loaded = parseProgression(p).join(" ").toLowerCase() === allTokens.join(" ").toLowerCase();
+              return (
+                <button
+                  key={p}
+                  aria-pressed={loaded}
+                  onClick={() => {
+                    forceFullReplaceRef.current = true;
+                    setInput(p);
+                  }}
+                  className={`rounded border px-3 py-1 text-sm transition hover-fine:border-accent hover-fine:opacity-100 active:scale-[0.97] duration-[160ms] ease-out ${
+                    loaded ? "border-accent" : "border-line opacity-50"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -474,14 +512,15 @@ export default function ChordLibrary() {
 
           // Play-along states (real slots only — `i` is the chord's index in
           // `tokens` for those, since real slots come first in cardSlots).
-          // Just heard: green check, full brightness for a moment. Played
-          // earlier in this pass: check, dimmed. Current: full brightness
-          // with an accent bar under it. Everything else: dimmed.
+          // Just heard: green check for a moment, dimmed like the rest —
+          // only one card is ever lit. Played earlier in this pass: check,
+          // dimmed. Current: full brightness, a small settle-in scale, and
+          // an accent bar under it. Everything else: dimmed.
           const playing = listening && !slot.exiting;
           const isJustHeard = playing && i === playAlong.justMatched;
           const isPlayed = playing && playAlong.played.includes(i);
           const isCurrent = playing && i === playAlong.index;
-          const dimmed = playing && !isCurrent && !isJustHeard;
+          const dimmed = playing && !isCurrent;
 
           return (
             <div
@@ -509,7 +548,7 @@ export default function ChordLibrary() {
               // for why (badge shouldn't count toward the column's width).
               className={`chord-card relative flex items-center justify-start ${
                 slot.exiting ? "chord-card-exiting" : ""
-              } ${dimmed ? "chord-card-dimmed" : ""}`}
+              } ${dimmed ? "chord-card-dimmed" : ""} ${isCurrent ? "chord-card-current" : ""}`}
               // Exiting cards only: frozen at the exact spot they occupied
               // as a real, in-flow grid item the instant before they
               // started exiting (see cardPositionsRef/gridRef above) —

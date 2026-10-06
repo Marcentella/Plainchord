@@ -11,7 +11,7 @@ import {
   stepPlayAlong,
   type PlayAlongState,
 } from "./chordDetection";
-import { micErrorFor, openMic, type MicError, type MicInput } from "./micInput";
+import { micErrorFor, openDemoInput, openMic, type DemoInput, type MicError, type MicInput } from "./micInput";
 
 export type PlayAlongStatus = "idle" | "requesting" | "listening" | MicError;
 
@@ -19,23 +19,29 @@ export type PlayAlongStatus = "idle" | "requesting" | "listening" | MicError;
 const ANALYSIS_INTERVAL_MS = 100;
 /** How long a just-heard chord keeps its green check at full brightness before dimming with the rest. */
 const JUST_MATCHED_MS = 600;
+/** No sound at all for this long after starting: suggest checking the mic. */
+const SILENCE_HINT_MS = 8000;
 
 /**
  * "Tocar junto": listens to the mic and walks through `targets` (the home
  * grid's chords, in order; undefined = a chord not in the library) as each
  * one is heard. Nothing is recorded or kept — stopping, or changing the
- * progression, starts over from the first chord.
+ * progression, starts over from the first chord. `demo` swaps the mic for
+ * a synthesized strum (see openDemoInput), played with the returned `strum`.
  */
-export function useChordPlayAlong(targets: (Chord | undefined)[]) {
+export function useChordPlayAlong(targets: (Chord | undefined)[], demo = false) {
   const [status, setStatus] = useState<PlayAlongStatus>("idle");
   const [progress, setProgress] = useState<PlayAlongState>(() => initialPlayAlong(targets));
   const [justMatched, setJustMatched] = useState<number | null>(null);
-  const [hearing, setHearing] = useState<string | null>(null);
+  const [micSilent, setMicSilent] = useState(false);
 
   const targetsRef = useRef(targets);
   const progressRef = useRef(progress);
-  const micRef = useRef<MicInput | null>(null);
+  const micRef = useRef<MicInput | DemoInput | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Once anything was heard, the mic evidently works: no hint again until
+  // the page reloads, even across stop/start.
+  const heardRef = useRef(false);
   const justMatchedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Same stale-request guard as TunerModal: a mic permission prompt or the
   // Meyda import that resolves after stop() was pressed must not start a
@@ -67,7 +73,7 @@ export function useChordPlayAlong(targets: (Chord | undefined)[]) {
     micRef.current?.stop();
     micRef.current = null;
     setStatus("idle");
-    setHearing(null);
+    setMicSilent(false);
     reset();
   }
 
@@ -78,7 +84,7 @@ export function useChordPlayAlong(targets: (Chord | undefined)[]) {
     const token = ++requestTokenRef.current;
     setStatus("requesting");
     try {
-      const mic = await openMic(DETECTION.fftSize);
+      const mic = demo ? openDemoInput(DETECTION.fftSize) : await openMic(DETECTION.fftSize);
       if (token !== requestTokenRef.current) {
         mic.stop();
         return;
@@ -92,6 +98,7 @@ export function useChordPlayAlong(targets: (Chord | undefined)[]) {
       const { analyser, audioCtx } = mic;
       const buffer = new Float32Array(analyser.fftSize);
       let lastAnalysis = 0;
+      const startedAt = performance.now();
       setStatus("listening");
 
       const loop = (now: number) => {
@@ -103,7 +110,12 @@ export function useChordPlayAlong(targets: (Chord | undefined)[]) {
         const frame = extractFrame(Meyda, buffer, audioCtx.sampleRate);
         const loud = frame.rms >= DETECTION.minRms;
         const ranked = loud ? rankChords(frame.chroma, allChords) : [];
-        setHearing(loud ? ranked[0].chord.name : null);
+        if (loud && !heardRef.current) {
+          heardRef.current = true;
+          setMicSilent(false);
+        } else if (!heardRef.current && now - startedAt > SILENCE_HINT_MS) {
+          setMicSilent(true);
+        }
 
         const current = progressRef.current;
         const target = targetsRef.current[current.index];
@@ -136,9 +148,20 @@ export function useChordPlayAlong(targets: (Chord | undefined)[]) {
     index: progress.index,
     played: progress.played,
     justMatched,
-    /** Best-matching library chord for what the mic hears right now, or null when it's quiet. */
-    hearing,
+    /** True when nothing at all has been heard SILENCE_HINT_MS into listening (and never before, this page load). */
+    micSilent,
     start,
     stop,
+    /**
+     * Demo mode only: strum `chord` into the detector and the speakers,
+     * starting play-along first if it isn't running — and waiting for it, so
+     * the strum doesn't ring out while Meyda is still loading.
+     */
+    strum: async (chord: Chord) => {
+      if (!demo) return;
+      if (!micRef.current) await start();
+      const mic = micRef.current;
+      if (mic && "strum" in mic) mic.strum(chord);
+    },
   };
 }
