@@ -163,9 +163,29 @@
 }
 
 body {
-  background: var(--background);
+  /* ornamental.png (light gray, up to 50% alpha) multiplied with the palette
+     color: barely there on dark palettes. On light palettes its grays would
+     sit too close to the text, so a veil of the background color itself
+     (the first layer) fades it further. --ornament-veil is that veil's
+     strength; 0% = texture at full strength. */
+  --ornament-veil: 65%;
+  background-color: var(--background);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--background) var(--ornament-veil), transparent),
+      color-mix(in srgb, var(--background) var(--ornament-veil), transparent)
+    ),
+    url("/ornamental.png");
+  background-size: auto, 760px 507px; /* tile at ~70% of the 1086×724 source */
+  background-repeat: repeat;
+  background-attachment: fixed;
+  background-blend-mode: normal, multiply;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.dark body {
+  --ornament-veil: 0%;
 }
 
 /* Reserves the vertical scrollbar's width permanently, instead of it
