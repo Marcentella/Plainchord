@@ -81,7 +81,7 @@
   --foreground: #3a211b;
   --accent: #b8492a;
   --line: #e8d4c8;
-  --muted: #846455; /* 4.8:1 on the background; #8a6a5c was 4.41, under AA's 4.5 */
+  --muted: #826253; /* 4.96:1 on the background, ≥4.6:1 on the darkest ornament swirl; #8a6a5c was 4.41, under AA's 4.5 */
   --difficulty-facil: #3d7a3f;
   --difficulty-media: #8a5a12;
   --difficulty-dificil: #9c3a2a;
