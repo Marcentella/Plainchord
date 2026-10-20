@@ -8,7 +8,7 @@ import TabRenderer, { type TabRendererHandle } from "@/components/TabRenderer";
 import TabHistoryMenu from "@/components/TabHistoryMenu";
 import { listTabHistory, saveTabToHistory, deleteTabFromHistory, type TabHistoryEntry } from "@/lib/tabHistory";
 import { usePlayhead } from "@/lib/usePlayhead";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 // Explicit map (not a template-string key) so renaming an error variant
 // without updating this breaks the build instead of silently rendering a
@@ -70,6 +70,7 @@ function TabHeaderSkeleton() {
 }
 
 function ImportingSpinner() {
+  const t = useT();
   return (
     <>
       <Loader2 className="size-8 text-accent animate-spin" aria-hidden="true" />
@@ -79,6 +80,7 @@ function ImportingSpinner() {
 }
 
 export default function Tablatura() {
+  const t = useT();
   const [text, setText] = useState("");
   const [state, setState] = useState<ImportState>({ kind: "empty" });
   const [expanded, setExpanded] = useState(true);

@@ -1,5 +1,7 @@
+"use client";
+
 import type { Difficulty } from "@/lib/transitionDifficulty";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 // Dot count still encodes level for anyone who can't distinguish the colors;
 // the color itself (--difficulty-*, defined per-theme in globals.css) is the
@@ -12,6 +14,7 @@ const COLOR_CLASS: Record<Difficulty, string> = {
 };
 
 export default function TransitionBadge({ difficulty }: { difficulty: Difficulty }) {
+  const t = useT();
   const label = t(`difficulty.${difficulty}`);
   return (
     <span

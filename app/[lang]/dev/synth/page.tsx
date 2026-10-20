@@ -148,7 +148,7 @@ export default function SynthDevPage() {
         worklet.connect(ctx.destination);
         workletNodeRef.current = worklet;
 
-        const worker = new Worker(new URL("../../../lib/synth/synthWorker.ts", import.meta.url), { type: "module" });
+        const worker = new Worker(new URL("../../../../lib/synth/synthWorker.ts", import.meta.url), { type: "module" });
         workerRef.current = worker;
         worker.onerror = (e) => setError(`worker.onerror: ${e.message} @ ${e.filename}:${e.lineno}`);
 

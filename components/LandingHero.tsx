@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { href } from "@/i18n/routes";
+import { useLocale } from "@/i18n/useLocale";
 import ChordDiagram from "@/components/ChordDiagram";
 import TransitionBadge from "@/components/TransitionBadge";
 import { PROGRESSION_STORAGE_KEY, findChord, parseProgression } from "@/lib/chords";
+import { canonicalToken } from "@/lib/notation";
+import { useNotationText } from "@/lib/useNotation";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** The landing shows a taste, not the whole library — four chords is a typical song section. */
 const PREVIEW_LIMIT = 4;
@@ -17,11 +20,16 @@ const PREVIEW_LIMIT = 4;
  * library. Nothing new under the hood — the same parser, diagrams and
  * difficulty the library uses.
  */
+const isChord = (canonical: string) => findChord(canonical) !== undefined;
+
 export default function LandingHero() {
+  const t = useT();
   const router = useRouter();
-  const [input, setInput] = useState("G D Em C");
+  const locale = useLocale();
+  // Typed in the active notation; saved for the library in American.
+  const { text: input, setText: setInput, canonical, notation } = useNotationText("G D Em C", isChord);
   const chords = parseProgression(input)
-    .map((token) => findChord(token))
+    .map((token) => findChord(canonicalToken(token, notation)))
     .filter((chord) => chord !== undefined)
     .slice(0, PREVIEW_LIMIT);
 
@@ -30,11 +38,11 @@ export default function LandingHero() {
     // The library restores its last progression from here on load, so this
     // is all it takes to arrive with the same chords already typed.
     try {
-      localStorage.setItem(PROGRESSION_STORAGE_KEY, input);
+      localStorage.setItem(PROGRESSION_STORAGE_KEY, canonical);
     } catch {
       // Storage blocked (private mode): the library just opens with its default.
     }
-    router.push("/acordes");
+    router.push(href("chords", locale));
   }
 
   return (

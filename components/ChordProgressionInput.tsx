@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { suggestChords } from "@/lib/chordSuggest";
+import { capitalizeRoot, type Notation } from "@/lib/notation";
+import { useNotation } from "@/lib/useNotation";
 import { pickDefaultIndex } from "@/lib/chordRank";
 import type { Chord } from "@/lib/chords";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 // Mirrors parseProgression's separator set (space, comma, dash variants).
 // Kept local — parseProgression itself isn't touched by this feature.
@@ -18,20 +20,20 @@ function splitLastToken(value: string): { before: string; token: string } {
   return { before: value.slice(0, lastEnd), token: value.slice(lastEnd) };
 }
 
-/** Typing at the end, once a separator closes a chord: its root letter goes
- * uppercase (am -> Am, fmaj7 -> Fmaj7, bb -> Bb) and the separator gets
+/** Typing at the end, once a separator closes a chord: its root goes
+ * uppercase (am -> Am, fmaj7 -> Fmaj7, bb -> Bb; sol -> Sol in Latin) and the separator gets
  * tidied — a dash becomes " - ", a comma ", " — so "d-am" reads "D - Am".
  * A space typed right after a tidied separator is absorbed, not doubled.
  * Only at the end, so editing earlier text never rewrites under the caret;
  * deleting is never touched. */
-function tidyClosed(prev: string, next: string, caretAtEnd: boolean): string {
+function tidyClosed(prev: string, next: string, caretAtEnd: boolean, notation: Notation): string {
   if (!caretAtEnd || next.length <= prev.length) return next;
   const body = next.replace(/[\s,\-–—]+$/, "");
   const run = next.slice(body.length);
   if (!run || !body) return next; // last keystroke wasn't a separator, or nothing to close
   const sep = /[-–—]/.test(run) ? " - " : run.includes(",") ? ", " : " ";
   const { before, token } = splitLastToken(body);
-  const root = /^[a-g]/.test(token) ? token[0].toUpperCase() + token.slice(1) : token;
+  const root = capitalizeRoot(token, notation);
   return before + root + sep;
 }
 
@@ -83,6 +85,8 @@ export default function ChordProgressionInput({
    * chord-limit slicing in app/page.tsx, this just mirrors it. */
   chordLimit: number;
 }) {
+  const t = useT();
+  const notation = useNotation();
   const initial = splitLastToken(value);
   const beforeRef = useRef(initial.before);
   // What this component itself last handed to onChange — lets the effect
@@ -90,10 +94,10 @@ export default function ChordProgressionInput({
   // parent changed `value` on its own" (e.g. a "common progressions" pill).
   const lastEmittedRef = useRef(value);
   const [suggestions, setSuggestions] = useState<Chord[]>(() =>
-    suggestChords(initial.token),
+    suggestChords(initial.token, notation),
   );
   const [index, setIndex] = useState(() =>
-    pickDefaultIndex(suggestChords(initial.token), initial.token),
+    pickDefaultIndex(suggestChords(initial.token, notation), initial.token),
   );
   const [cycling, setCycling] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -129,7 +133,7 @@ export default function ChordProgressionInput({
   function retarget(nextValue: string) {
     const { before, token } = splitLastToken(nextValue);
     beforeRef.current = before;
-    const found = suggestChords(token);
+    const found = suggestChords(token, notation);
     setSuggestions(found);
     setIndex(pickDefaultIndex(found, token));
     setCycling(false);
@@ -146,13 +150,17 @@ export default function ChordProgressionInput({
   // progression, clearing the field from elsewhere, etc.), our suggestion
   // state is for the OLD text — resync it, instead of leaving a stale chip
   // like "C7" showing after the value no longer even ends in "c".
+  // A notation switch resyncs too, even when it leaves the text unchanged
+  // (e.g. only unknown tokens), since the candidates are notation-specific.
+  const lastNotationRef = useRef(notation);
   useEffect(() => {
-    if (value !== lastEmittedRef.current) {
+    if (value !== lastEmittedRef.current || notation !== lastNotationRef.current) {
       retarget(value);
       lastEmittedRef.current = value;
+      lastNotationRef.current = notation;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, notation]);
 
   function commit(i: number, nextCycling: boolean) {
     const picked = suggestions[i];
@@ -213,7 +221,7 @@ export default function ChordProgressionInput({
           value={value}
           onChange={(e) => {
             const input = e.target;
-            const next = tidyClosed(value, input.value, input.selectionEnd === input.value.length);
+            const next = tidyClosed(value, input.value, input.selectionEnd === input.value.length, notation);
             applyChange(next);
             retarget(next);
           }}

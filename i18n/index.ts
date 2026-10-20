@@ -1,15 +1,20 @@
 import es from "./es.json";
+import en from "./en.json";
+import type { Locale } from "./locales";
+import { makeT, type Dict, type TFunction } from "./t";
 
-// Only Spanish exists today. `t` is the single seam a future locale would
-// plug into (swap the dictionary by user/browser locale) without touching
-// any component.
-const dict: Record<string, string> = es;
+export type { Dict, TFunction, TKey } from "./t";
 
-export function t(key: keyof typeof es, vars?: Record<string, string>) {
-  const str = dict[key] ?? key;
-  if (!vars) return str;
-  return Object.entries(vars).reduce(
-    (s, [k, v]) => s.replaceAll(`{${k}}`, v),
-    str,
-  );
+// Server side: pages and layouts get the locale from their `params` and
+// call getT(lang). Client components use useT() from ./LocaleProvider
+// instead, which receives only the active dictionary from the layout.
+// `satisfies Dict` makes a key missing from en.json a type error.
+const dictionaries: Record<Locale, Dict> = { es, en: en satisfies Dict };
+
+export function getDictionary(locale: Locale): Dict {
+  return dictionaries[locale];
+}
+
+export function getT(locale: Locale): TFunction {
+  return makeT(dictionaries[locale]);
 }

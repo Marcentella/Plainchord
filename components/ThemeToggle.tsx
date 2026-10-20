@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { flashThemeTransition } from "@/lib/flashThemeTransition";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 export default function ThemeToggle() {
+  const t = useT();
   // Starts false on both server and client so hydration always matches —
   // no mismatch means no stale label. Synced to the real value (set by the
   // inline theme script in layout.tsx) right after mount, which is a normal

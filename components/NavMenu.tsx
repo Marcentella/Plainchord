@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu, Guitar, BookOpen, Rows3, Music } from "lucide-react";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { href } from "@/i18n/routes";
+import { useLocale } from "@/i18n/useLocale";
 import TunerModal from "@/components/TunerModal";
 
 // Guitar/BookOpen/Rows3: same lucide-react convention as every other icon in
@@ -11,9 +13,9 @@ import TunerModal from "@/components/TunerModal";
 // stacked string lines, the same way it already reads for anyone who's seen
 // a "rows" layout icon elsewhere.
 const ITEMS = [
-  { href: "/acordes", labelKey: "nav.chords", Icon: Guitar },
-  { href: "/glosario", labelKey: "nav.glossary", Icon: BookOpen },
-  { href: "/tablatura", labelKey: "nav.tab", Icon: Rows3 },
+  { page: "chords", labelKey: "nav.chords", Icon: Guitar },
+  { page: "glossary", labelKey: "nav.glossary", Icon: BookOpen },
+  { page: "tab", labelKey: "nav.tab", Icon: Rows3 },
 ] as const;
 
 /**
@@ -21,18 +23,20 @@ const ITEMS = [
  * Spanish words ("Acordes", "Glosario", "Tablatura") plus the wordmark and
  * the palette/theme buttons didn't fit a phone-width header, forcing an
  * unwanted horizontal scroll on the whole page. A single icon-only trigger
- * (same circular-button language as ThemeToggle/PalettePicker) has a fixed,
+ * (same circular-button language as ThemeToggle/PreferencesMenu) has a fixed,
  * small width regardless of screen size or how many destinations exist —
  * it can't overflow the way inline text links did, and there's no
  * separate mobile/desktop layout to keep in sync.
  */
 export default function NavMenu() {
+  const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [tunerOpen, setTunerOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Same dismissal pattern as PalettePicker: outside click or Escape.
+  // Same dismissal pattern as PreferencesMenu: outside click or Escape.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: MouseEvent) {
@@ -64,10 +68,10 @@ export default function NavMenu() {
       </button>
       {open && (
         <div className="absolute left-0 top-full z-10 mt-2 flex min-w-40 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
-          {ITEMS.map(({ href, labelKey, Icon }) => (
+          {ITEMS.map(({ page, labelKey, Icon }) => (
             <Link
-              key={href}
-              href={href}
+              key={page}
+              href={href(page, locale)}
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover-fine:text-accent"
             >

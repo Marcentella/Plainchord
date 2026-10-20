@@ -259,7 +259,7 @@ html {
    duration and the timing function keeps every element moving in lockstep
    for the switch, not just arriving together.
    lib/flashThemeTransition.ts adds this class right before ThemeToggle or
-   PalettePicker mutates the DOM, and removes it --theme-transition-duration
+   PreferencesMenu mutates the DOM, and removes it --theme-transition-duration
    later; once removed, hover goes back to its normal, snappier speed and
    curve. That JS side reads --theme-transition-duration directly (see
    lib/cssTiming.ts) instead of hardcoding a matching literal, so the two

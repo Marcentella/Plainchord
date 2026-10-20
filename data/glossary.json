@@ -4,6 +4,11 @@
     "symbol": "b",
     "definicion": "Es subir la altura de una nota empujando la cuerda hacia un lado, sin moverte del mismo traste. La cuerda se estira, la tensión sube, y el sonido se desliza hacia arriba como si te acercaras a otra nota sin llegar a tocarla.",
     "ejecucion": "Pisa la nota con firmeza y empuja la cuerda hacia el lado, apoyando los dedos vecinos para sumar fuerza (rara vez alcanza con uno solo). En las cuerdas graves normalmente se empuja hacia abajo, hacia el suelo; en las agudas, hacia arriba, hacia el techo. El error más común es soltar presión a mitad de camino, así que mantén el dedo bien pegado al traste durante todo el trayecto, no solo al empezar.",
+    "en": {
+      "name": "Bend",
+      "definition": "Raising a note's pitch by pushing the string sideways, without leaving the fret. The string stretches, the tension rises, and the sound glides upward, as if you were approaching another note without quite playing it.",
+      "execution": "Fret the note firmly and push the string sideways, with the neighboring fingers behind it for extra strength (one finger alone is rarely enough). On the low strings you usually pull down, toward the floor; on the high strings, push up, toward the ceiling. The most common mistake is easing off the pressure halfway, so keep your finger pressed against the fret for the whole bend, not just at the start."
+    },
     "visualType": "distorsion",
     "visual": { "kind": "bend", "string": 2, "fret": 3 }
   },
@@ -12,6 +17,11 @@
     "symbol": "h",
     "definicion": "Permite pasar a una nota más aguda en la misma cuerda sin volver a pulsar con la púa. El sonido nuevo lo genera el golpe del dedo contra el traste, no la mano que rasguea.",
     "ejecucion": "Toca la primera nota de forma normal y, mientras todavía suena, deja caer otro dedo con fuerza sobre un traste más alto de la misma cuerda. El golpe tiene que ser rápido y seco, casi como si quisieras aplastar la cuerda contra el traste. Si el hammer-on suena débil o se apaga enseguida, casi siempre es porque el golpe fue tímido, no porque falte técnica.",
+    "en": {
+      "name": "Hammer-on",
+      "definition": "Moving to a higher note on the same string without picking again. The new note comes from your finger striking the fret, not from the picking hand.",
+      "execution": "Play the first note normally and, while it's still ringing, bring another finger down hard on a higher fret of the same string. The strike has to be quick and firm, almost as if you wanted to slam the string against the fret. If the hammer-on sounds weak or dies right away, it's almost always because the strike was too timid, not because you lack technique."
+    },
     "visualType": "posicion",
     "visual": { "kind": "hammer-on", "string": 2, "fromFret": 2, "toFret": 4 }
   },
@@ -20,6 +30,11 @@
     "symbol": "p",
     "definicion": "Es el movimiento contrario al hammer-on: bajas de una nota a otra más grave en la misma cuerda sin pulsar de nuevo con la púa. La segunda nota suena sola, gracias al tirón del dedo al soltarse.",
     "ejecucion": "Empieza con los dos dedos ya apoyados en sus trastes, como si la nota grave estuviera esperando en silencio debajo. Levanta el dedo de la nota aguda tirando un poco hacia abajo, no solo separándolo de la cuerda, para darle un pequeño impulso al soltarse. Si al hacerlo la nota grave no suena, seguramente el segundo dedo no estaba realmente apoyado desde el principio.",
+    "en": {
+      "name": "Pull-off",
+      "definition": "The opposite of a hammer-on: you move from one note down to a lower one on the same string without picking again. The second note rings on its own, thanks to your finger plucking the string as it lets go.",
+      "execution": "Start with both fingers already on their frets, as if the lower note were waiting silently underneath. Lift the finger off the higher note by pulling it slightly downward, not just away from the string, so it gives the string a small pluck as it releases. If the lower note doesn't sound, the second finger probably wasn't really pressing from the start."
+    },
     "visualType": "posicion",
     "visual": { "kind": "pull-off", "string": 2, "fromFret": 4, "toFret": 2 }
   },
@@ -28,6 +43,11 @@
     "symbol": "/",
     "definicion": "Es mover el mismo dedo de un traste a otro sin levantarlo de la cuerda, dejando que la nota suene de forma continua durante todo el trayecto en vez de cortarse entre traste y traste.",
     "ejecucion": "Pulsa la nota inicial y desliza el dedo por el diapasón manteniendo una presión pareja: si aprietas demasiado, el dedo se traba y el movimiento se frena; si aprietas muy poco, la cuerda deja de sonar antes de llegar al destino. La velocidad del deslizamiento también es parte de la música, así que vale la pena practicarlo despacio antes de acelerarlo.",
+    "en": {
+      "name": "Slide",
+      "definition": "Moving the same finger from one fret to another without lifting it off the string, so the note keeps ringing the whole way instead of cutting out between frets.",
+      "execution": "Fret the starting note and slide your finger along the neck with steady pressure: press too hard and your finger catches and slows down; press too lightly and the string stops ringing before you arrive. The speed of the slide is part of the music too, so it's worth practicing slowly before speeding up."
+    },
     "visualType": "posicion",
     "visual": { "kind": "slide", "string": 3, "fromFret": 1, "toFret": 3 }
   },
@@ -35,37 +55,67 @@
     "name": "Palm mute",
     "symbol": "PM",
     "definicion": "Es apagar parcialmente las cuerdas con el canto de la mano derecha para que suenen más cortas, opacas y percusivas, en vez de dejarlas resonar libremente.",
-    "ejecucion": "Apoya el borde carnoso de la palma, cerca de la muñeca, justo donde las cuerdas tocan el puente, y pulsa con normalidad con la otra mano. Si apoyas demasiado cerca del mástil, el sonido se apaga por completo y pierde la nota; si apoyas muy lejos del puente o muy suave, casi no se nota el efecto. El punto correcto es una zona bastante angosta, así que hay que buscarla a oído."
+    "ejecucion": "Apoya el borde carnoso de la palma, cerca de la muñeca, justo donde las cuerdas tocan el puente, y pulsa con normalidad con la otra mano. Si apoyas demasiado cerca del mástil, el sonido se apaga por completo y pierde la nota; si apoyas muy lejos del puente o muy suave, casi no se nota el efecto. El punto correcto es una zona bastante angosta, así que hay que buscarla a oído.",
+    "en": {
+      "name": "Palm mute",
+      "definition": "Partly muting the strings with the edge of your picking hand so they sound shorter, duller and more percussive, instead of ringing freely.",
+      "execution": "Rest the fleshy edge of your palm, near the wrist, right where the strings meet the bridge, and pick normally. Rest it too close to the neck and the sound dies completely, losing the note; too far onto the bridge or too lightly and you'll barely hear the effect. The right spot is a fairly narrow zone, so find it by ear."
+    }
   },
   {
     "name": "Pinch harmonic",
     "symbol": "PH",
     "definicion": "Es un armónico artificial: en vez de escuchar la nota fundamental de la cuerda, se resalta una de sus frecuencias armónicas, produciendo un sonido agudo, metálico y con un timbre parecido a una campana.",
-    "ejecucion": "Pulsa la cuerda con la púa y, en el mismo movimiento, deja que el borde del pulgar de esa misma mano roce la cuerda justo después del golpe. El punto exacto donde tocar cambia según la nota y hasta según la guitarra, así que no hay una posición fija que sirva siempre: hay que ir moviendo el punto de contacto hasta encontrar dónde \"salta\" el armónico. Al principio se siente más a suerte que a técnica, y es normal."
+    "ejecucion": "Pulsa la cuerda con la púa y, en el mismo movimiento, deja que el borde del pulgar de esa misma mano roce la cuerda justo después del golpe. El punto exacto donde tocar cambia según la nota y hasta según la guitarra, así que no hay una posición fija que sirva siempre: hay que ir moviendo el punto de contacto hasta encontrar dónde \"salta\" el armónico. Al principio se siente más a suerte que a técnica, y es normal.",
+    "en": {
+      "name": "Pinch harmonic",
+      "definition": "An artificial harmonic: instead of the string's fundamental note, one of its overtones comes through, producing a high, metallic, bell-like sound.",
+      "execution": "Pick the string and, in the same motion, let the edge of the thumb on that hand graze the string right after the pick. The exact spot changes with the note and even with the guitar, so there's no fixed position that always works: keep moving the contact point until you find where the harmonic \"pops.\" At first it feels more like luck than technique, and that's normal."
+    }
   },
   {
     "name": "Natural harmonic",
     "symbol": "NH",
     "definicion": "Es un armónico que se obtiene tocando la cuerda al aire, muy suavemente, justo sobre un traste exacto (el 12, el 7 o el 5 son los más comunes) sin llegar a pisarlo, dejando sonar solo esa frecuencia armónica en vez de la nota completa de la cuerda.",
-    "ejecucion": "Apoya el dedo justo encima del traste, no detrás como al pisar una nota normal, y pulsa la cuerda con la púa, soltando el dedo apenas se escucha el golpe. Solo suena limpio sobre ciertos puntos exactos de la cuerda; si el dedo no está justo sobre el traste, el armónico no aparece o sale apagado."
+    "ejecucion": "Apoya el dedo justo encima del traste, no detrás como al pisar una nota normal, y pulsa la cuerda con la púa, soltando el dedo apenas se escucha el golpe. Solo suena limpio sobre ciertos puntos exactos de la cuerda; si el dedo no está justo sobre el traste, el armónico no aparece o sale apagado.",
+    "en": {
+      "name": "Natural harmonic",
+      "definition": "A harmonic you get by touching an open string very lightly, right over a specific fret (the 12th, 7th and 5th are the most common) without pressing it down, so only that overtone rings instead of the string's full note.",
+      "execution": "Rest your finger directly over the fret wire, not behind it as when fretting a normal note, then pick the string and lift your finger as soon as you hear it. It only rings clearly at certain exact points on the string; if your finger isn't right over the fret, the harmonic doesn't appear or comes out muffled."
+    }
   },
   {
     "name": "Tap harmonic",
     "symbol": "TH",
     "definicion": "Es un armónico artificial parecido al pinch harmonic, pero provocado con un golpe seco de un dedo de la mano que normalmente rasguea, tocando la cuerda doce trastes por encima de la nota que ya está pisada con la otra mano.",
-    "ejecucion": "Pisa la nota con normalidad con la mano izquierda y, con un dedo de la derecha, golpea rápido la cuerda exactamente doce trastes más arriba (una octava), retirando el dedo enseguida para dejar sonar el armónico. Si el golpe cae fuera de esa zona exacta o el dedo se queda apoyado en la cuerda, el armónico no suena."
+    "ejecucion": "Pisa la nota con normalidad con la mano izquierda y, con un dedo de la derecha, golpea rápido la cuerda exactamente doce trastes más arriba (una octava), retirando el dedo enseguida para dejar sonar el armónico. Si el golpe cae fuera de esa zona exacta o el dedo se queda apoyado en la cuerda, el armónico no suena.",
+    "en": {
+      "name": "Tap harmonic",
+      "definition": "An artificial harmonic similar to a pinch harmonic, but produced by a sharp tap from a finger of your picking hand, twelve frets above the note your other hand is already fretting.",
+      "execution": "Fret the note normally with your fretting hand and, with a finger of your picking hand, quickly tap the string exactly twelve frets higher (one octave), pulling the finger away right after so the harmonic can ring. If the tap lands outside that exact spot or your finger stays resting on the string, the harmonic won't sound."
+    }
   },
   {
     "name": "Acento",
     "symbol": ">",
     "definicion": "Es tocar una nota con más fuerza y volumen que las que la rodean, para que resalte dentro del ritmo en vez de sonar al mismo nivel que el resto.",
-    "ejecucion": "Pulsa esa nota específica con más fuerza de púa que las notas vecinas, sin acelerar el tempo ni cambiar su duración — el énfasis está en el volumen del golpe, no en tocarla más rápido o más larga. Si el acento no se nota, casi siempre es porque la diferencia de fuerza con las notas de al lado es demasiado sutil."
+    "ejecucion": "Pulsa esa nota específica con más fuerza de púa que las notas vecinas, sin acelerar el tempo ni cambiar su duración — el énfasis está en el volumen del golpe, no en tocarla más rápido o más larga. Si el acento no se nota, casi siempre es porque la diferencia de fuerza con las notas de al lado es demasiado sutil.",
+    "en": {
+      "name": "Accent",
+      "definition": "Playing a note harder and louder than the ones around it, so it stands out in the rhythm instead of sounding at the same level as the rest.",
+      "execution": "Pick that specific note harder than its neighbors, without rushing the tempo or changing its length — the emphasis is in how hard you strike, not in playing it faster or longer. If the accent doesn't come through, it's almost always because the difference from the surrounding notes is too subtle."
+    }
   },
   {
     "name": "Vibrato",
     "symbol": "~",
     "definicion": "Es una oscilación leve y repetida en la altura de una nota que ya está sonando, usada para darle vida y expresividad en vez de dejarla sonar plana y estática.",
     "ejecucion": "Mantén el dedo firme sobre el traste y mueve la muñeca, no solo el dedo, hacia adelante y atrás en un movimiento corto y parejo, como si giraras una perilla pequeña. Si el vibrato sale desigual o entrecortado, casi siempre es porque el movimiento viene solo de los dedos y no de la muñeca, que es la que realmente controla el ritmo del oscilado.",
+    "en": {
+      "name": "Vibrato",
+      "definition": "A slight, repeated wavering in the pitch of a note that's already ringing, used to give it life and expression instead of letting it sound flat and static.",
+      "execution": "Keep your finger firm on the fret and move your wrist, not just your finger, back and forth in a short, even motion, as if turning a small knob. If the vibrato comes out uneven or choppy, it's almost always because the motion comes only from the fingers and not from the wrist, which is what really controls its rhythm."
+    },
     "visualType": "distorsion",
     "visual": { "kind": "vibrato", "string": 2, "fret": 3 }
   },
@@ -74,6 +124,11 @@
     "symbol": "T",
     "definicion": "Es generar una nota golpeando el traste directamente con un dedo de la mano que normalmente rasguea, en vez de tocar la cuerda con la púa. Permite usar las dos manos sobre el diapasón casi como si fueran independientes.",
     "ejecucion": "Golpea el traste con un dedo de la mano derecha, con un ángulo perpendicular a la cuerda y la fuerza suficiente para que suene claro, y retíralo con un pequeño tirón hacia el costado, igual que en un pull-off, en vez de simplemente levantarlo. Ese tirón final es lo que hace que la nota se escuche limpia y no se corte de golpe.",
+    "en": {
+      "name": "Tapping",
+      "definition": "Sounding a note by striking the fret directly with a finger of your picking hand, instead of picking the string. It lets you use both hands on the neck almost independently.",
+      "execution": "Strike the fret with a finger of your picking hand, perpendicular to the string and hard enough for it to sound clearly, then remove it with a small sideways pull, just like a pull-off, instead of simply lifting it. That final pull is what makes the note ring cleanly instead of cutting off abruptly."
+    },
     "visualType": "posicion",
     "visual": { "kind": "tapping", "string": 4, "toFret": 4 }
   },
@@ -82,6 +137,11 @@
     "symbol": "x",
     "definicion": "Es una nota sin altura definida: un golpe percusivo y silenciado que aporta ritmo en vez de melodía, escrito como una \"x\" en la tablatura.",
     "ejecucion": "Apoya los dedos de la mano que pisa sobre las cuerdas, pero sin llegar a presionarlas contra el traste, y pulsa con normalidad con la otra mano. El resultado debe ser un chasquido seco, sin ninguna altura reconocible; si se alcanza a distinguir una nota, es que estás apoyando demasiado suave o muy cerca del traste.",
+    "en": {
+      "name": "Dead note",
+      "definition": "A note with no definite pitch: a percussive, muted hit that adds rhythm rather than melody, written as an \"x\" in tab.",
+      "execution": "Lay the fingers of your fretting hand on the strings without pressing them down to the fret, and pick normally with the other hand. The result should be a dry click with no recognizable pitch; if you can make out a note, you're resting too lightly or too close to the fret."
+    },
     "visualType": "marcador",
     "visual": { "string": 2, "fret": 3 }
   }

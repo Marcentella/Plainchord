@@ -1,11 +1,8 @@
 import { allChords, type Chord } from "./chords";
-import { isOpenOrSimple } from "./chordRank";
+import { suggestFrom } from "./chordRank";
+import type { Notation } from "./notation";
 
-/** Chords starting with `prefix` (case-insensitive), simple voicings first. */
-export function suggestChords(prefix: string): Chord[] {
-  const p = prefix.trim().toLowerCase();
-  if (!p) return [];
-  return allChords
-    .filter((c) => c.name.toLowerCase().startsWith(p))
-    .sort((a, b) => Number(isOpenOrSimple(b)) - Number(isOpenOrSimple(a)));
+/** Library chords matching what's being typed, in the active notation (see suggestFrom). */
+export function suggestChords(prefix: string, notation: Notation): Chord[] {
+  return suggestFrom(allChords, prefix, notation);
 }

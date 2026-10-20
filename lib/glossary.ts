@@ -1,4 +1,5 @@
 import glossaryData from "@/data/glossary.json";
+import type { Locale } from "@/i18n/locales";
 
 /**
  * "posicion" family: two frets on one string, animated (hammer-on, pull-off,
@@ -36,6 +37,8 @@ type GlossaryBase = {
   definicion: string;
   /** How to physically play it, guitar in hand. */
   ejecucion: string;
+  /** English version of name/definicion/ejecucion; read through localizedEntry(). */
+  en: { name: string; definition: string; execution: string };
 };
 
 // Discriminated on visualType so `visual`'s shape is known without a cast.
@@ -47,11 +50,22 @@ export type GlossaryEntry =
 
 export const allGlossaryEntries = glossaryData as GlossaryEntry[];
 
-export function searchGlossary(query: string): GlossaryEntry[] {
+/**
+ * An entry's text in the page's language. `name` (Spanish) stays the
+ * entry's id everywhere — selection state, React keys — and only what's
+ * displayed switches.
+ */
+export function localizedEntry(entry: GlossaryEntry, locale: Locale) {
+  return locale === "en"
+    ? entry.en
+    : { name: entry.name, definition: entry.definicion, execution: entry.ejecucion };
+}
+
+export function searchGlossary(query: string, locale: Locale): GlossaryEntry[] {
   const q = query.trim().toLowerCase();
   if (!q) return allGlossaryEntries;
   return allGlossaryEntries.filter(
     (e) =>
-      e.name.toLowerCase().includes(q) || e.symbol.toLowerCase().includes(q),
+      localizedEntry(e, locale).name.toLowerCase().includes(q) || e.symbol.toLowerCase().includes(q),
   );
 }

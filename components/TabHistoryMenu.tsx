@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { History, Trash2 } from "lucide-react";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 import type { TabHistoryEntry } from "@/lib/tabHistory";
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" });
@@ -16,10 +16,11 @@ export default function TabHistoryMenu({
   onSelect: (entry: TabHistoryEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Same dismissal pattern as PalettePicker/NavMenu: outside click or Escape.
+  // Same dismissal pattern as PreferencesMenu/NavMenu: outside click or Escape.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: MouseEvent) {

@@ -1,7 +1,10 @@
+"use client";
+
 import Image from "next/image";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
 
 export default function ChordNotFound({ name }: { name: string }) {
+  const t = useT();
   return (
     <figure className="flex flex-col items-center gap-1 w-[110px]">
       <Image

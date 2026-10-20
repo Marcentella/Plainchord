@@ -1,10 +1,13 @@
 import Link from "next/link";
 import ChordDiagram from "@/components/ChordDiagram";
 import LandingHero from "@/components/LandingHero";
+import ChordName from "@/components/ChordName";
 import TransitionBadge from "@/components/TransitionBadge";
 import { findChord } from "@/lib/chords";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
-import { t } from "@/i18n";
+import { getT } from "@/i18n";
+import type { Locale } from "@/i18n/locales";
+import { alternates, href } from "@/i18n/routes";
 
 // Placeholder landing (v2 "calma" sketch in Figma) until the real design
 // pass: one action, a suggested order for beginners, and what PlainChord
@@ -39,7 +42,7 @@ const STEPS = [
         {EXAMPLE_CHANGES.map(([a, b]) => (
           <li key={a + b} className="flex items-center gap-5">
             <span className="w-24 text-lg font-medium">
-              {a} → {b}
+              <ChordName name={a} /> → <ChordName name={b} />
             </span>
             <TransitionBadge difficulty={transitionDifficulty(findChord(a)!, findChord(b)!)} />
           </li>
@@ -51,13 +54,20 @@ const STEPS = [
   {
     title: "landing.step5Title",
     body: "landing.step5Body",
-    link: { href: "/tablatura", label: "landing.step5Link" },
+    link: { page: "tab", label: "landing.step5Link" },
   },
 ] as const;
 
 const LEFT_OUT = ["landing.leftOut1", "landing.leftOut2", "landing.leftOut3", "landing.leftOut4"] as const;
 
-export default function Landing() {
+export async function generateMetadata({ params }: PageProps<"/[lang]">) {
+  return { alternates: alternates("home", (await params).lang as Locale) };
+}
+
+export default async function Landing({ params }: PageProps<"/[lang]">) {
+  // The layout already 404s anything that isn't a known locale.
+  const lang = (await params).lang as Locale;
+  const t = getT(lang);
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col px-6">
       <section className="flex flex-col gap-8 pb-24 pt-16 sm:pt-24">
@@ -83,7 +93,7 @@ export default function Landing() {
                 <h3 className="text-2xl font-medium tracking-tight">{t(step.title)}</h3>
                 <p className="leading-relaxed text-muted">{t(step.body)}</p>
                 {"link" in step && (
-                  <Link href={step.link.href} className="mt-1 w-fit text-accent hover-fine:underline">
+                  <Link href={href(step.link.page, lang)} className="mt-1 w-fit text-accent hover-fine:underline">
                     {t(step.link.label)}
                   </Link>
                 )}
@@ -109,7 +119,7 @@ export default function Landing() {
       <section className="flex flex-col items-start gap-8 border-t border-line py-24">
         <h2 className="text-4xl font-medium tracking-tight sm:text-6xl">{t("landing.closeTitle")}</h2>
         <Link
-          href="/acordes"
+          href={href("chords", lang)}
           className="rounded-xl bg-accent px-6 py-4 text-lg font-medium text-dot-text transition active:scale-[0.97] duration-[160ms] ease-out"
         >
           {t("landing.closeCta")}

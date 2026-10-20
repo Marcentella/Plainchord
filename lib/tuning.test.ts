@@ -10,6 +10,7 @@ import {
   medianFrequency,
   isPlausiblePitch,
   TUNING_PRESETS,
+  presetLabelVars,
 } from "./tuning.ts";
 
 test("midiToFrequency: A4 (MIDI 69) is exactly 440 Hz", () => {
@@ -106,4 +107,27 @@ test("the remaining alternate tuning presets spell out to the expected note name
   assert.deepEqual(byId("openG"), ["D2", "G2", "D3", "G3", "B3", "D4"]);
   assert.deepEqual(byId("openD"), ["D2", "A2", "D3", "F#3", "A3", "D4"]);
   assert.deepEqual(byId("dadgad"), ["D2", "A2", "D3", "G3", "A3", "D4"]);
+});
+
+test("preset label vars spell the same names the labels used to hardcode", () => {
+  const vars = (id: string) => presetLabelVars(TUNING_PRESETS.find((p) => p.id === id)!);
+  assert.equal(vars("standard").notes, "EADGBE");
+  assert.equal(vars("dropD").notes, "DADGBE");
+  assert.equal(vars("dropD").root, "D");
+  assert.equal(vars("halfStepDown").note, "Eb");
+  assert.equal(vars("openG").notes, "DGDGBD");
+  assert.equal(vars("openG").root, "G");
+  assert.equal(vars("openD").notes, "DADF#AD");
+  assert.equal(vars("openD").root, "D");
+  assert.equal(vars("dadgad").notes, "DADGAD");
+  assert.deepEqual(vars("chromatic"), {});
+});
+
+test("preset label vars follow Latin notation, space-separated", () => {
+  const vars = (id: string) => presetLabelVars(TUNING_PRESETS.find((p) => p.id === id)!, "latin");
+  assert.equal(vars("standard").notes, "Mi La Re Sol Si Mi");
+  assert.equal(vars("dropD").root, "Re");
+  assert.equal(vars("halfStepDown").note, "Mib");
+  assert.equal(vars("openG").root, "Sol");
+  assert.equal(vars("openD").notes, "Re La Re Fa# La Re");
 });

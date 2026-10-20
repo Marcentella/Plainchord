@@ -1,6 +1,10 @@
+"use client";
+
 import type { Chord } from "@/lib/chords";
 import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { formatChord } from "@/lib/notation";
+import { useNotation } from "@/lib/useNotation";
 
 const { W, H, NUT_Y, STRING_X, DOT_R } = FRETBOARD;
 
@@ -36,6 +40,8 @@ function findBarres(chord: Chord): Barre[] {
 }
 
 export default function ChordDiagram({ chord }: { chord: Chord }) {
+  const t = useT();
+  const name = formatChord(chord.name, useNotation());
   const barres = findBarres(chord);
   // A string under a barre is drawn as part of the bar, not as its own
   // dot on top of it.
@@ -49,7 +55,7 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
         height={(110 * H) / W}
         className="text-foreground"
         role="img"
-        aria-label={t("chordDiagram.ariaLabel", { name: chord.name })}
+        aria-label={t("chordDiagram.ariaLabel", { name })}
       >
         {/* open/muted markers above the nut */}
         {chord.frets.map((f, i) =>
@@ -128,7 +134,7 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
           );
         })}
       </svg>
-      <figcaption className="text-sm font-medium">{chord.name}</figcaption>
+      <figcaption className="text-sm font-medium">{name}</figcaption>
     </figure>
   );
 }

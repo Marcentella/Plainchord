@@ -34,7 +34,7 @@ export default function TechniquePopup({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click or Escape, same pattern as PalettePicker/NavMenu
+  // Close on outside click or Escape, same pattern as PreferencesMenu/NavMenu
   // — not a full-viewport backdrop button. That backdrop was the actual bug
   // behind "hover opens then instantly closes it again": the moment the
   // popup mounted, that button covered the ENTIRE viewport, including the

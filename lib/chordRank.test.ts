@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isOpenOrSimple, pickDefaultIndex } from "./chordRank.ts";
+import { isOpenOrSimple, pickDefaultIndex, suggestFrom } from "./chordRank.ts";
 import type { Chord } from "./chords.ts";
 
 // Fixtures mirror data/chords.json — inlined so this test has no dependency
@@ -38,4 +38,25 @@ test("pickDefaultIndex: falls back to 0 when the exact match is the only option"
 
 test("pickDefaultIndex: no exact match in the list -> first result", () => {
   assert.equal(pickDefaultIndex([C7], "c"), 0);
+});
+
+const D: Chord = { name: "D", frets: [-1, -1, 0, 2, 3, 2], fingers: [0, 0, 0, 1, 3, 2] };
+const Dm: Chord = { name: "Dm", frets: [-1, -1, 0, 2, 3, 1], fingers: [0, 0, 0, 2, 3, 1] };
+const LIBRARY = [E, Em, E7, Cmaj7, C, C7, D, Dm];
+const names = (chords: Chord[]) => chords.map((c) => c.name);
+
+test("suggestFrom: in Latin, 'd' only offers Do chords (C), never D", () => {
+  assert.deepEqual(names(suggestFrom(LIBRARY, "d", "latin")).sort(), ["Do", "Do7", "Domaj7"]);
+});
+
+test("suggestFrom: in Latin, 're' offers the D family under Latin names", () => {
+  assert.deepEqual(names(suggestFrom(LIBRARY, "re", "latin")), ["Re", "Rem"]);
+});
+
+test("suggestFrom: in American, 'd' offers D chords and nothing named Do", () => {
+  assert.deepEqual(names(suggestFrom(LIBRARY, "d", "american")), ["D", "Dm"]);
+});
+
+test("suggestFrom: simple voicings rank first in either notation", () => {
+  assert.deepEqual(names(suggestFrom(LIBRARY, "mi", "latin")), ["Mi", "Mim", "Mi7"]);
 });

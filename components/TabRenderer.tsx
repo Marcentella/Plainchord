@@ -13,11 +13,14 @@ import {
 import type { Tab, TabBeat, TabNote, TechniqueSymbol } from "@/lib/tab";
 import { CONNECTING_TECHNIQUES } from "@/lib/tab";
 import { groupIntoBars } from "@/lib/groupIntoBars";
-import { allGlossaryEntries } from "@/lib/glossary";
+import { allGlossaryEntries, localizedEntry } from "@/lib/glossary";
 import type { BeatLocation } from "@/lib/playhead";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import TechniquePopup from "@/components/TechniquePopup";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { useLocale } from "@/i18n/useLocale";
+import type { TFunction } from "@/i18n/t";
+import type { Locale } from "@/i18n/locales";
 import { ArrowDownToLine } from "lucide-react";
 
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
@@ -298,7 +301,8 @@ function harmonicNoteLabel(note: TabNote): string | null {
   return null;
 }
 
-function noteAriaLabel(note: TabNote): string {
+// Module-level (not a hook), so the caller passes its own t and locale.
+function noteAriaLabel(note: TabNote, t: TFunction, locale: Locale): string {
   const label = note.fret === null ? t("tab.deadNoteLabel") : String(note.fret);
   const names = note.techniques
     .map((symbol) =>
@@ -306,7 +310,10 @@ function noteAriaLabel(note: TabNote): string {
       // actual amount is known — same info the arrow shows visually.
       symbol === "b" && note.bendAmount != null
         ? `${bendLabel(note.bendAmount)} bend`
-        : allGlossaryEntries.find((e) => e.symbol === symbol)?.name,
+        : (() => {
+            const entry = allGlossaryEntries.find((e) => e.symbol === symbol);
+            return entry && localizedEntry(entry, locale).name;
+          })(),
     )
     .filter((n): n is string => !!n);
   return names.length ? `${label} — ${names.join(", ")}` : label;
@@ -342,6 +349,8 @@ export default function TabRenderer({
   // by setPlayheadPosition, not by this.
   playing?: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const bars = groupIntoBars(tab.beats);
   const [selected, setSelected] = useState<Selected | null>(null);
   // True while the popup is fading out but still mounted. `selected` itself
@@ -790,7 +799,7 @@ export default function TabRenderer({
     return {
       role: "button",
       tabIndex: 0,
-      "aria-label": noteAriaLabel(note),
+      "aria-label": noteAriaLabel(note, t, locale),
       style: { cursor: "pointer" },
       onClick: (e: ReactMouseEvent<SVGGraphicsElement>) => openFrom(note, e.currentTarget, "click", triggerId),
       onKeyDown: (e: ReactKeyboardEvent<SVGGraphicsElement>) => {

@@ -11,7 +11,7 @@ import { cssDurationMs } from "./cssTiming";
  * faster than the rest of the page.
  *
  * Call this right before mutating the dark/light class or the palette's
- * data-theme attribute (ThemeToggle, PalettePicker).
+ * data-theme attribute (ThemeToggle, PreferencesMenu).
  */
 export function flashThemeTransition() {
   const html = document.documentElement;

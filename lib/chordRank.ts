@@ -1,4 +1,5 @@
 import type { Chord } from "./chords";
+import { formatChord, type Notation } from "./notation.ts";
 
 // Duplicated from transitionDifficulty's requiresBarre (same finger pressed
 // across 2+ strings): that module can't be imported here as a plain value —
@@ -40,4 +41,22 @@ export function pickDefaultIndex(suggestions: Chord[], token: string): number {
   const t = token.toLowerCase();
   const i = suggestions.findIndex((c) => c.name.toLowerCase() !== t);
   return i === -1 ? 0 : i;
+}
+
+/**
+ * Autocomplete candidates: chords whose name *in the active notation*
+ * starts with `prefix` (case-insensitive), simple voicings first. Returned
+ * as copies carrying the display name, so the input's ghost text, Tab
+ * completion and aria label all work on what the person actually typed —
+ * "re" completes to "Rem", never to "Dm". Ranking still looks at the
+ * canonical chord. Pure (takes the list), so it's testable without the
+ * "@/" alias; lib/chordSuggest.ts passes the real library.
+ */
+export function suggestFrom(chords: Chord[], prefix: string, notation: Notation): Chord[] {
+  const p = prefix.trim().toLowerCase();
+  if (!p) return [];
+  return chords
+    .filter((c) => formatChord(c.name, notation).toLowerCase().startsWith(p))
+    .sort((a, b) => Number(isOpenOrSimple(b)) - Number(isOpenOrSimple(a)))
+    .map((c) => ({ ...c, name: formatChord(c.name, notation) }));
 }

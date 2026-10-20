@@ -1,13 +1,13 @@
-export const metadata = { title: "Términos de Servicio | PlainChord" };
+export const title = "Términos de Servicio | PlainChord";
 
-export default function Terminos() {
+export default function TermsEs() {
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-12">
       <article className="w-full max-w-2xl flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-medium">Términos de Servicio | PlainChord</h1>
           <p className="text-xs text-muted mt-1">
-            Última actualización: 24 de septiembre de 2026
+            Última actualización: 18 de octubre de 2026
           </p>
         </div>
 
@@ -147,6 +147,14 @@ export default function Terminos() {
           <h2 className="text-lg font-medium">9. Contacto</h2>
           <p className="text-sm">
             Para consultas sobre estos Términos: example@placeholder.app
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-medium">10. Idioma</h2>
+          <p className="text-sm">
+            Estos Términos están disponibles en inglés y en español. Si las
+            dos versiones difieren, prevalece la versión en inglés.
           </p>
         </section>
 

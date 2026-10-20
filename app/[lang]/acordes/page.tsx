@@ -12,7 +12,9 @@ import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { cssDurationMs } from "@/lib/cssTiming";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { useChordPlayAlong } from "@/lib/useChordPlayAlong";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { canonicalToken, convertProgression, displayToken, formatChord } from "@/lib/notation";
+import { useNotationText } from "@/lib/useNotation";
 
 const CHORD_LIMIT = 16;
 
@@ -32,14 +34,29 @@ const COMMON_PROGRESSIONS = [
   "C - Am - Dm - G7",
 ];
 
+// Filled into "home.progressionHint" rather than written into the
+// dictionary, so it reads Sol Re Mim Do in Latin notation.
+const HINT_EXAMPLE = ["G", "D", "Em", "C"];
+
+const isChord = (canonical: string) => findChord(canonical) !== undefined;
+
 export default function ChordLibrary() {
-  const [input, setInput] = useState("G - D - Em - C");
+  const t = useT();
+  // `input` is the box's text in the active notation; COMMON_PROGRESSIONS,
+  // localStorage and every chord lookup stay American (see useNotationText).
+  const {
+    text: input,
+    setText: setInput,
+    setCanonical: setCanonicalInput,
+    canonical: canonicalInput,
+    notation,
+  } = useNotationText("G - D - Em - C", isChord);
   const [showDifficulty, setShowDifficulty] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // Gates the save effect below until the load effect has actually run —
   // without it, the save effect's first firing (mount, `input` still the
   // hardcoded default) would immediately overwrite whatever was just
-  // restored. Same hydration-safe shape as ThemeToggle/PalettePicker:
+  // restored. Same hydration-safe shape as ThemeToggle/PreferencesMenu:
   // start from the hardcoded default (matches SSR, no mismatch), sync
   // from storage only after mount.
   const [progressionLoaded, setProgressionLoaded] = useState(false);
@@ -53,7 +70,7 @@ export default function ChordLibrary() {
   // shoving the footer down/up after the page already looked settled.
   useIsomorphicLayoutEffect(() => {
     const saved = localStorage.getItem(PROGRESSION_STORAGE_KEY);
-    if (saved) setInput(saved);
+    if (saved) setCanonicalInput(saved);
     setProgressionLoaded(true);
   }, []);
 
@@ -61,10 +78,16 @@ export default function ChordLibrary() {
   // close doesn't reliably fire cleanup effects, but every keystroke does
   // fire this one.
   useEffect(() => {
-    if (progressionLoaded) localStorage.setItem(PROGRESSION_STORAGE_KEY, input);
-  }, [input, progressionLoaded]);
+    if (progressionLoaded) localStorage.setItem(PROGRESSION_STORAGE_KEY, canonicalInput);
+  }, [canonicalInput, progressionLoaded]);
 
-  const allTokens = useMemo(() => parseProgression(input), [input]);
+  // Canonical tokens ("Sol" -> "G"), so switching notation changes no
+  // token and the grid doesn't treat it as an edit; a token not written in
+  // the active notation is marked so it never matches (canonicalToken).
+  const allTokens = useMemo(
+    () => parseProgression(input).map((token) => canonicalToken(token, notation)),
+    [input, notation],
+  );
   // Only the first CHORD_LIMIT chords are ever rendered — see slotIdsRef's
   // comment for why an edit anywhere in the list can still affect what
   // falls inside vs outside this window.
@@ -300,7 +323,10 @@ export default function ChordLibrary() {
           id="progression"
           value={input}
           onChange={setInput}
-          placeholder={t("home.progressionHint")}
+          placeholder={t("home.progressionHint", {
+            example: HINT_EXAMPLE.map((c) => formatChord(c, notation)).join(" "),
+            exampleDashed: HINT_EXAMPLE.map((c) => formatChord(c, notation)).join(" - "),
+          })}
           chordLimit={CHORD_LIMIT}
         />
       </div>
@@ -380,7 +406,7 @@ export default function ChordLibrary() {
                   onClick={() => playAlong.strum(chord!)}
                   className="rounded border border-muted/30 px-2 py-0.5 text-sm hover-fine:border-accent active:scale-[0.97]"
                 >
-                  {chord!.name}
+                  {formatChord(chord!.name, notation)}
                 </button>
               ))}
             </div>
@@ -388,7 +414,7 @@ export default function ChordLibrary() {
         )}
         <p className="sr-only" aria-live="polite">
           {listening && playAlongTargets[playAlong.index]
-            ? t("playAlong.now", { chord: playAlongTargets[playAlong.index]!.name })
+            ? t("playAlong.now", { chord: formatChord(playAlongTargets[playAlong.index]!.name, notation) })
             : ""}
         </p>
         {showSuggestions && (
@@ -403,13 +429,13 @@ export default function ChordLibrary() {
                   aria-pressed={loaded}
                   onClick={() => {
                     forceFullReplaceRef.current = true;
-                    setInput(p);
+                    setCanonicalInput(p);
                   }}
                   className={`rounded border px-3 py-1 text-sm transition hover-fine:border-accent hover-fine:opacity-100 active:scale-[0.97] duration-[160ms] ease-out ${
                     loaded ? "border-accent" : "border-line opacity-50"
                   }`}
                 >
-                  {p}
+                  {convertProgression(p, "american", notation)}
                 </button>
               );
             })}
@@ -572,7 +598,7 @@ export default function ChordLibrary() {
               {chord ? (
                 <ChordDiagram chord={chord} />
               ) : (
-                <ChordNotFound name={slot.token} />
+                <ChordNotFound name={displayToken(slot.token, notation)} />
               )}
               {(isJustHeard || isPlayed || isCurrent) && (
                 // Under the diagram, inside the grid's row gap — never over

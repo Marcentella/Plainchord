@@ -1,15 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { allGlossaryEntries, searchGlossary } from "@/lib/glossary";
+import { allGlossaryEntries, localizedEntry, searchGlossary } from "@/lib/glossary";
 import GlossaryEntryDetail from "@/components/GlossaryEntryDetail";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { useLocale } from "@/i18n/useLocale";
 
 export default function Glosario() {
+  const t = useT();
+  const locale = useLocale();
   const [query, setQuery] = useState("");
   const [selectedName, setSelectedName] = useState(allGlossaryEntries[0].name);
 
-  const results = useMemo(() => searchGlossary(query), [query]);
+  const results = useMemo(() => searchGlossary(query, locale), [query, locale]);
   const selected = allGlossaryEntries.find((e) => e.name === selectedName);
 
   return (
@@ -44,7 +47,7 @@ export default function Glosario() {
               }`}
             >
               <span className="font-mono text-accent mr-1.5">{entry.symbol}</span>
-              {entry.name}
+              {localizedEntry(entry, locale).name}
             </button>
           ))}
         </div>

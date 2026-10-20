@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Mic, MicOff, X } from "lucide-react";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { formatNote } from "@/lib/notation";
+import { useNotation } from "@/lib/useNotation";
 import {
   TUNING_PRESETS,
+  presetLabelVars,
   isPlausiblePitch,
   medianFrequency,
   readingFor,
@@ -28,6 +31,8 @@ const INDICATOR_SIZE = 14;
 const MAX_OFFSET = TRACK_WIDTH / 2 - INDICATOR_SIZE / 2;
 
 export default function TunerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
+  const notation = useNotation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [micState, setMicState] = useState<MicState>("idle");
   const [presetId, setPresetId] = useState(TUNING_PRESETS[0].id);
@@ -130,7 +135,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
         // children) is a click on ::backdrop — dialog's own box only covers
         // its visible content, so hit-testing outside that content resolves
         // to the dialog element. Same "click missed everything real" test
-        // NavMenu/PalettePicker do with a ref, just expressed via native
+        // NavMenu/PreferencesMenu do with a ref, just expressed via native
         // event targeting instead of a document listener.
         if (e.target === dialogRef.current) dialogRef.current?.close();
       }}
@@ -167,7 +172,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
         >
           {TUNING_PRESETS.map((preset) => (
             <option key={preset.id} value={preset.id}>
-              {t(preset.labelKey as Parameters<typeof t>[0])}
+              {t(preset.labelKey as Parameters<typeof t>[0], presetLabelVars(preset, notation))}
             </option>
           ))}
         </select>
@@ -206,7 +211,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
         {micState === "listening" && (
           <div className="flex w-full flex-col items-center gap-3">
             <div className="text-6xl font-semibold tabular-nums" aria-hidden>
-              {reading ? reading.noteName : "—"}
+              {reading ? formatNote(reading.noteName, notation) : "—"}
             </div>
 
             <div className="relative" style={{ width: TRACK_WIDTH, height: 24 }}>
@@ -250,7 +255,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
               aria-valuetext={
                 reading
                   ? t("tuner.centsValueText", {
-                      note: reading.noteName,
+                      note: formatNote(reading.noteName, notation),
                       cents: String(Math.abs(Math.round(reading.cents))),
                       direction: directionLabel,
                     })

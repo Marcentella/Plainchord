@@ -1,8 +1,11 @@
-import type { GlossaryEntry } from "@/lib/glossary";
+"use client";
+
+import { localizedEntry, type GlossaryEntry } from "@/lib/glossary";
 import PositionAnimation from "@/components/PositionAnimation";
 import DistortionAnimation from "@/components/DistortionAnimation";
 import MarkerAnimation from "@/components/MarkerAnimation";
-import { t } from "@/i18n";
+import { useT } from "@/i18n/LocaleProvider";
+import { useLocale } from "@/i18n/useLocale";
 
 /**
  * Symbol, name, matching animation (if the entry has one), definición and
@@ -11,11 +14,13 @@ import { t } from "@/i18n";
  * show the exact same content instead of a second copy.
  */
 export default function GlossaryEntryDetail({ entry }: { entry: GlossaryEntry }) {
+  const t = useT();
+  const text = localizedEntry(entry, useLocale());
   return (
     <div className="flex flex-col gap-4">
       <h2 className="flex items-center gap-2 text-lg font-medium">
         <span className="font-mono text-accent">{entry.symbol}</span>
-        {entry.name}
+        {text.name}
       </h2>
       {entry.visualType === "posicion" && (
         <div className="flex justify-center">
@@ -34,11 +39,11 @@ export default function GlossaryEntryDetail({ entry }: { entry: GlossaryEntry })
       )}
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-medium">{t("glossary.definitionHeading")}</h3>
-        <p className="text-sm">{entry.definicion}</p>
+        <p className="text-sm">{text.definition}</p>
       </div>
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-medium">{t("glossary.executionHeading")}</h3>
-        <p className="text-sm">{entry.ejecucion}</p>
+        <p className="text-sm">{text.execution}</p>
       </div>
     </div>
   );
