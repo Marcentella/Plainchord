@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import PreferencesMenu from "@/components/PreferencesMenu";
 import Footer from "@/components/Footer";
 import ThemeSync from "@/components/ThemeSync";
+import ThemeInitScript from "@/components/ThemeInitScript";
 import { applyStoredTheme } from "@/lib/applyStoredTheme";
 import { getDictionary, getT } from "@/i18n";
 import { LocaleProvider } from "@/i18n/LocaleProvider";
@@ -60,7 +61,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeInitScript code={themeInitScript} />
       </head>
       {/* suppressHydrationWarning here too (not just <html>): some browser
           extensions (e.g. asbplayer) inject a class/attribute onto <body>
