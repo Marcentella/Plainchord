@@ -3,7 +3,7 @@
 import type { Chord } from "@/lib/chords";
 import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
 import { useT } from "@/i18n/LocaleProvider";
-import { formatChord } from "@/lib/notation";
+import { formatChord, formatNote } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
 
 const { W, H, NUT_Y, STRING_X, DOT_R } = FRETBOARD;
@@ -39,9 +39,25 @@ function findBarres(chord: Chord): Barre[] {
     }));
 }
 
-export default function ChordDiagram({ chord }: { chord: Chord }) {
+// Open-string notes, low E -> high e, same order as Chord.frets.
+const OPEN_NOTES = ["E", "A", "D", "G", "B", "E"];
+// Extra room the guide's labels need around the plain diagram: fret
+// numbers to the left, string numbers + names below the grid (which already
+// has spare space under it, so the height stays the same).
+const LABEL_PAD_X = 22;
+
+/**
+ * `labels` (the guide's "how to read a diagram" articles): numbers each
+ * string 6..1 with its open note, and each fret 1..4 — the same diagram
+ * everyone sees in /acordes, just with its parts named.
+ */
+export default function ChordDiagram({ chord, labels = false }: { chord: Chord; labels?: boolean }) {
   const t = useT();
-  const name = formatChord(chord.name, useNotation());
+  const notation = useNotation();
+  const name = formatChord(chord.name, notation);
+  const viewX = labels ? -LABEL_PAD_X : 0;
+  const viewW = labels ? W + LABEL_PAD_X * 2 : W;
+  const width = labels ? 190 : 110;
   const barres = findBarres(chord);
   // A string under a barre is drawn as part of the bar, not as its own
   // dot on top of it.
@@ -50,9 +66,9 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
   return (
     <figure className="flex flex-col items-center gap-1">
       <svg
-        viewBox={`0 0 ${W} ${H}`}
-        width={110}
-        height={(110 * H) / W}
+        viewBox={`${viewX} 0 ${viewW} ${H}`}
+        width={width}
+        height={(width * H) / viewW}
         className="text-foreground"
         role="img"
         aria-label={t("chordDiagram.ariaLabel", { name })}
@@ -75,6 +91,26 @@ export default function ChordDiagram({ chord }: { chord: Chord }) {
         )}
 
         <FretboardGrid />
+
+        {labels && (
+          <g textAnchor="middle" style={{ fill: "var(--muted)" }}>
+            {STRING_X.map((x, i) => (
+              <g key={`label-${i}`}>
+                <text x={x} y={NUT_Y + FRETBOARD.FRETS * FRETBOARD.FRET_H + 16} fontSize={10} fontWeight="bold">
+                  {6 - i}
+                </text>
+                <text x={x} y={NUT_Y + FRETBOARD.FRETS * FRETBOARD.FRET_H + 29} fontSize={8}>
+                  {formatNote(OPEN_NOTES[i], notation)}
+                </text>
+              </g>
+            ))}
+            {Array.from({ length: FRETBOARD.FRETS }, (_, f) => (
+              <text key={`fret-${f}`} x={-10} y={fretY(f + 1) + 3} fontSize={9}>
+                {f + 1}
+              </text>
+            ))}
+          </g>
+        )}
 
         {/* barres — one long rounded bar per barred finger, the standard
             chord-chart symbol, instead of a separate circle per string it

@@ -7,6 +7,7 @@ import { LOCALES, hasLocale, pickLocale, type Locale } from "./locales.ts";
  * link goes through href() below — never a hardcoded "/acordes".
  */
 export const PAGES = {
+  guide: { es: "guia", en: "guide" },
   chords: { es: "acordes", en: "chords" },
   glossary: { es: "glosario", en: "glossary" },
   tab: { es: "tablatura", en: "tab" },
@@ -16,8 +17,42 @@ export const PAGES = {
 
 export type PageId = keyof typeof PAGES;
 
-export function href(page: PageId | "home", locale: Locale): string {
-  return page === "home" ? `/${locale}` : `/${locale}/${PAGES[page][locale]}`;
+/**
+ * Second-level slugs for pages that have them: Spanish slug (the id, and
+ * the [slug] param every page receives) -> English slug. Same rule as
+ * PAGES: proxy.ts rewrites the English one to the Spanish one. Kept here,
+ * not in data/guide.json, so proxy.ts doesn't bundle the guide's content;
+ * lib/guide.test.ts checks both lists hold the same articles.
+ */
+export const SUBPAGES: Partial<Record<PageId, Record<string, string>>> = {
+  guide: {
+    "partes-de-la-guitarra": "parts-of-the-guitar",
+    cuerdas: "strings",
+    trastes: "frets",
+    notas: "notes",
+    afinar: "tuning",
+    dedos: "fingers",
+    "diagramas-de-acordes": "chord-diagrams",
+    "x-o-y-cejilla": "x-o-and-barre",
+    tablatura: "reading-tabs",
+    dificultad: "difficulty",
+  },
+};
+
+/** A sub slug (in either language) for `locale`; unknown ones pass through. */
+function localizeSub(page: PageId, slug: string, locale: Locale): string {
+  const subs = SUBPAGES[page];
+  if (!subs) return slug;
+  const id = Object.keys(subs).find((es) => es === slug || subs[es] === slug);
+  if (!id) return slug;
+  return locale === "es" ? id : subs[id];
+}
+
+/** `sub` is the Spanish slug (the id), e.g. href("guide", "en", "cuerdas") -> "/en/guide/strings". */
+export function href(page: PageId | "home", locale: Locale, sub?: string): string {
+  if (page === "home") return `/${locale}`;
+  const base = `/${locale}/${PAGES[page][locale]}`;
+  return sub ? `${base}/${localizeSub(page, sub, locale)}` : base;
 }
 
 /**
@@ -26,13 +61,13 @@ export function href(page: PageId | "home", locale: Locale): string {
  * as a translation of the other instead of duplicate content. x-default is
  * the locale-less URL, which proxy.ts sends to the visitor's language.
  */
-export function alternates(page: PageId | "home", locale: Locale) {
+export function alternates(page: PageId | "home", locale: Locale, sub?: string) {
   return {
-    canonical: href(page, locale),
+    canonical: href(page, locale, sub),
     languages: {
-      es: href(page, "es"),
-      en: href(page, "en"),
-      "x-default": page === "home" ? "/" : `/${PAGES[page].en}`,
+      es: href(page, "es", sub),
+      en: href(page, "en", sub),
+      "x-default": page === "home" ? "/" : href(page, "en", sub).slice("/en".length),
     },
   };
 }
@@ -44,10 +79,11 @@ function pageForSlug(slug: string): PageId | undefined {
 
 /** Re-slugs a locale-less path ("/chords/x", "/acordes") for `locale`. Unknown first segments pass through. */
 function localizeRest(rest: string, locale: Locale): string {
-  const [, first = "", ...tail] = rest.split("/");
+  const [, first = "", sub, ...tail] = rest.split("/");
   const page = pageForSlug(first);
   const slug = page ? PAGES[page][locale] : first;
-  return ["", slug, ...tail].join("/").replace(/\/$/, "");
+  const subSlug = page && sub ? localizeSub(page, sub, locale) : sub;
+  return ["", slug, ...(subSlug === undefined ? [] : [subSlug]), ...tail].join("/").replace(/\/$/, "");
 }
 
 /** Splits "/en/chords/x" into ["en", "/chords/x"]; null when there's no locale prefix. */

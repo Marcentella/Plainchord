@@ -1,0 +1,361 @@
+{
+  "categories": [
+    {
+      "id": "guitarra",
+      "es": { "title": "Conoce tu guitarra", "summary": "Sus partes, las cuerdas, los trastes y cómo afinarla." },
+      "en": { "title": "Know your guitar", "summary": "Its parts, the strings, the frets and how to tune it." },
+      "articles": ["partes-de-la-guitarra", "cuerdas", "trastes", "notas", "afinar"]
+    },
+    {
+      "id": "leer",
+      "es": { "title": "Lee lo que ves", "summary": "Cómo leer los diagramas, las tablaturas y las marcas de PlainChord." },
+      "en": { "title": "Read what you see", "summary": "How to read chord diagrams, tabs and PlainChord's markings." },
+      "articles": ["dedos", "diagramas-de-acordes", "x-o-y-cejilla", "tablatura", "dificultad"]
+    }
+  ],
+  "articles": {
+    "partes-de-la-guitarra": {
+      "es": { "title": "Las partes de la guitarra", "summary": "Los nombres que vas a leer en el resto de la guía." },
+      "en": { "title": "The parts of the guitar", "summary": "The names you'll see in the rest of the guide." },
+      "blocks": [
+        { "type": "visual", "visual": "guitar-parts" },
+        {
+          "type": "text",
+          "es": "No necesitas aprenderte todo de memoria. Basta con ubicar estas partes, porque son las que aparecen en los diagramas y las tablaturas.",
+          "en": "You don't need to memorize all of it. Knowing where these parts are is enough, because they're the ones diagrams and tabs refer to."
+        },
+        {
+          "type": "text",
+          "es": "**Clavijero y clavijas:** el extremo del mástil. Cada clavija tensa una cuerda; girarla cambia su afinación.",
+          "en": "**Headstock and tuning pegs:** the end of the neck. Each peg holds one string; turning it changes that string's tuning."
+        },
+        {
+          "type": "text",
+          "es": "**Cejuela:** la pieza por donde las cuerdas pasan del clavijero al mástil. En los diagramas de acordes es la línea gruesa de arriba.",
+          "en": "**Nut:** the piece where the strings cross from the headstock onto the neck. In chord diagrams it's the thick line at the top."
+        },
+        {
+          "type": "text",
+          "es": "**Mástil y trastes:** el mástil es el brazo largo; los trastes son las barras de metal que lo cruzan. Ahí pisas las notas.",
+          "en": "**Neck and frets:** the neck is the long arm; the frets are the metal bars across it. That's where you press the notes."
+        },
+        {
+          "type": "text",
+          "es": "**Cuerpo:** la parte grande. En una acústica tiene la boca, el agujero por donde sale el sonido; en una eléctrica, en su lugar están las pastillas.",
+          "en": "**Body:** the big part. On an acoustic it has the soundhole, where the sound comes out; on an electric, the pickups sit there instead."
+        },
+        {
+          "type": "text",
+          "es": "**Puente:** donde terminan las cuerdas, sobre el cuerpo.",
+          "en": "**Bridge:** where the strings end, on the body."
+        }
+      ]
+    },
+    "cuerdas": {
+      "es": { "title": "Las cuerdas: números y nombres", "summary": "Qué cuerda es cuál, y cómo recordarlo." },
+      "en": { "title": "Strings: numbers and names", "summary": "Which string is which, and how to remember it." },
+      "blocks": [
+        { "type": "visual", "visual": "strings" },
+        {
+          "type": "text",
+          "es": "La guitarra tiene seis cuerdas, numeradas de la más delgada a la más gruesa: la **1ª** es la más delgada y la **6ª** la más gruesa.",
+          "en": "A guitar has six strings, numbered from thinnest to thickest: the **1st** is the thinnest and the **6th** the thickest."
+        },
+        {
+          "type": "text",
+          "es": "Con la guitarra en posición para tocar, la 6ª queda arriba, la más cercana a tu cara, y la 1ª abajo, la más cercana al suelo.",
+          "en": "With the guitar in playing position, the 6th is on top, closest to your face, and the 1st is at the bottom, closest to the floor."
+        },
+        {
+          "type": "text",
+          "es": "Cada cuerda al aire (sin pisar) suena una nota. De la 6ª a la 1ª: **Mi, La, Re, Sol, Si, Mi**, que en notación americana es **E, A, D, G, B, E**. Las dos Mi son la misma nota, una más grave que la otra: por eso se habla de Mi grave (6ª) y Mi agudo (1ª).",
+          "en": "Each open string (not pressed) plays one note. From the 6th to the 1st: **E, A, D, G, B, E**. The two E's are the same note, one lower than the other, which is why people say low E (6th) and high E (1st)."
+        },
+        {
+          "type": "mnemonic",
+          "es": "La cuerda más gruesa lleva el número más grande: la 6.\nPara los nombres, de la 6ª a la 1ª: **Mi**ra, **La** **Re**ina **Sol**a **Si**empre **Mi**ente.",
+          "en": "The thickest string gets the biggest number: 6.\nFor the names, from the 6th to the 1st: **E**ddie **A**te **D**ynamite, **G**ood **B**ye **E**ddie."
+        },
+        {
+          "type": "mistake",
+          "es": "Grave y agudo hablan del sonido, no de la posición. La cuerda que queda más arriba cuando tocas es la más grave.",
+          "en": "Low and high describe the sound, not the position. The string that sits highest while you play is the lowest-sounding one."
+        }
+      ]
+    },
+    "trastes": {
+      "es": { "title": "Los trastes", "summary": "Cómo se cuentan y dónde va el dedo." },
+      "en": { "title": "Frets", "summary": "How they're counted and where your finger goes." },
+      "blocks": [
+        { "type": "visual", "visual": "frets" },
+        {
+          "type": "text",
+          "es": "Los trastes son las barras de metal que cruzan el mástil. El espacio entre dos barras también se llama traste, y es el que cuentas.",
+          "en": "Frets are the metal bars across the neck. The space between two bars is also called a fret, and that's what you count."
+        },
+        {
+          "type": "text",
+          "es": "Se cuentan desde la cejuela hacia el cuerpo: el **traste 1** es el más cercano a la cejuela. Cada traste que avanzas, la nota suena un poco más aguda.",
+          "en": "They're counted from the nut toward the body: **fret 1** is the one closest to the nut. Each fret you move along, the note sounds a little higher."
+        },
+        {
+          "type": "text",
+          "es": "Cuando un diagrama o una tablatura dice traste 3, pisas la cuerda en el tercer espacio, no sobre la barra.",
+          "en": "When a diagram or a tab says fret 3, you press the string in the third space, not on the bar."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Una cuerda al aire es el traste 0: suena sin pisar nada.",
+          "en": "An open string is fret 0: it rings without pressing anything."
+        },
+        {
+          "type": "mistake",
+          "es": "Pisar en medio del espacio o encima de la barra. Pon la yema del dedo dentro del espacio, pegada a la barra que lo cierra del lado del cuerpo: necesitas menos fuerza y la nota suena limpia, sin zumbido.",
+          "en": "Pressing in the middle of the space or on top of the bar. Put your fingertip inside the space, right up against the bar at its body end: it takes less effort and the note rings clean, without buzzing."
+        }
+      ]
+    },
+    "notas": {
+      "es": { "title": "Los nombres de las notas", "summary": "Do Re Mi y C D E son lo mismo." },
+      "en": { "title": "Note names", "summary": "C D E and Do Re Mi are the same thing." },
+      "blocks": [
+        { "type": "visual", "visual": "note-names" },
+        {
+          "type": "text",
+          "es": "Hay dos formas de nombrar las mismas siete notas. La latina (Do, Re, Mi…) es la que se enseña en muchas escuelas de habla hispana. La americana (C, D, E…) es la que usa la mayoría de las hojas de acordes y tablaturas en internet, también en español.",
+          "en": "There are two ways to name the same seven notes. Letter names (C, D, E…) are what almost every chord sheet and tab uses. Solfège names (Do, Re, Mi…) are taught in many schools in Spanish, Italian, French and Portuguese-speaking countries."
+        },
+        {
+          "type": "text",
+          "es": "La americana no empieza en Do: C es Do, y A es La.",
+          "en": "Letter names don't start at Do: C is Do, and A is La."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Ubica una sola: **La = A**, la primera letra del abecedario. Desde ahí sigue el orden: Si = B, Do = C, Re = D…",
+          "en": "Anchor just one: **A = La**, the first letter of the alphabet. From there, keep going in order: B = Si, C = Do, D = Re…"
+        },
+        {
+          "type": "text",
+          "es": "Entre algunas notas hay una intermedia, que se escribe con **#** (sostenido) o **b** (bemol): Fa# está entre Fa y Sol. Por ahora basta con reconocer el símbolo.",
+          "en": "Between some notes there's one in the middle, written with **#** (sharp) or **b** (flat): F# sits between F and G. For now, recognizing the symbol is enough."
+        },
+        {
+          "type": "text",
+          "es": "El afinador agrega un número, como en Sol2 o G2: es la octava, que dice qué tan grave o agudo es ese Sol. Un número menor es más grave. La 6ª cuerda al aire es Mi2 (E2) y la 1ª es Mi4 (E4).",
+          "en": "The tuner adds a number, as in G2: that's the octave, which tells how low or high that G is. A smaller number is lower. The open 6th string is E2 and the 1st is E4."
+        },
+        {
+          "type": "text",
+          "es": "En PlainChord eliges cómo ver los nombres desde el menú de preferencias.",
+          "en": "In PlainChord you choose which names you see from the preferences menu."
+        }
+      ]
+    },
+    "afinar": {
+      "es": { "title": "Afinar la guitarra", "summary": "La afinación estándar y cómo usar el afinador." },
+      "en": { "title": "Tuning the guitar", "summary": "Standard tuning and how to use the tuner." },
+      "blocks": [
+        { "type": "visual", "visual": "strings", "octaves": true },
+        {
+          "type": "text",
+          "es": "Afinar es ajustar cada cuerda para que suene su nota. La afinación más común se llama **estándar**: de la 6ª a la 1ª, Mi La Re Sol Si Mi (E A D G B E). Los diagramas de PlainChord están pensados para esta afinación.",
+          "en": "Tuning means adjusting each string so it plays its note. The most common tuning is called **standard**: from the 6th to the 1st, E A D G B E. PlainChord's diagrams assume this tuning."
+        },
+        {
+          "type": "text",
+          "es": "Con el afinador, toca una sola cuerda al aire y déjala sonar. Si la nota está baja, tensa la cuerda girando su clavija; si está alta, aflójala. Gira de a poco y vuelve a tocar.",
+          "en": "With the tuner, play one open string and let it ring. If the note is flat (too low), tighten the string by turning its peg; if it's sharp (too high), loosen it. Turn a little at a time and play it again."
+        },
+        {
+          "type": "text",
+          "es": "Afina antes de cada práctica, aunque lo hayas hecho ayer: las cuerdas se desafinan solas con el uso y con los cambios de temperatura. Un acorde bien pisado suena mal si la guitarra está desafinada, así que si algo suena raro, revisa la afinación primero.",
+          "en": "Tune before every practice, even if you did yesterday: strings drift out of tune with use and with temperature changes. A correctly fretted chord sounds wrong on an out-of-tune guitar, so if something sounds off, check the tuning first."
+        },
+        {
+          "type": "mistake",
+          "es": "Pasarse de la nota y quedarse ahí. Si la cuerda quedó alta, aflójala un poco por debajo de la nota y vuelve a subir hasta ella: así queda firme y se desafina menos.",
+          "en": "Overshooting the note and leaving it there. If the string ends up sharp, loosen it a little below the note and tune back up to it: that way it holds and drifts less."
+        },
+        { "type": "link", "to": "tuner" }
+      ]
+    },
+    "dedos": {
+      "es": { "title": "Tu mano, numerada", "summary": "Qué dedo es cada número en un diagrama." },
+      "en": { "title": "Your hand, numbered", "summary": "Which finger each number in a diagram means." },
+      "blocks": [
+        { "type": "visual", "visual": "hand" },
+        {
+          "type": "text",
+          "es": "Los diagramas de acordes dicen qué dedo usar con un número: **1** índice, **2** medio, **3** anular y **4** meñique. El pulgar a veces aparece como **P** (o **T**, del inglés thumb).",
+          "en": "Chord diagrams tell you which finger to use with a number: **1** index, **2** middle, **3** ring and **4** pinky. The thumb sometimes shows up as **T**."
+        },
+        {
+          "type": "text",
+          "es": "Estos números son para la mano que pisa las cuerdas sobre el mástil: la izquierda si tocas como diestro, la derecha si tocas como zurdo.",
+          "en": "These numbers are for the hand that presses the strings on the neck: your left hand if you play right-handed, your right if you play left-handed."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Cuenta desde el índice. El pulgar no cuenta, porque casi siempre queda detrás del mástil.",
+          "en": "Start counting at the index finger. The thumb doesn't count, because it almost always stays behind the neck."
+        },
+        {
+          "type": "mistake",
+          "es": "Confundir el número del dedo con el del traste. En un diagrama, el número dentro del punto es el dedo; el traste es la fila donde está el punto.",
+          "en": "Mixing up the finger number with the fret number. In a diagram, the number inside the dot is the finger; the fret is the row the dot sits in."
+        }
+      ]
+    },
+    "diagramas-de-acordes": {
+      "es": { "title": "Cómo leer un diagrama de acorde", "summary": "Qué cuerda es cuál, y por qué el diagrama parece al revés." },
+      "en": { "title": "How to read a chord diagram", "summary": "Which string is which, and why the diagram looks flipped." },
+      "blocks": [
+        { "type": "visual", "visual": "orientation" },
+        {
+          "type": "text",
+          "es": "Un diagrama de acorde dibuja el mástil visto de frente, con la guitarra de pie: como si la colgaras en la pared y la miraras.",
+          "en": "A chord diagram draws the neck seen from the front, with the guitar standing up: as if it were hanging on a wall and you were looking at it."
+        },
+        {
+          "type": "text",
+          "es": "Las **líneas verticales son las cuerdas**: la de la izquierda es la 6ª (Mi grave) y la de la derecha, la 1ª (Mi agudo). Las **líneas horizontales son los trastes**, y la línea gruesa de arriba es la cejuela.",
+          "en": "The **vertical lines are the strings**: the leftmost is the 6th (low E) and the rightmost the 1st (high E). The **horizontal lines are the frets**, and the thick line at the top is the nut."
+        },
+        { "type": "visual", "visual": "chord", "chord": "C" },
+        {
+          "type": "text",
+          "es": "Cada **punto** es un lugar que pisas: la columna dice la cuerda, la fila dice el traste y el número de adentro, el dedo. En este Do (C), el dedo 3 pisa la 5ª cuerda en el traste 3, el dedo 2 la 4ª en el traste 2 y el dedo 1 la 2ª en el traste 1.",
+          "en": "Each **dot** is a spot you press: the column tells you the string, the row tells you the fret and the number inside, the finger. In this C, finger 3 presses the 5th string at fret 3, finger 2 the 4th at fret 2, and finger 1 the 2nd at fret 1."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Piensa en una guitarra colgada en la pared: la cuerda gruesa queda a la izquierda.",
+          "en": "Picture a guitar hanging on a wall: the thick string is on the left."
+        },
+        {
+          "type": "mistake",
+          "es": "Leer las cuerdas al revés. Si tomas la guitarra y miras hacia abajo, la cuerda gruesa queda más cerca de ti; en el diagrama queda a la izquierda. Es la misma guitarra, vista desde otro lado.",
+          "en": "Reading the strings backwards. When you hold the guitar and look down, the thick string is closest to you; in the diagram it's on the left. It's the same guitar, seen from another side."
+        },
+        {
+          "type": "text",
+          "es": "**Si tocas como zurdo**, con una guitarra para zurdos, el diagrama se lee como en un espejo: la 6ª cuerda queda a la derecha. Los diagramas de PlainChord están dibujados para diestros.",
+          "en": "**If you play left-handed**, on a left-handed guitar, read the diagram as a mirror image: the 6th string is on the right. PlainChord's diagrams are drawn for right-handed players."
+        },
+        { "type": "link", "to": "chords" }
+      ]
+    },
+    "x-o-y-cejilla": {
+      "es": { "title": "X, O y la cejilla", "summary": "Qué cuerdas tocar, y qué hacer cuando un dedo pisa varias." },
+      "en": { "title": "X, O and the barre", "summary": "Which strings to play, and what to do when one finger presses several." },
+      "blocks": [
+        { "type": "visual", "visual": "chord", "chord": "D" },
+        {
+          "type": "text",
+          "es": "Encima de la cejuela, una cuerda puede llevar una marca: **O** significa que la tocas al aire, sin pisar; **X**, que no la tocas. Una cuerda con un punto no lleva marca.",
+          "en": "Above the nut, a string can carry a mark: **O** means you play it open, without pressing; **X** means you don't play it. A string with a dot has no mark."
+        },
+        {
+          "type": "text",
+          "es": "En este Re (D), las dos cuerdas más graves llevan X: tocas solo de la 4ª a la 1ª.",
+          "en": "In this D, the two lowest strings have an X: you only play from the 4th to the 1st."
+        },
+        {
+          "type": "mnemonic",
+          "es": "La X tacha la cuerda; la O es una cuerda abierta.",
+          "en": "The X crosses the string out; the O is an open string."
+        },
+        {
+          "type": "mistake",
+          "es": "Ignorar las X y rasguear las seis cuerdas. Las cuerdas que sobran ensucian el acorde aunque el resto esté bien pisado.",
+          "en": "Ignoring the X's and strumming all six strings. The extra strings muddy the chord even when the rest is fretted correctly."
+        },
+        { "type": "visual", "visual": "chord", "chord": "F" },
+        {
+          "type": "text",
+          "es": "Cuando una barra cruza varias cuerdas, un solo dedo las pisa todas en el mismo traste: es una **cejilla**. Casi siempre la hace el índice (dedo 1), estirado y plano sobre las cuerdas.",
+          "en": "When a bar crosses several strings, one finger presses all of them at the same fret: that's a **barre**. It's almost always the index finger (finger 1), straight and flat across the strings."
+        },
+        {
+          "type": "text",
+          "es": "En este Fa (F), el índice pisa las seis cuerdas en el traste 1 y los demás dedos forman el resto del acorde.",
+          "en": "In this F, the index finger presses all six strings at fret 1 and the other fingers form the rest of the chord."
+        },
+        {
+          "type": "text",
+          "es": "La cejilla cuesta al principio, y es normal que algunas cuerdas no suenen durante las primeras semanas. Está bien empezar por acordes sin cejilla.",
+          "en": "Barres are hard at first, and it's normal for some strings not to ring for the first few weeks. It's fine to start with chords that don't need one."
+        },
+        { "type": "link", "to": "chords" }
+      ]
+    },
+    "tablatura": {
+      "es": { "title": "Cómo leer una tablatura", "summary": "Seis líneas, números y un orden: de izquierda a derecha." },
+      "en": { "title": "How to read a tab", "summary": "Six lines, numbers and one direction: left to right." },
+      "blocks": [
+        { "type": "visual", "visual": "tab" },
+        {
+          "type": "text",
+          "es": "Una tablatura dibuja las seis cuerdas como seis líneas. La de **arriba es la 1ª cuerda** (Mi agudo) y la de **abajo, la 6ª** (Mi grave).",
+          "en": "A tab draws the six strings as six lines. The **top line is the 1st string** (high E) and the **bottom one, the 6th** (low E)."
+        },
+        {
+          "type": "mistake",
+          "es": "Leerla como ves la guitarra al tocar, donde la 6ª queda arriba. En la tablatura es al revés: la 6ª va abajo.",
+          "en": "Reading it the way you see the guitar while playing, where the 6th is on top. A tab is the other way around: the 6th goes at the bottom."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Lo agudo va arriba, como en un gráfico: más arriba, más agudo.",
+          "en": "High notes go on top, like on a chart: higher up, higher pitch."
+        },
+        {
+          "type": "text",
+          "es": "Cada **número es un traste**: un 3 sobre una línea significa pisar esa cuerda en el traste 3. Un **0** es la cuerda al aire.",
+          "en": "Each **number is a fret**: a 3 on a line means pressing that string at fret 3. A **0** is the open string."
+        },
+        {
+          "type": "text",
+          "es": "Se lee de **izquierda a derecha**, como un texto. Los números que están uno encima del otro se tocan al mismo tiempo, como el 3 y el 0 del comienzo.",
+          "en": "You read it **left to right**, like text. Numbers stacked on top of each other are played at the same time, like the 3 and the 0 at the start."
+        },
+        {
+          "type": "text",
+          "es": "Las letras y signos entre los números (h, p, b, /…) son técnicas, y cada una está explicada en el Glosario.",
+          "en": "The letters and signs between the numbers (h, p, b, /…) are techniques, and each one is explained in the Glossary."
+        },
+        { "type": "link", "to": "glossary" },
+        { "type": "link", "to": "tab" }
+      ]
+    },
+    "dificultad": {
+      "es": { "title": "La dificultad de un cambio", "summary": "Qué mide la marca Fácil, Media o Difícil entre dos acordes." },
+      "en": { "title": "How hard a chord change is", "summary": "What the Easy, Medium or Hard mark between two chords measures." },
+      "blocks": [
+        { "type": "visual", "visual": "difficulty", "pairs": [["Am", "C"], ["G", "D"], ["C", "F"]] },
+        {
+          "type": "text",
+          "es": "En la biblioteca de acordes puedes activar **Mostrar dificultad**. Entre cada par de acordes aparece una marca: Fácil, Media o Difícil.",
+          "en": "In the chord library you can turn on **Show difficulty**. A mark appears between each pair of chords: Easy, Medium or Hard."
+        },
+        {
+          "type": "text",
+          "es": "La marca no habla de ti ni de tu nivel: es una propiedad del cambio. Mide cuánto se mueven los dedos de un acorde al siguiente, cuántos tienen que levantarse y caer en otro lugar, si la mano se desplaza por el mástil y si solo uno de los dos acordes lleva cejilla.",
+          "en": "The mark isn't about you or your level: it's a property of the change itself. It measures how far your fingers travel from one chord to the next, how many have to lift off and land somewhere new, whether your hand shifts along the neck, and whether only one of the two chords needs a barre."
+        },
+        {
+          "type": "text",
+          "es": "Los puntos dicen lo mismo que el color, para quien no distingue los colores: uno es fácil y tres, difícil.",
+          "en": "The dots say the same thing as the color, for anyone who can't tell the colors apart: one is easy, three is hard."
+        },
+        {
+          "type": "text",
+          "es": "Un cambio Difícil no es para evitarlo: es el que conviene practicar solo y despacio antes de tocarlo dentro de la canción.",
+          "en": "A Hard change isn't one to avoid: it's the one worth practicing on its own, slowly, before playing it inside the song."
+        },
+        { "type": "link", "to": "chords" }
+      ]
+    }
+  }
+}

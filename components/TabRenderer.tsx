@@ -116,6 +116,11 @@ const VIBRATO_Y = PAD_Y + 5;
 // playhead/ghost pill's own height, see PLAYHEAD_HEIGHT below for why those
 // are shorter.
 const BAR_HEIGHT = PAD_Y + BEND_HEADROOM + 5 * STRING_GAP + PAD_Y;
+
+/** Vertical center of a string's line inside a bar (0 = low E), for labels drawn beside the staff (the guide's tab figure). */
+export function tabStringY(string: number): number {
+  return PAD_Y + BEND_HEADROOM + (5 - string) * STRING_GAP;
+}
 // The playhead/ghost pill's own height and top offset — deliberately
 // shorter than BAR_HEIGHT and NOT starting at the bar's own top. Spanning
 // the full BAR_HEIGHT (as an earlier version did) meant the pill stuck out

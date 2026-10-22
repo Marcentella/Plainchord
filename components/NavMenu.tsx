@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, Guitar, BookOpen, Rows3, Music } from "lucide-react";
+import { Menu, Compass, Guitar, BookOpen, Rows3, Music } from "lucide-react";
 import { useT } from "@/i18n/LocaleProvider";
 import { href } from "@/i18n/routes";
 import { useLocale } from "@/i18n/useLocale";
@@ -11,8 +11,10 @@ import TunerModal from "@/components/TunerModal";
 // Guitar/BookOpen/Rows3: same lucide-react convention as every other icon in
 // the header (see CLAUDE.md — no emoji). Rows3 stands in for tab notation's
 // stacked string lines, the same way it already reads for anyone who's seen
-// a "rows" layout icon elsewhere.
+// a "rows" layout icon elsewhere. Compass for the guide: it's where you
+// get your bearings, and BookOpen is already the glossary's.
 const ITEMS = [
+  { page: "guide", labelKey: "nav.guide", Icon: Compass },
   { page: "chords", labelKey: "nav.chords", Icon: Guitar },
   { page: "glossary", labelKey: "nav.glossary", Icon: BookOpen },
   { page: "tab", labelKey: "nav.tab", Icon: Rows3 },

@@ -73,3 +73,17 @@ test("swapLocale keeps the page and the query string", () => {
   assert.equal(swapLocale("/es/dev/synth", "en"), "/en/dev/synth");
   assert.equal(swapLocale(swapLocale("/en/privacy", "es"), "en"), "/en/privacy");
 });
+
+test("guide articles: localized second-level slugs", () => {
+  assert.equal(href("guide", "es", "cuerdas"), "/es/guia/cuerdas");
+  assert.equal(href("guide", "en", "cuerdas"), "/en/guide/strings");
+  // English slug rewritten to the Spanish folder + Spanish [slug] param.
+  assert.deepEqual(resolvePath("/en/guide/strings", undefined, null), { kind: "rewrite", to: "/en/guia/cuerdas" });
+  assert.deepEqual(resolvePath("/es/guia/cuerdas", undefined, null), { kind: "next" });
+  // The other language's article slug redirects, like top-level slugs do.
+  assert.deepEqual(resolvePath("/es/guia/strings", undefined, null), { kind: "redirect", to: "/es/guia/cuerdas" });
+  assert.deepEqual(resolvePath("/en/guide/cuerdas", undefined, null), { kind: "redirect", to: "/en/guide/strings" });
+  assert.equal(swapLocale("/es/guia/cuerdas", "en"), "/en/guide/strings");
+  // Unknown articles pass through and 404 on their own.
+  assert.deepEqual(resolvePath("/es/guia/nope", undefined, null), { kind: "next" });
+});
