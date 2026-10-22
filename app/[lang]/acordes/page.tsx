@@ -15,6 +15,9 @@ import { useChordPlayAlong } from "@/lib/useChordPlayAlong";
 import { useT } from "@/i18n/LocaleProvider";
 import { canonicalToken, convertProgression, displayToken, formatChord } from "@/lib/notation";
 import { useNotationText } from "@/lib/useNotation";
+import Link from "next/link";
+import { useLocale } from "@/i18n/useLocale";
+import { href } from "@/i18n/routes";
 
 const CHORD_LIMIT = 16;
 
@@ -42,6 +45,7 @@ const isChord = (canonical: string) => findChord(canonical) !== undefined;
 
 export default function ChordLibrary() {
   const t = useT();
+  const locale = useLocale();
   // `input` is the box's text in the active notation; COMMON_PROGRESSIONS,
   // localStorage and every chord lookup stay American (see useNotationText).
   const {
@@ -345,6 +349,13 @@ export default function ChordLibrary() {
               ? t("home.hideSuggestions")
               : t("home.showSuggestions")}
           </button>
+          {/* Where beginners actually get stuck: right next to the diagrams. */}
+          <Link
+            href={href("guide", locale, "diagramas-de-acordes")}
+            className="text-xs text-muted underline transition hover-fine:text-accent"
+          >
+            {t("guide.howToReadDiagram")}
+          </Link>
           <button
             onClick={() => setShowDifficulty((v) => !v)}
             className="rounded border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"

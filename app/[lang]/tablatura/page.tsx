@@ -9,6 +9,9 @@ import TabHistoryMenu from "@/components/TabHistoryMenu";
 import { listTabHistory, saveTabToHistory, deleteTabFromHistory, type TabHistoryEntry } from "@/lib/tabHistory";
 import { usePlayhead } from "@/lib/usePlayhead";
 import { useT } from "@/i18n/LocaleProvider";
+import { useLocale } from "@/i18n/useLocale";
+import { href } from "@/i18n/routes";
+import Link from "next/link";
 
 // Explicit map (not a template-string key) so renaming an error variant
 // without updating this breaks the build instead of silently rendering a
@@ -81,6 +84,7 @@ function ImportingSpinner() {
 
 export default function Tablatura() {
   const t = useT();
+  const locale = useLocale();
   const [text, setText] = useState("");
   const [state, setState] = useState<ImportState>({ kind: "empty" });
   const [expanded, setExpanded] = useState(true);
@@ -345,14 +349,22 @@ export default function Tablatura() {
               e.target.value = ""; // lets picking the same file twice re-trigger onChange
             }}
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="self-start text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
-          >
-            {t("tab.gpPickerLink")}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {t("tab.gpPickerLink")}
+            </button>
+            <Link
+              href={href("guide", locale, "tablatura")}
+              className="text-xs text-muted underline transition hover-fine:text-accent"
+            >
+              {t("guide.howToReadTab")}
+            </Link>
+          </div>
         </div>
       )}
 
