@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Loader2, Pause, Play, RotateCcw, Square, Upload, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FolderOpen, Loader2, Mic, Pause, Play, RotateCcw, Square, Upload, Volume2, VolumeX } from "lucide-react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
 import TabRenderer, { type TabRendererHandle } from "@/components/TabRenderer";
 import TabHistoryMenu from "@/components/TabHistoryMenu";
+import RecordTabModal from "@/components/RecordTabModal";
 import { listTabHistory, saveTabToHistory, deleteTabFromHistory, type TabHistoryEntry } from "@/lib/tabHistory";
 import { usePlayhead } from "@/lib/usePlayhead";
 import { useT } from "@/i18n/LocaleProvider";
@@ -30,6 +31,8 @@ const ERROR_MESSAGE_KEY = {
 // it out, nothing in the actual parsing path needed to change.
 const GP_EXTENSIONS = [".gp3", ".gp4", ".gp5", ".gpx", ".gp"];
 const MAX_TEXTAREA_HEIGHT = 320; // px — auto-grows up to this, scrolls internally beyond it
+
+const noSubscribe = () => () => {};
 
 type ImportState =
   | { kind: "empty" }
@@ -98,6 +101,17 @@ export default function Tablatura() {
   // has none of its own (plain-text pastes never have tab.tempo). The one
   // piece of state a future tap-tempo tool would also write into.
   const [bpmOverride, setBpmOverride] = useState<number | null>(null);
+  const [recordOpen, setRecordOpen] = useState(false);
+  // Audio-to-tab ("escuchar y escribir") is an experiment now, not a
+  // feature (plantechdifficulty.md, 2026-11-08): only /tablatura?debug shows
+  // it, which also makes it download the analyzed WAV. Same
+  // useSyncExternalStore pattern as /acordes?demo, so hydration matches the
+  // server (no link) before the real URL is read.
+  const debug = useSyncExternalStore(
+    noSubscribe,
+    () => new URLSearchParams(location.search).has("debug"),
+    () => false,
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tabRendererRef = useRef<TabRendererHandle>(null);
@@ -154,6 +168,17 @@ export default function Tablatura() {
     el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
   }, [text]);
 
+  // Every source (paste, Guitar Pro, recording) lands here once it has a
+  // non-empty Tab: show it, collapse the input, and keep it in local history.
+  function showTab(tab: Tab, notices: string[]) {
+    setState({ kind: "ok", tab, notices });
+    setExpanded(false);
+    setBpmOverride(null);
+    saveTabToHistory(tab)
+      .then(refreshHistory)
+      .catch(() => {});
+  }
+
   function applyTextChange(value: string) {
     userInteractedRef.current = true;
     setText(value);
@@ -178,12 +203,7 @@ export default function Tablatura() {
     if (result.truncatedFrom) notices.push(t("tab.truncated", { limit: String(MAX_BEATS) }));
     if (result.ignoredChars > 0) notices.push(t("tab.ignoredChars"));
     if (result.skippedBlocks > 0) notices.push(t("tab.skippedBlocks"));
-    setState({ kind: "ok", tab: result.tab, notices });
-    setExpanded(false);
-    setBpmOverride(null);
-    saveTabToHistory(result.tab)
-      .then(refreshHistory)
-      .catch(() => {});
+    showTab(result.tab, notices);
   }
 
   async function applyGuitarProFile(file: File) {
@@ -208,12 +228,7 @@ export default function Tablatura() {
       }
       const notices: string[] = [];
       if (result.unmappedTechniques > 0) notices.push(t("tab.unmappedTechniques"));
-      setState({ kind: "ok", tab: result.tab, notices });
-      setExpanded(false);
-      setBpmOverride(null);
-      saveTabToHistory(result.tab)
-        .then(refreshHistory)
-        .catch(() => {});
+      showTab(result.tab, notices);
     } finally {
       setIsImporting(false);
     }
@@ -358,6 +373,17 @@ export default function Tablatura() {
             >
               {t("tab.gpPickerLink")}
             </button>
+            {debug && (
+              <button
+                type="button"
+                onClick={() => setRecordOpen(true)}
+                disabled={isImporting}
+                className="inline-flex items-center gap-1 text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Mic className="size-3.5" aria-hidden="true" />
+                {t("tab.recordLink")}
+              </button>
+            )}
             <Link
               href={href("guide", locale, "tablatura")}
               className="text-xs text-muted underline transition hover-fine:text-accent"
@@ -554,6 +580,15 @@ export default function Tablatura() {
           )}
         </div>
       )}
+
+      <RecordTabModal
+        open={recordOpen}
+        onClose={() => setRecordOpen(false)}
+        onResult={(tab) => {
+          userInteractedRef.current = true;
+          showTab(tab, []);
+        }}
+      />
     </div>
   );
 }

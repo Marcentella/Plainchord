@@ -9,6 +9,8 @@ import { OPEN_STRINGS } from "./chordDetection";
 export type MicInput = {
   analyser: AnalyserNode;
   audioCtx: AudioContext;
+  /** The raw mic signal, for consumers that need more than the analyser (recording, see components/RecordTabModal.tsx). */
+  source: MediaStreamAudioSourceNode;
   /** Stops the tracks (not just the AudioContext) — that's what turns off the browser's "using your microphone" indicator and frees the hardware. */
   stop: () => void;
 };
@@ -29,10 +31,12 @@ export async function openMic(fftSize: number): Promise<MicInput> {
   const audioCtx = new AudioContext();
   const analyser = audioCtx.createAnalyser();
   analyser.fftSize = fftSize;
-  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const source = audioCtx.createMediaStreamSource(stream);
+  source.connect(analyser);
   return {
     analyser,
     audioCtx,
+    source,
     stop() {
       stream.getTracks().forEach((track) => track.stop());
       void audioCtx.close();
@@ -45,7 +49,7 @@ export function micErrorFor(err: unknown): MicError {
   return err instanceof DOMException && err.name === "NotFoundError" ? "unavailable" : "denied";
 }
 
-export type DemoInput = MicInput & { strum: (chord: Chord) => void };
+export type DemoInput = Omit<MicInput, "source"> & { strum: (chord: Chord) => void };
 
 /**
  * Stand-in for openMic() behind /acordes?demo: no mic, a synthesized strum

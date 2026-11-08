@@ -89,9 +89,9 @@ export type TabBeat = {
   /** This beat's real length in quarter notes (1 = a quarter, 0.5 = an
    *  eighth, 1.5 = a dotted quarter...) — dots, tuplets, and grace notes are
    *  already resolved into this one number by the importer (see
-   *  lib/importGuitarPro.ts). Guitar Pro imports only, same limitation as
-   *  Tab's own title/artist/tempo/tuning/timeSignature — plain text has no
-   *  rhythm notation to read this from. Falls back to an implicit quarter
+   *  lib/importGuitarPro.ts). Guitar Pro imports and recordings
+   *  (lib/transcribe.ts) only — plain text has no rhythm notation to read
+   *  this from. Falls back to an implicit quarter
    *  note wherever it's absent; see lib/playhead.ts. */
   duration?: number;
 };
@@ -101,7 +101,7 @@ export type Tab = {
   /** Guitar Pro imports only — a plain-text paste has no metadata to read these from. */
   title?: string;
   artist?: string;
-  /** Initial tempo in BPM. */
+  /** Initial tempo in BPM. Guitar Pro imports, or the BPM a recording was played at. */
   tempo?: number;
   /** Low string to high, e.g. ["E", "A", "D", "G", "B", "E"] — display names, not MIDI values. */
   tuning?: string[];
@@ -109,6 +109,6 @@ export type Tab = {
   tuningMidi?: number[];
   /** General MIDI program of the imported track (25 = steel, 27 = clean, 30 = distortion...). Guitar Pro imports only; playback resolves it through playbackProgramFor (lib/tabToScore.ts), which falls back to clean guitar. */
   program?: number;
-  /** e.g. {numerator:4, denominator:4} for 4/4. Guitar Pro imports only, same limitation as title/artist/tempo/tuning above. */
+  /** e.g. {numerator:4, denominator:4} for 4/4. Guitar Pro imports and recordings (always 4/4 for now). */
   timeSignature?: { numerator: number; denominator: number };
 };
