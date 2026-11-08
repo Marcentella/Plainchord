@@ -25,6 +25,7 @@ import {
 import {
   CALIBRATION_FRETS,
   LAST_READ_FRET,
+  PRESS_PULLBACK,
   calibrate,
   fretAt,
   imageAt,
@@ -166,8 +167,8 @@ function drawGrid(ctx: CanvasRenderingContext2D, cal: Calibration, w: number, h:
 }
 
 /** Fingertip press points of a hand in the neck plane, and how many sit on the neck. */
-function neckPoints(hand: TrackedHand, cal: Calibration): { points: Vec2[]; onNeckCount: number } {
-  const points = FINGERTIPS.map((tip, i) => neckUV(cal, pressPoint(hand.landmarks[tip], hand.landmarks[FINGER_DIPS[i]])));
+function neckPoints(hand: TrackedHand, cal: Calibration, pullback: number): { points: Vec2[]; onNeckCount: number } {
+  const points = FINGERTIPS.map((tip, i) => neckUV(cal, pressPoint(hand.landmarks[tip], hand.landmarks[FINGER_DIPS[i]], pullback)));
   return { points, onNeckCount: points.filter(onNeck).length };
 }
 
@@ -188,6 +189,7 @@ export default function DevCamera() {
   const [readings, setReadings] = useState<Reading[]>([null, null, null, null]);
   const [controls, setControls] = useState<CameraControls | null>(null);
   const [follow, setFollow] = useState(true);
+  const [pullback, setPullback] = useState(PRESS_PULLBACK);
   const [neckState, setNeckState] = useState<NeckState>({ state: "off", points: 0, ms: 0 });
 
   const trackerRef = useRef<HandTracker | null>(null);
@@ -198,6 +200,7 @@ export default function DevCamera() {
   const clicksRef = useRef<Vec2[]>([]);
   const mirroredRef = useRef(true);
   const followRef = useRef(true);
+  const pullbackRef = useRef(PRESS_PULLBACK);
   const neckRef = useRef<NeckTracker | null>(null);
   // Set when a calibration lands: the loop starts the tracker on the next
   // frame, the first one it has a grayscale copy of.
@@ -209,6 +212,10 @@ export default function DevCamera() {
   useEffect(() => {
     mirroredRef.current = mirrored;
   }, [mirrored]);
+
+  useEffect(() => {
+    pullbackRef.current = pullback;
+  }, [pullback]);
 
   useEffect(() => {
     followRef.current = follow;
@@ -347,7 +354,7 @@ export default function DevCamera() {
         if (cal) {
           let best = 0;
           for (const hand of frame.hands) {
-            const { onNeckCount } = neckPoints(hand, cal);
+            const { onNeckCount } = neckPoints(hand, cal, pullbackRef.current);
             if (onNeckCount > best) {
               best = onNeckCount;
               fretting = hand;
@@ -364,7 +371,7 @@ export default function DevCamera() {
           const accent = cssColor("--accent", "#b8492a");
           FINGERTIPS.forEach((tip, i) => {
             const raw: Point = fretting!.landmarks[tip];
-            const press = pressPoint(raw, fretting!.landmarks[FINGER_DIPS[i]]);
+            const press = pressPoint(raw, fretting!.landmarks[FINGER_DIPS[i]], pullbackRef.current);
             // Filtered in pixels (the filter's tuning unit), read in the neck plane.
             const fx = filters[i].x.filter(press.x * w, now / 1000) / w;
             const fy = filters[i].y.filter(press.y * h, now / 1000) / h;
@@ -591,6 +598,23 @@ export default function DevCamera() {
         {status !== "running" && <div className="aspect-video" />}
       </div>
 
+      {calibrated && (
+        <label className="flex flex-wrap items-center gap-3 text-sm">
+          <span>Punto de presión</span>
+          <input
+            type="range"
+            min={-0.4}
+            max={0.6}
+            step={0.05}
+            value={pullback}
+            onChange={(e) => setPullback(Number(e.target.value))}
+            className="w-48 accent-accent"
+          />
+          <span className="tabular-nums text-muted">
+            {pullback.toFixed(2)} ({pullback === 0 ? "la punta" : pullback > 0 ? "hacia el nudillo" : "más allá de la punta"})
+          </span>
+        </label>
+      )}
       {calibrated && (
         <ul className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4 tabular-nums">
           {readings.map((r, i) => (

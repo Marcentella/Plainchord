@@ -237,13 +237,19 @@ export function fretAt(u: number, previous: number | null = null): number | null
 }
 
 /**
- * Where a finger actually presses: MediaPipe's tip landmark is the very
- * end of the finger, but the string is pressed by the pad just behind it,
- * so the point is pulled back toward the last joint (DIP).
+ * Where a finger actually presses, as a share of the way from MediaPipe's
+ * tip landmark back toward the last joint (DIP); negative goes past the tip.
+ * Measured, not guessed: 0.3 (assuming the pad presses) read one string too
+ * low on a real guitar — fretting is done with the very tip, and from a
+ * camera in front the fingers reach up from the high-e edge, so pulling back
+ * toward the knuckle moves the point down a string. On the same camera,
+ * 0.15 read an open C correctly on most fingers (2026-11-08): the tip, plus a
+ * little for seeing it from slightly below the neck. /dev/camera keeps the
+ * slider to re-measure on another camera or angle.
  */
-const PAD_PULLBACK = 0.3;
-export function pressPoint(tip: Vec2, dip: Vec2): Vec2 {
-  return { x: tip.x + (dip.x - tip.x) * PAD_PULLBACK, y: tip.y + (dip.y - tip.y) * PAD_PULLBACK };
+export const PRESS_PULLBACK = 0.15;
+export function pressPoint(tip: Vec2, dip: Vec2, pullback = PRESS_PULLBACK): Vec2 {
+  return { x: tip.x + (dip.x - tip.x) * pullback, y: tip.y + (dip.y - tip.y) * pullback };
 }
 
 /** Is a neck-plane point over the fretboard (with a margin), up to LAST_READ_FRET? */

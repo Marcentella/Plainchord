@@ -146,10 +146,13 @@ test("a point placed on the neck reads back as its string and fret, clicks in an
   assert.ok(!onNeck({ x: 0.95, y: 0.5 }));
 });
 
-test("pressPoint: pulled from the tip toward the last joint", () => {
-  const p = pressPoint({ x: 1, y: 0 }, { x: 0, y: 0 });
-  close(p.x, 0.7);
-  close(p.y, 0);
+test("pressPoint: just behind the tip by default, pulled toward the last joint (or past the tip) on request", () => {
+  const tip = { x: 1, y: 0 };
+  const dip = { x: 0, y: 0 };
+  close(pressPoint(tip, dip).x, 0.85);
+  close(pressPoint(tip, dip, 0).x, 1);
+  close(pressPoint(tip, dip, 0.3).x, 0.7);
+  close(pressPoint(tip, dip, -0.2).x, 1.2);
 });
 
 test("a tapered neck seen flat-on reads true frets (the strings fan out; it isn't a rectangle)", () => {
