@@ -10,18 +10,29 @@ const nextConfig: NextConfig = {
     return [
       {
         // Baseline hardening for every route. microphone=(self) keeps the
-        // tuner and "Tocar junto" working while denying it to any embedder.
+        // tuner and "Tocar junto" working, camera=(self) the fingering check
+        // (lib/handTracking.ts), while denying both to any embedder.
         // No CSP yet: alphaTab's worker/worklet loading needs its own pass.
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "microphone=(self), camera=(), geolocation=()" },
+          { key: "Permissions-Policy", value: "microphone=(self), camera=(self), geolocation=()" },
         ],
       },
       {
         source: "/soundfont/:file(.*\.sf2)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      // Same reasoning for the hand-tracking runtime (~14.6 MB) and model
+      // (~7.8 MB): versioned paths, so a new version is a new URL.
+      {
+        source: "/mediapipe/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/models/:file(.*\.task)",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];
