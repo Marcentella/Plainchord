@@ -104,7 +104,7 @@ export async function createHandTracker(onProgress: (fraction: number) => void =
   };
 }
 
-export type Camera = { stream: MediaStream; stop: () => void };
+export type Camera = { stream: MediaStream; track: MediaStreamTrack; stop: () => void };
 
 /**
  * 1280×720 is asked for as "ideal", not required: laptop webcams, USB
@@ -124,6 +124,7 @@ export async function openCamera(): Promise<Camera> {
   });
   return {
     stream,
+    track: stream.getVideoTracks()[0],
     // Stopping the tracks (not just detaching the stream) is what turns the
     // camera light off.
     stop: () => stream.getTracks().forEach((track) => track.stop()),
@@ -170,4 +171,41 @@ export function startFrameLoop(video: HTMLVideoElement, onFrame: (timestampMs: n
     stopped = true;
     cancelAnimationFrame(handle);
   };
+}
+
+/**
+ * The webcam's own image controls, where it exposes them (Image Capture
+ * constraints; Chrome supports them on many UVC webcams). Unlike a CSS
+ * filter on the <video>, these change the frames the model reads: in a dim
+ * room auto-exposure brightens everything to suit the dark areas and washes
+ * out pale, well-lit hands — manual exposure fixes that at the source.
+ */
+export type CameraControlName = "exposureTime" | "exposureCompensation" | "brightness" | "contrast";
+export type CameraControl = { name: CameraControlName; min: number; max: number; step: number; value: number };
+export type CameraControls = {
+  /** null when the camera doesn't offer manual exposure at all. */
+  manualExposure: boolean | null;
+  controls: CameraControl[];
+};
+
+const CONTROL_NAMES: CameraControlName[] = ["exposureTime", "exposureCompensation", "brightness", "contrast"];
+type Range = { min: number; max: number; step?: number };
+
+export function cameraControls(track: MediaStreamTrack): CameraControls {
+  // Not in TypeScript's DOM types yet (Image Capture spec), hence the casts.
+  const caps = (track.getCapabilities?.() ?? {}) as Record<string, unknown>;
+  const settings = track.getSettings() as Record<string, unknown>;
+  const modes = caps.exposureMode as string[] | undefined;
+  return {
+    manualExposure: modes?.includes("manual") ? settings.exposureMode === "manual" : null,
+    controls: CONTROL_NAMES.flatMap((name) => {
+      const range = caps[name] as Range | undefined;
+      if (!range || typeof range.min !== "number" || range.max <= range.min) return [];
+      return [{ name, min: range.min, max: range.max, step: range.step || (range.max - range.min) / 100, value: Number(settings[name] ?? range.min) }];
+    }),
+  };
+}
+
+export async function setCameraControl(track: MediaStreamTrack, values: Partial<Record<CameraControlName | "exposureMode", number | string>>) {
+  await track.applyConstraints({ advanced: [values as MediaTrackConstraintSet] });
 }
