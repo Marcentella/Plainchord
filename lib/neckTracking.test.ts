@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NeckTracker, fitHomography, ransacHomography, seededRandom, type Gray } from "./neckTracking.ts";
+import { NeckTracker, fitHomography, fitSimilarity, ransacHomography, seededRandom, type Gray } from "./neckTracking.ts";
 import { applyHomography, solveHomography, type Vec2 } from "./fretMapping.ts";
 
 const W = 240;
@@ -54,14 +54,15 @@ const CORNERS: Vec2[] = [
   { x: 188, y: 102 },
 ];
 
-/** A small rotation + shift + slight perspective, scaled by t (0 = identity). */
+/** A held guitar's motion, scaled by t (0 = identity): turning, sliding, and drifting a little nearer. */
 function motionAt(t: number): number[] {
   const angle = 0.04 * t;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
+  const k = 1 + 0.01 * t;
+  const cos = k * Math.cos(angle);
+  const sin = k * Math.sin(angle);
   const cx = W / 2;
   const cy = H / 2;
-  return [cos, -sin, cx - cos * cx + sin * cy + 6 * t, sin, cos, cy - sin * cx - cos * cy + 3 * t, 0.00008 * t, 0, 1];
+  return [cos, -sin, cx - cos * cx + sin * cy + 6 * t, sin, cos, cy - sin * cx - cos * cy + 3 * t, 0, 0, 1];
 }
 
 function cornerError(found: Vec2[], motion: number[]): number {
@@ -81,6 +82,39 @@ test("fitHomography: least squares over noisy pairs beats any 4 of them", () => 
   });
   const fit = fitHomography(from, to)!;
   assert.ok(cornerError(CORNERS.map((c) => applyHomography(fit, c)), truth) < 0.2);
+});
+
+test("fitSimilarity: recovers a turn + slide + scale exactly, and can't twist", () => {
+  const random = seededRandom(4);
+  const truth = motionAt(2);
+  const from = Array.from({ length: 20 }, () => ({ x: random() * W, y: random() * H }));
+  const fit = fitSimilarity(from, from.map((p) => applyHomography(truth, p)))!;
+  assert.ok(cornerError(CORNERS.map((c) => applyHomography(fit, c)), truth) < 1e-6);
+  assert.equal(fit[6], 0);
+  assert.equal(fit[7], 0);
+});
+
+test("NeckTracker: a hand covering most of the neck doesn't twist it, with camera noise", () => {
+  // The real-camera failure: only a small cluster of points stays visible,
+  // and with sensor noise an 8-DOF fit turned it into a rotation of the
+  // whole grid (25 px of corner drift on this scene) while the guitar didn't
+  // move. Without noise both fits look perfect, which is why it needs some.
+  const texture = makeTexture(13);
+  const noise = seededRandom(99);
+  const noisy = (g: Gray): Gray => ({ ...g, data: g.data.map((v) => v + (noise() - 0.5) * 16) }); // ±8 gray levels
+  const tracker = new NeckTracker(noisy(render(texture, motionAt(0))), CORNERS, [], seededRandom(8));
+  const hand = { x: 150, y: 80, r: 60 };
+  const landmarks = Array.from({ length: 16 }, (_, k) => ({
+    x: hand.x + hand.r * Math.cos((k * Math.PI) / 8),
+    y: hand.y + hand.r * Math.sin((k * Math.PI) / 8),
+  }));
+  let error = 0;
+  for (let f = 1; f <= 30; f++) {
+    const result = tracker.update(noisy(render(texture, motionAt(0), hand)), landmarks);
+    assert.ok(result.corners, `lost the neck at frame ${f}`);
+    error = Math.max(error, cornerError(result.corners!, motionAt(0)));
+  }
+  assert.ok(error < 2, `corners drifted ${error.toFixed(2)} px under a big hand`);
 });
 
 test("ransacHomography: recovers the motion with a third of the matches wrong", () => {

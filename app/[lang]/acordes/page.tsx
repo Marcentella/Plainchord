@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Check, Code, Loader2, Mic, Square } from "lucide-react";
+import { Camera, Check, Code, Loader2, Mic, Square } from "lucide-react";
 import ChordDiagram from "@/components/ChordDiagram";
+import CameraCheckModal from "@/components/CameraCheckModal";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
 import TransitionBadge from "@/components/TransitionBadge";
@@ -114,6 +115,12 @@ export default function ChordLibrary() {
     () => false,
   );
   const playAlong = useChordPlayAlong(playAlongTargets, demo);
+  // The camera check offers the same chords, once each, in progression order.
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const cameraChords = useMemo(
+    () => [...new Map(playAlongTargets.filter((c) => c !== undefined).map((c) => [c.name, c])).values()],
+    [playAlongTargets],
+  );
   const listening = playAlong.status === "listening";
   const micActive = listening || playAlong.status === "requesting";
 
@@ -377,7 +384,17 @@ export default function ChordLibrary() {
             {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden />}
             {micActive ? t("playAlong.stop") : t("playAlong.start")}
           </button>
+          <button
+            onClick={() => setCameraOpen(true)}
+            disabled={cameraChords.length === 0}
+            title={cameraChords.length === 0 ? t("camera.noChords") : undefined}
+            className="flex items-center gap-1.5 text-sm font-medium text-accent transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100"
+          >
+            <Camera size={14} aria-hidden />
+            {t("camera.open")}
+          </button>
         </div>
+        <CameraCheckModal open={cameraOpen} onClose={() => setCameraOpen(false)} chords={cameraChords} />
         {playAlong.status !== "idle" && (
           <div className="flex flex-col items-center gap-1 text-center text-sm text-muted">
             {playAlong.status === "requesting" && (

@@ -8,10 +8,12 @@
  * 2. Pyramidal Lucas-Kanade optical flow follows each one frame to frame,
  *    with a forward-backward check: a point that doesn't track back to where
  *    it started is dropped.
- * 3. RANSAC fits the homography from each point's position in the
- *    calibration frame to where it is now. Points dragged along by moving
- *    fingers disagree with the neck's motion and are left out as outliers.
- * 4. That homography moves the four calibration corners.
+ * 3. RANSAC fits the motion from each point's position in the calibration
+ *    frame to where it is now: a similarity (move, rotate, scale — no
+ *    twist, see fitSimilarity). Points dragged along by moving fingers
+ *    disagree with the neck's motion and are left out as outliers.
+ * 4. That motion moves the four calibration corners; the calibration's own
+ *    perspective rides along unchanged.
  *
  * Every frame is matched against the calibration frame, not the previous
  * one, so the error doesn't pile up frame after frame. Coordinates here are
@@ -354,16 +356,61 @@ function inliersOf(h: Homography, from: Vec2[], to: Vec2[]): { inliers: boolean[
 }
 
 /** The homography most correspondences agree on, refit on all of them; null when too few agree. */
+/**
+ * Least-squares similarity (rotation + uniform scale + translation, 4 DOF),
+ * closed form (Umeyama in 2D). The neck tracker uses this instead of a full
+ * homography: with the hand covering most of the neck, the points left sit
+ * in one small cluster, and 8 DOF "explain" their noise as a twist of the
+ * whole neck (first real test of Step 3: the grid rotated counter-clockwise
+ * whenever the hand covered it, with the guitar barely moving). A guitar in
+ * the player's hands slides, turns and moves nearer or farther — a
+ * similarity, applied on top of the calibration's own perspective.
+ */
+export function fitSimilarity(from: Vec2[], to: Vec2[]): Homography | null {
+  const n = from.length;
+  if (n < 2) return null;
+  const cf = { x: from.reduce((s, p) => s + p.x, 0) / n, y: from.reduce((s, p) => s + p.y, 0) / n };
+  const ct = { x: to.reduce((s, p) => s + p.x, 0) / n, y: to.reduce((s, p) => s + p.y, 0) / n };
+  let a = 0;
+  let b = 0;
+  let norm = 0;
+  for (let i = 0; i < n; i++) {
+    const px = from[i].x - cf.x;
+    const py = from[i].y - cf.y;
+    const qx = to[i].x - ct.x;
+    const qy = to[i].y - ct.y;
+    a += px * qx + py * qy;
+    b += px * qy - py * qx;
+    norm += px * px + py * py;
+  }
+  if (norm < 1e-9) return null;
+  const c = a / norm; // scale · cos(angle)
+  const s = b / norm; // scale · sin(angle)
+  return [c, -s, ct.x - c * cf.x + s * cf.y, s, c, ct.y - s * cf.x - c * cf.y, 0, 0, 1];
+}
+
+type Model = { sample: number; fromSample: (from: Vec2[], to: Vec2[]) => Homography | null; refit: (from: Vec2[], to: Vec2[]) => Homography | null };
+const HOMOGRAPHY: Model = { sample: 4, fromSample: solveHomography, refit: fitHomography };
+const SIMILARITY: Model = { sample: 2, fromSample: fitSimilarity, refit: fitSimilarity };
+
 export function ransacHomography(from: Vec2[], to: Vec2[], random: () => number = Math.random): Fit | null {
+  return ransac(HOMOGRAPHY, from, to, random);
+}
+
+export function ransacSimilarity(from: Vec2[], to: Vec2[], random: () => number = Math.random): Fit | null {
+  return ransac(SIMILARITY, from, to, random);
+}
+
+function ransac(model: Model, from: Vec2[], to: Vec2[], random: () => number): Fit | null {
   const n = from.length;
   if (n < MIN_INLIERS) return null;
   let best: Fit | null = null;
   let bestCount = 0;
   for (let it = 0; it < RANSAC_ITERATIONS; it++) {
     const picks = new Set<number>();
-    while (picks.size < 4) picks.add(Math.floor(random() * n));
+    while (picks.size < model.sample) picks.add(Math.floor(random() * n));
     const idx = [...picks];
-    const h = solveHomography(
+    const h = model.fromSample(
       idx.map((i) => from[i]),
       idx.map((i) => to[i]),
     );
@@ -379,7 +426,7 @@ export function ransacHomography(from: Vec2[], to: Vec2[], random: () => number 
   // Refit on the consensus, then once more on the consensus of the refit.
   for (let round = 0; round < 2; round++) {
     const keep = best.inliers;
-    const refit = fitHomography(
+    const refit = model.refit(
       from.filter((_, i) => keep[i]),
       to.filter((_, i) => keep[i]),
     );
@@ -436,7 +483,7 @@ export class NeckTracker {
     }
     this.previous = next;
 
-    const fit = ransacHomography(
+    const fit = ransacSimilarity(
       kept.map((f) => f.reference),
       kept.map((f) => f.current),
       this.random,

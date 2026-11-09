@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored, generated MediaPipe runtime (lib/handTracking.ts serves it
+    // from here): not our code, and not ours to lint.
+    "public/mediapipe/**",
   ]),
 ]);
 

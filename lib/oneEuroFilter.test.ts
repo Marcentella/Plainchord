@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OneEuroFilter } from "./oneEuroFilter.ts";
+import { FINGERTIP_FILTER, OneEuroFilter } from "./oneEuroFilter.ts";
 
 const FPS = 30;
 
@@ -32,4 +32,26 @@ test("OneEuroFilter: first value passes through, reset starts over", () => {
   f.reset();
   assert.equal(f.filter(7, 1), 7);
   assert.equal(f.filter(9, 1), 7); // same timestamp: no update
+});
+
+test("OneEuroFilter: jitter detection smooths trembling harder without slowing a real move", () => {
+  const spreadWith = (jitterWindow: number) => {
+    const f = new OneEuroFilter({ ...FINGERTIP_FILTER, jitterWindow });
+    const out: number[] = [];
+    for (let i = 0; i < 90; i++) out.push(f.filter(500 + (i % 2 ? 4 : -4), i / FPS));
+    const settled = out.slice(30);
+    return Math.max(...settled) - Math.min(...settled);
+  };
+  const plain = spreadWith(0);
+  const damped = spreadWith(FINGERTIP_FILTER.jitterWindow);
+  assert.ok(damped < plain * 0.6, `jitter spread ${damped.toFixed(2)} px with detection vs ${plain.toFixed(2)} without`);
+
+  // A steady slide: consistency stays ~1, so it tracks as before.
+  const lagWith = (jitterWindow: number) => {
+    const f = new OneEuroFilter({ ...FINGERTIP_FILTER, jitterWindow });
+    let x = 0;
+    for (let i = 0; i <= 20; i++) x = f.filter(100 + 15 * i, i / FPS);
+    return 400 - x;
+  };
+  assert.ok(Math.abs(lagWith(FINGERTIP_FILTER.jitterWindow) - lagWith(0)) < 1);
 });

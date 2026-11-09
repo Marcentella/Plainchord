@@ -1,43 +1,13 @@
 "use client";
 
 import type { Chord } from "@/lib/chords";
+import { findBarres } from "@/lib/chordShape";
 import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
 import { useT } from "@/i18n/LocaleProvider";
 import { formatChord, formatNote } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
 
 const { W, H, NUT_Y, STRING_X, DOT_R } = FRETBOARD;
-
-type Barre = { finger: number; fret: number; strings: number[] };
-
-/** A finger pressing the same fret on 2+ strings is physically a barre
- * (full or partial) — one finger can't otherwise be in two places at
- * once. Detected from frets/fingers alone (grouping by finger+fret), no
- * extra data field needed: data/chords.json never has to say "this one is
- * a barre" for this to work. `strings` keeps the exact indices the finger
- * touches (e.g. F's index finger is on strings 0, 4 and 5 — NOT a
- * contiguous run, since the G/D/A strings in between are pressed higher
- * by other fingers) — the bar is still drawn across the full min-to-max
- * span, same as every printed chord chart draws it. */
-function findBarres(chord: Chord): Barre[] {
-  const groups = new Map<string, number[]>();
-  chord.frets.forEach((fret, i) => {
-    const finger = chord.fingers[i];
-    if (fret > 0 && finger > 0) {
-      const key = `${finger}-${fret}`;
-      const strings = groups.get(key);
-      if (strings) strings.push(i);
-      else groups.set(key, [i]);
-    }
-  });
-  return Array.from(groups.entries())
-    .filter(([, strings]) => strings.length >= 2)
-    .map(([key, strings]) => ({
-      finger: Number(key.split("-")[0]),
-      fret: Number(key.split("-")[1]),
-      strings,
-    }));
-}
 
 // Open-string notes, low E -> high e, same order as Chord.frets.
 const OPEN_NOTES = ["E", "A", "D", "G", "B", "E"];
@@ -46,18 +16,37 @@ const OPEN_NOTES = ["E", "A", "D", "G", "B", "E"];
 // has spare space under it, so the height stays the same).
 const LABEL_PAD_X = 22;
 
+/** Where a finger actually is (the camera check, components/CameraCheckModal.tsx). */
+export type FingerMark = { string: number; fret: number; finger: number; match: boolean };
+
 /**
  * `labels` (the guide's "how to read a diagram" articles): numbers each
  * string 6..1 with its open note, and each fret 1..4 — the same diagram
  * everyone sees in /acordes, just with its parts named.
+ *
+ * `marks`: where the camera sees each finger — a ring around the dot when
+ * it's there, a grey dot with the finger's number (same size as the
+ * diagram's own) where it is instead. Off the diagram's four frets, not
+ * drawn (the text beside it still says where). `size` overrides the
+ * default width.
  */
-export default function ChordDiagram({ chord, labels = false }: { chord: Chord; labels?: boolean }) {
+export default function ChordDiagram({
+  chord,
+  labels = false,
+  marks = [],
+  size,
+}: {
+  chord: Chord;
+  labels?: boolean;
+  marks?: FingerMark[];
+  size?: number;
+}) {
   const t = useT();
   const notation = useNotation();
   const name = formatChord(chord.name, notation);
   const viewX = labels ? -LABEL_PAD_X : 0;
   const viewW = labels ? W + LABEL_PAD_X * 2 : W;
-  const width = labels ? 190 : 110;
+  const width = size ?? (labels ? 190 : 110);
   const barres = findBarres(chord);
   // A string under a barre is drawn as part of the bar, not as its own
   // dot on top of it.
@@ -169,6 +158,23 @@ export default function ChordDiagram({ chord, labels = false }: { chord: Chord; 
             </g>
           );
         })}
+
+        {marks
+          .filter((m) => m.fret >= 1 && m.fret <= FRETBOARD.FRETS)
+          .map((m) => {
+            const cx = STRING_X[m.string];
+            const cy = fretY(m.fret);
+            return m.match ? (
+              <circle key={`mark-${m.finger}`} cx={cx} cy={cy} r={DOT_R + 3} fill="none" stroke="var(--difficulty-facil)" strokeWidth={2.5} />
+            ) : (
+              <g key={`mark-${m.finger}`}>
+                <circle cx={cx} cy={cy} r={DOT_R} fill="var(--muted)" opacity={0.85} />
+                <text x={cx} y={cy + 4} textAnchor="middle" fontSize={9} fontWeight="bold" style={{ fill: "var(--background)" }}>
+                  {m.finger}
+                </text>
+              </g>
+            );
+          })}
       </svg>
       <figcaption className="text-sm font-medium">{name}</figcaption>
     </figure>
