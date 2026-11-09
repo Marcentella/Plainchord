@@ -19,8 +19,8 @@ test("expectedFingers: one string per finger, nothing for unused ones", () => {
   ]);
 });
 
-test("expectedFingers: a barre spans from its lowest to its highest string", () => {
-  assert.deepEqual(expectedFingers(F)[0], { strings: [0, 1, 2, 3, 4, 5], fret: 1, barre: true });
+test("expectedFingers: a barre's tip belongs on the bar's top string, the span kept for describing it", () => {
+  assert.deepEqual(expectedFingers(F)[0], { strings: [0], fret: 1, barre: true, span: [0, 5] });
 });
 
 test("checkChord: a correct C is all in place", () => {
@@ -42,10 +42,10 @@ test("checkChord: a finger the chord needs but the camera doesn't see", () => {
   assert.deepEqual(checks.map((c) => c.status), ["unused", "ok", "ok", "notSeen"]);
 });
 
-test("checkChord: an F barre's index counts anywhere along the bar", () => {
-  for (const string of [0, 2, 5]) {
-    assert.equal(checkChord(F, [at(string, 1), at(3, 2), at(1, 3), at(2, 3)])[0].status, "ok");
-  }
+test("checkChord: an F barre's index counts with its tip on the 6th string, not just anywhere on the fret", () => {
+  assert.equal(checkChord(F, [at(0, 1), at(3, 2), at(1, 3), at(2, 3)])[0].status, "ok");
+  // Tip on the 1st string at fret 1: pressing one string, not barring.
+  assert.equal(checkChord(F, [at(5, 1), at(3, 2), at(1, 3), at(2, 3)])[0].status, "wrongString");
 });
 
 test("ReadingStabilizer: a reading counts once it holds, a passing finger doesn't", () => {
@@ -105,11 +105,15 @@ test("FingerLock: survives a brief occlusion, not a long one; a new chord starts
   assert.equal(lock.update(G, [at(4, 1), null, null, null], [pos(4, 0.5), null, null, null], 2400).locked[0], false);
 });
 
-test("FingerLock: a locked barre follows the finger along the bar", () => {
+test("FingerLock: a locked barre unlocks when its tip slides down the fret", () => {
+  // The real-camera bug: locked with the tip on the 6th string, it then
+  // stayed locked while the finger slid across the whole fret.
   const lock = new FingerLock();
   const read = [at(0, 1), at(3, 2), at(1, 3), at(2, 3)];
   const where = [pos(0.1, 0.5), pos(3, 1.5), pos(1, 2.5), pos(2, 2.5)];
   lock.update(F, read, where, 0);
   assert.equal(lock.update(F, read, where, LOCK_MS).locked[0], true);
-  assert.deepEqual(lock.update(F, read, [pos(4.2, 0.6), ...where.slice(1)], LOCK_MS + 50).readings[0], at(4, 1));
+  const slid = lock.update(F, [at(3, 1), ...read.slice(1)], [pos(3, 0.6), ...where.slice(1)], LOCK_MS + 50);
+  assert.equal(slid.locked[0], false);
+  assert.equal(checkChord(F, slid.readings)[0].status, "wrongString");
 });

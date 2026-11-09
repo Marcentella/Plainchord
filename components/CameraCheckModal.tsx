@@ -86,16 +86,25 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
   }, [open]);
 
   const checks = chord ? checkChord(chord, cam.stableReadings) : [];
-  const marks: FingerMark[] = checks.flatMap((c) =>
-    c.detected && c.status !== "unused"
-      ? [{ string: c.detected.string, fret: c.detected.fret, finger: c.finger, match: c.status === "ok" }]
-      : [],
+  // A wrong finger sitting on a spot the chord does use (the ring finger on
+  // the middle finger's spot) gets no mark there: a grey dot over the
+  // diagram's own dot broke the shape and made it hard to read (real-camera
+  // test, 2026-11-09). The diagram keeps its dot, without the "right" ring,
+  // and the finger list says which finger is where. Grey only off the chord.
+  const chordSpots = new Set(
+    (chord?.frets ?? []).flatMap((fret, string) => (fret > 0 ? [`${string}:${fret}`] : [])),
   );
+  const marks: FingerMark[] = checks.flatMap((c) => {
+    if (!c.detected || c.status === "unused") return [];
+    const match = c.status === "ok";
+    if (!match && chordSpots.has(`${c.detected.string}:${c.detected.fret}`)) return [];
+    return [{ string: c.detected.string, fret: c.detected.fret, finger: c.finger, match }];
+  });
   const everyFingerInPlace = cam.calibrated && allInPlace(checks);
   const position = (r: NonNullable<FingerReading>) => t("camera.position", { string: String(6 - r.string), fret: String(r.fret) });
   const expectedText = (e: Expected) =>
-    e.barre
-      ? t("camera.barre", { fret: String(e.fret), from: String(6 - Math.min(...e.strings)), to: String(6 - Math.max(...e.strings)) })
+    e.barre && e.span
+      ? t("camera.barre", { fret: String(e.fret), from: String(6 - e.span[0]), to: String(6 - e.span[1]) })
       : t("camera.position", { string: String(6 - e.strings[0]), fret: String(e.fret) });
   const calStepText = (step: number, fret: CalibrationFret) =>
     t("camera.calStep", {

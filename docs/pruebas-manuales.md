@@ -113,12 +113,26 @@ poca luz y una lámpara blanca.
   prueba sintética: error ≤0,15 traste hasta el 18, frente a hasta 2,1 trastes solo con el modelo.
 - **Pendiente:** probarlo con la cámara real.
 
+### 2026-11-09 — Medición de trastes y cejilla, con la cámara real
+- **Equipo:** la misma cámara USB de escritorio (no hay notebook en las pruebas).
+- **Medición de trastes:** "funcionó muy bien".
+- **Exposición manual:** esta cámara no la ofrece al navegador (no se puede cambiar).
+- **Superposición en el diagrama:** cuando un dedo equivocado cae en el lugar que el acorde le da a
+  otro dedo, el punto gris tapaba el punto del diagrama y rompía la figura. Ideas del usuario: un
+  color intermedio (amarillo, "lugar correcto, dedo equivocado") o mantener el punto del diagrama
+  sin marcarlo como correcto. Se eligió la segunda (no agrega nada nuevo que aprender).
+- **Cejilla (probada antes de la medición de trastes):** se fijó con el índice en la cuerda más
+  grave y luego permitió moverlo por todo el traste sin soltarse.
+- **Causa:** se aceptaba la punta del índice en cualquier cuerda de la cejilla; la cámara solo ve la
+  punta, y en una cejilla real la punta termina sobre la cuerda superior de la barra (la 6ª en Fa).
+- **Cambio:** en una cejilla la punta debe estar en la cuerda superior de la barra; al deslizarla
+  hacia abajo se suelta la fijación y se marca como cuerda equivocada. En el diagrama, los dedos
+  equivocados sobre lugares del acorde ya no se dibujan encima.
+
 ---
 
 ## Pruebas pendientes
-- Medición de trastes con la cámara real: ¿cuántos alambres encuentra (estado "Trastes medidos: N de 20")?
-  ¿La cuadrícula cae sobre los alambres reales del 1 al 15?
-- Desfase de una cuerda: repetir Am, G, D tras la medición de trastes y anotar si persiste.
-- Exposición manual: ¿la cámara USB ofrece los ajustes? ¿Mejora con la lámpara hacia el mástil?
-- Otra cámara (integrada de notebook) y otra luz, para la demo.
-- Acorde con cejilla (F) completo.
+- Desfase de una cuerda: repetir Am, G, D ahora que los trastes se miden, y anotar si persiste.
+- Cejilla (Fa) completa con la regla nueva: ¿se fija con la punta en la 6ª y se suelta al bajarla?
+- Diagrama con un dedo equivocado sobre el lugar de otro: ¿se lee bien la figura?
+- Otra cámara y otra luz, para la demo (la del lugar de la demo, si se conoce).

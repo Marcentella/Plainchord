@@ -136,7 +136,7 @@
   "camera.finger3": "Ring",
   "camera.finger4": "Pinky",
   "camera.position": "string {string}, fret {fret}",
-  "camera.barre": "barre on fret {fret}, strings {from} to {to}",
+  "camera.barre": "barre on fret {fret}, strings {from} to {to} (fingertip on the {from}th)",
   "camera.fingerOk": "{position}, as in the diagram",
   "camera.fingerOff": "{position}; the diagram puts it at {expected}",
   "camera.fingerNotSeen": "not seen over the neck; the diagram puts it at {expected}",

@@ -136,7 +136,7 @@
   "camera.finger3": "Anular",
   "camera.finger4": "Meñique",
   "camera.position": "cuerda {string}, traste {fret}",
-  "camera.barre": "cejilla en el traste {fret}, cuerdas {from} a {to}",
+  "camera.barre": "cejilla en el traste {fret}, cuerdas {from} a {to} (la punta sobre la {from}ª)",
   "camera.fingerOk": "{position}, como en el diagrama",
   "camera.fingerOff": "{position}; el diagrama lo pone en {expected}",
   "camera.fingerNotSeen": "no lo veo sobre el mástil; el diagrama lo pone en {expected}",

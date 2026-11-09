@@ -23,8 +23,12 @@ export type FingerStatus =
   /** The chord doesn't use this finger. */
   | "unused";
 
-/** Where the diagram puts a finger: one string, or a barre's span. */
-export type Expected = { strings: number[]; fret: number; barre: boolean };
+/**
+ * Where the diagram puts a finger. `strings`: where the camera expects its
+ * TIP (one string). `span`: for a barre, the strings the bar covers, lowest
+ * to highest index, for describing it.
+ */
+export type Expected = { strings: number[]; fret: number; barre: boolean; span?: [number, number] };
 
 export type FingerCheck = { finger: number; status: FingerStatus; expected: Expected | null; detected: FingerReading };
 
@@ -34,11 +38,15 @@ export function expectedFingers(chord: Chord): (Expected | null)[] {
   return [1, 2, 3, 4].map((finger) => {
     const barre = barres.find((b) => b.finger === finger);
     if (barre) {
-      // A barre presses every string across its span, including ones other
-      // fingers press higher up: anywhere from its lowest to highest string counts.
+      // The camera sees the fingertip, not the finger lying across the
+      // strings. Fretting, the finger reaches up from the high-e edge, so a
+      // real barre's tip ends on the bar's top string (the 6th for an F).
+      // Accepting the tip anywhere along the bar (first version) also took a
+      // finger pressing only the 1st string, and locked on it while it slid
+      // across the whole fret (real-camera test, 2026-11-09).
       const lo = Math.min(...barre.strings);
       const hi = Math.max(...barre.strings);
-      return { strings: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), fret: barre.fret, barre: true };
+      return { strings: [lo], fret: barre.fret, barre: true, span: [lo, hi] };
     }
     const string = chord.fingers.findIndex((f, s) => f === finger && chord.frets[s] > 0);
     return string >= 0 ? { strings: [string], fret: chord.frets[string], barre: false } : null;
