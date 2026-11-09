@@ -5,7 +5,7 @@
  * white guitar body, or a dark room (first real-camera tests).
  */
 import type { TrackedHand } from "./handTracking";
-import { LAST_READ_FRET, imageAt, wireU, type Calibration, type Vec2 } from "./fretMapping";
+import { LAST_READ_FRET, imageAt, wireAt, type Calibration, type Vec2 } from "./fretMapping";
 
 const HALO = "rgba(0,0,0,0.75)";
 const BONE = "#7dd3fc";
@@ -82,8 +82,14 @@ export function drawSkeleton(
   ctx.globalAlpha = 1;
 }
 
-/** Strings and fret wires as the calibration places them; nut and calibrated wire heavier, so a misplaced one stands out. */
-export function drawGrid(ctx: CanvasRenderingContext2D, cal: Calibration, w: number, h: number, scale: number) {
+/**
+ * Strings and fret wires as the calibration places them; nut and calibrated
+ * wire heavier, so a misplaced one stands out. With measured wires, the ones
+ * actually found are drawn solid and the ones filled in from the fit thinner
+ * and dimmer: the user sees what was measured. `wires` overrides the
+ * calibration's own (the brief glide from predicted to measured).
+ */
+export function drawGrid(ctx: CanvasRenderingContext2D, cal: Calibration, w: number, h: number, scale: number, wires = cal.wires) {
   const toPx = (u: number, v: number) => {
     const q = imageAt(cal, u, v);
     return [q.x * w, q.y * h] as const;
@@ -91,19 +97,22 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cal: Calibration, w: num
   const strings = new Path2D();
   for (let s = 0; s < 6; s++) {
     strings.moveTo(...toPx(0, s / 5));
-    strings.lineTo(...toPx(wireU(LAST_READ_FRET), s / 5));
+    strings.lineTo(...toPx(wireAt(LAST_READ_FRET, wires), s / 5));
   }
-  const wires = new Path2D();
+  const solid = new Path2D();
+  const filled = new Path2D();
   const heavy = new Path2D();
   for (let n = 0; n <= LAST_READ_FRET; n++) {
-    const path = n === 0 || n === cal.fret ? heavy : wires;
-    path.moveTo(...toPx(wireU(n), -0.12));
-    path.lineTo(...toPx(wireU(n), 1.12));
+    const path = n === 0 || n === cal.fret ? heavy : !wires || cal.found?.[n] ? solid : filled;
+    path.moveTo(...toPx(wireAt(n, wires), -0.12));
+    path.lineTo(...toPx(wireAt(n, wires), 1.12));
   }
   ctx.globalAlpha = 0.8;
   haloLine(ctx, strings, GRID_COLOR, 1 * scale);
-  haloLine(ctx, wires, GRID_COLOR, 1.5 * scale);
+  haloLine(ctx, solid, GRID_COLOR, 1.5 * scale);
   haloLine(ctx, heavy, GRID_COLOR, 3 * scale);
+  ctx.globalAlpha = 0.4;
+  haloLine(ctx, filled, GRID_COLOR, 1 * scale);
   ctx.globalAlpha = 1;
 }
 

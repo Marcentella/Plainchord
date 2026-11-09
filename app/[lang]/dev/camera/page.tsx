@@ -83,6 +83,14 @@ export default function DevCamera() {
             {cam.calibrated ? "Recalibrar" : "Calibrar mástil"}
           </button>
         )}
+        {cam.status === "running" && cam.calibrated && (
+          <button
+            onClick={cam.measureFrets}
+            className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent"
+          >
+            Medir trastes
+          </button>
+        )}
         {cam.status === "running" && (
           <label className="flex items-center gap-2">
             Traste de calibración
@@ -128,6 +136,15 @@ export default function DevCamera() {
         </div>
       )}
       {cam.calError && <p className="text-sm text-difficulty-dificil">{CALIBRATION_ERRORS[cam.calError]}</p>}
+      {cam.calibrated && cam.fretState.state !== "none" && (
+        <p className="text-sm text-muted" role="status">
+          {cam.fretState.state === "waiting"
+            ? "Retira la mano del mástil un momento para medir los trastes…"
+            : cam.fretState.state === "measured"
+              ? `Trastes medidos: ${cam.fretState.found} de ${cam.fretState.total} (el resto, interpolado)`
+              : "No se pudieron medir los trastes: se usan los calculados."}
+        </p>
+      )}
       {cam.calibrated && cam.follow && cam.neckState.state === "lost" && (
         <p className="text-sm text-difficulty-dificil" role="status">
           Perdí el mástil: vuelve a ponerlo donde estaba, o recalibra.

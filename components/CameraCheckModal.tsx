@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, Check, Crosshair, Loader2, Lock, RotateCcw, X } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Camera, CameraOff, Check, Crosshair, Laptop, Loader2, Lock, RotateCcw, Ruler, X } from "lucide-react";
 import ChordDiagram, { type FingerMark } from "@/components/ChordDiagram";
 import CalibrationGuide from "@/components/CalibrationGuide";
 import { useT } from "@/i18n/LocaleProvider";
@@ -15,6 +15,20 @@ import { cssColor } from "@/lib/fingerCameraDraw";
 import { useFingerCamera } from "@/lib/useFingerCamera";
 
 const FINGER_KEYS: TKey[] = ["camera.finger1", "camera.finger2", "camera.finger3", "camera.finger4"];
+
+/**
+ * The check needs a computer: tested on phones, the camera lags, the
+ * calibration points are too small to tap precisely, and the phone can't be
+ * held still while tapping it. "Main pointer is a mouse or trackpad" is the
+ * test, not screen size or user agent: a touchscreen laptop still passes,
+ * a tablet with a keyboard and trackpad passes, a phone doesn't.
+ */
+const FINE_POINTER = "(pointer: fine)";
+function subscribePointer(onChange: () => void) {
+  const query = window.matchMedia(FINE_POINTER);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
 
 /**
  * "Revisar con cámara" (plan: Step 3): the webcam watches the fretting
@@ -51,6 +65,13 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
     },
   });
   const { stop } = cam;
+  // Server snapshot "true": the static page renders the full check, and a
+  // phone swaps it for the notice on hydration (the dialog is closed then).
+  const hasFinePointer = useSyncExternalStore(
+    subscribePointer,
+    () => window.matchMedia(FINE_POINTER).matches,
+    () => true,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +137,16 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
         </button>
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-[1fr_15rem]">
+      {!hasFinePointer && (
+        <div className="mt-6 flex flex-col items-center gap-3 px-2 pb-4 text-center">
+          <Laptop size={32} className="text-muted" aria-hidden />
+          <p className="max-w-md font-medium">{t("camera.desktopOnly")}</p>
+          <p className="max-w-md text-sm text-muted">{t("camera.desktopOnlyWhy")}</p>
+        </div>
+      )}
+      {/* Hidden, not unmounted, on phones: nothing in it runs until "Activar
+          cámara" is pressed, and the notice above takes its place. */}
+      <div className={`mt-4 grid gap-4 md:grid-cols-[1fr_15rem] ${hasFinePointer ? "" : "hidden"}`}>
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {running || cam.status === "loading" ? (
@@ -141,6 +171,15 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
               >
                 {cam.calibrated ? <RotateCcw size={16} aria-hidden /> : <Crosshair size={16} aria-hidden />}
                 {t(cam.calibrated ? "camera.recalibrate" : "camera.calibrate")}
+              </button>
+            )}
+            {running && cam.calibrated && (
+              <button
+                onClick={cam.measureFrets}
+                disabled={cam.fretState.state === "waiting"}
+                className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50"
+              >
+                <Ruler size={16} aria-hidden /> {t("camera.measureFrets")}
               </button>
             )}
             {running && (
@@ -197,6 +236,15 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
             </div>
           )}
           {cam.calError && <p className="text-sm text-difficulty-dificil">{t(`camera.calError.${cam.calError}` as TKey)}</p>}
+          {cam.calibrated && cam.fretState.state !== "none" && (
+            <p className="text-sm text-muted" role="status">
+              {cam.fretState.state === "waiting"
+                ? t("camera.fretsWaiting")
+                : cam.fretState.state === "measured"
+                  ? t("camera.fretsMeasured", { found: String(cam.fretState.found), total: String(cam.fretState.total) })
+                  : t("camera.fretsModel")}
+            </p>
+          )}
           {cam.calibrated && cam.neckState.state === "lost" && (
             <p className="text-sm text-difficulty-dificil" role="status">
               {t("camera.lost")}

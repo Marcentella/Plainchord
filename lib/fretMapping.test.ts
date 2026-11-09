@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   calibrate,
+  fretPositionIn,
   imageAt,
   neckUV,
   fretAt,
@@ -168,4 +169,15 @@ test("a tapered neck seen flat-on reads true frets (the strings fan out; it isn'
     assert.equal(fretAt(read.x), fret, `fret ${fret} read as ${fretAt(read.x)} (${fretPosition(read.x).toFixed(2)})`);
     assert.equal(stringAt(read.y), 2);
   }
+});
+
+test("fretPositionIn / fretAt: measured wires replace the formula, frets read between them", () => {
+  // Wires a lens has pulled apart unevenly: not 12-TET at all.
+  const wires = [0, 0.05, 0.11, 0.16, 0.2];
+  assert.equal(fretPositionIn(0.08, wires), 1.5);
+  assert.equal(fretAt(0.08, null, wires), 2);
+  assert.equal(fretAt(0.13, null, wires), 3);
+  assert.equal(fretAt(0.13, null), fretAt(0.13)); // no wires: same as the formula
+  close(fretPositionIn(0.24, wires), 5); // past the last wire: extrapolated by the last space
+  close(fretPositionIn(0.1, undefined), fretPosition(0.1));
 });

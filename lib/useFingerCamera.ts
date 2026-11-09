@@ -33,7 +33,9 @@ import {
   onNeck,
   pressPoint,
   stringAt,
-  fretPosition,
+  fretPositionIn,
+  wireAt,
+  LAST_READ_FRET,
   type Calibration,
   type CalibrationError,
   type CalibrationFret,
@@ -45,10 +47,13 @@ import { FingerLock, ReadingStabilizer, type FingerPosition, type FingerReading 
 import type { Chord } from "./chords";
 import { micErrorFor } from "./micInput";
 import { cssColor, drawClicks, drawFingertip, drawGrid, drawNeckPoints, drawSkeleton } from "./fingerCameraDraw";
+import { detectFretWires } from "./fretDetection";
 
 export type CameraStatus = "idle" | "loading" | "running" | "denied" | "unavailable" | "error";
 export type CameraStats = { fps: number; inferenceMs: number; hands: number; width: number; height: number };
 export type NeckState = { state: "off" | "following" | "lost"; points: number; ms: number };
+/** Fret measurement: waiting for the hand to leave the neck, done (how many of how many wires), or not possible. */
+export type FretState = { state: "none" | "waiting" | "measured" | "model"; found: number; total: number };
 
 /** MediaPipe landmarks for index..pinky — fingers 1-4, the same numbering data/chords.json uses. */
 const FINGERTIPS = [8, 12, 16, 20];
@@ -62,6 +67,11 @@ const LOST_HAND_MS = 300;
  * ~14 ms (tests: under 0.4 px of corner error with a hand over the neck).
  */
 const TRACK_WIDTH = 480;
+/** Measuring waits this long for the hand to leave the neck, then measures anyway (the median copes with a partial cover). */
+const MEASURE_WAIT_MS = 3000;
+/** The grid's glide from predicted to measured wires: a one-off state change, so short and ease-out. */
+const SETTLE_MS = 180;
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 export type FingerCameraOptions = {
   /** Text above each fingertip, e.g. the dev page's "c5 t3". */
@@ -76,7 +86,7 @@ export type FingerCameraOptions = {
 /** Fingertip press points of a hand in the neck plane, and how many sit on the neck. */
 function neckPoints(hand: TrackedHand, cal: Calibration, pullback: number): { points: Vec2[]; onNeckCount: number } {
   const points = FINGERTIPS.map((tip, i) => neckUV(cal, pressPoint(hand.landmarks[tip], hand.landmarks[FINGER_DIPS[i]], pullback)));
-  return { points, onNeckCount: points.filter(onNeck).length };
+  return { points, onNeckCount: points.filter((p) => onNeck(p, cal.wires)).length };
 }
 
 export function useFingerCamera(options: FingerCameraOptions = {}) {
@@ -100,6 +110,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   const [follow, setFollow] = useState(true);
   const [pullback, setPullback] = useState(PRESS_PULLBACK);
   const [neckState, setNeckState] = useState<NeckState>({ state: "off", points: 0, ms: 0 });
+  const [fretState, setFretState] = useState<FretState>({ state: "none", found: 0, total: LAST_READ_FRET });
 
   const trackerRef = useRef<HandTracker | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
@@ -115,6 +126,9 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   // Set when a calibration lands: the loop starts the neck tracker on the
   // next frame, the first one it has a grayscale copy of.
   const startNeckRef = useRef(false);
+  // Set by a calibration (or "Medir trastes"): measure the fret wires on the
+  // next frames, once the hand is off the neck. Holds when it was asked.
+  const measureRef = useRef<number | null>(null);
   // Same stale-request guard as TunerModal: a camera prompt or model load
   // that resolves after stop() must tear down, not start unseen.
   const tokenRef = useRef(0);
@@ -200,6 +214,21 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
         for (let i = 0, j = 0; i < data.length; i++, j += 4) data[i] = 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
         return { data, width: tw, height: th };
       };
+      // Full-resolution copy for fret measuring: a one-off per calibration, so
+      // the camera's own pixels, not the 480 px tracking copy.
+      const fullGrabber = document.createElement("canvas");
+      const fullCtx = fullGrabber.getContext("2d", { willReadFrequently: true })!;
+      const grabFull = (): Gray => {
+        fullGrabber.width = video.videoWidth;
+        fullGrabber.height = video.videoHeight;
+        fullCtx.drawImage(video, 0, 0);
+        const rgba = fullCtx.getImageData(0, 0, video.videoWidth, video.videoHeight).data;
+        const data = new Float32Array(video.videoWidth * video.videoHeight);
+        for (let i = 0, j = 0; i < data.length; i++, j += 4) data[i] = 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
+        return { data, width: video.videoWidth, height: video.videoHeight };
+      };
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let settle: { from: number[]; to: number[]; start: number } | null = null;
       let neckMs = 0;
       let neckStatus: NeckState["state"] = "off";
       // One filter pair per landmark of the hand being read: the skeleton,
@@ -260,6 +289,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
                 result.corners.map((p) => ({ x: p.x / gray.width, y: p.y / gray.height })),
                 current.fret,
                 true,
+                { wires: current.wires, found: current.found },
               );
               // A moved calibration that no longer looks like a neck is a bad
               // fit, not the guitar: keep the last good one.
@@ -289,7 +319,37 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
               fretting = hand;
             }
           }
-          drawGrid(ctx, cal, w, h, scale);
+        }
+
+        // Fret measuring: on the first frame after a calibration with the hand
+        // off the neck (or after MEASURE_WAIT_MS regardless).
+        if (cal && measureRef.current !== null) {
+          const handOnNeck = frame.hands.some((hand) => neckPoints(hand, cal, pullbackRef.current).onNeckCount > 0);
+          if (!handOnNeck || now - measureRef.current > MEASURE_WAIT_MS) {
+            measureRef.current = null;
+            const measured = detectFretWires(grabFull(), cal);
+            if (measured) {
+              const from = Array.from({ length: LAST_READ_FRET + 1 }, (_, n) => wireAt(n, cal.wires));
+              calRef.current = { ...cal, wires: measured.wires, found: measured.found };
+              settle = reducedMotion ? null : { from, to: measured.wires, start: now };
+              setFretState({ state: "measured", found: measured.found.filter(Boolean).length - 1, total: LAST_READ_FRET });
+            } else {
+              setFretState({ state: "model", found: 0, total: LAST_READ_FRET });
+            }
+          } else {
+            setFretState((s) => (s.state === "waiting" ? s : { state: "waiting", found: 0, total: LAST_READ_FRET }));
+          }
+        }
+        const gridCal = calRef.current;
+        if (gridCal) {
+          let shownWires = gridCal.wires;
+          if (settle) {
+            const t = Math.min(1, (now - settle.start) / SETTLE_MS);
+            const k = easeOut(t);
+            shownWires = settle.to.map((to, n) => settle!.from[n] + (to - settle!.from[n]) * k);
+            if (t >= 1) settle = null;
+          }
+          drawGrid(ctx, gridCal, w, h, scale, shownWires);
         }
         // Before calibration there's no neck to pick the fretting hand by:
         // the first hand found is the one smoothed and drawn in full.
@@ -312,10 +372,10 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
             tips.push(press);
             const neck = neckUV(cal, press);
             let reading: FingerReading = null;
-            if (onNeck(neck)) {
-              positions[i] = { string: neck.y * 5, fret: fretPosition(neck.x) };
+            if (onNeck(neck, cal.wires)) {
+              positions[i] = { string: neck.y * 5, fret: fretPositionIn(neck.x, cal.wires) };
               const s = stringAt(neck.y, previous[i]?.string ?? null);
-              const f = fretAt(neck.x, previous[i]?.fret ?? null);
+              const f = fretAt(neck.x, previous[i]?.fret ?? null, cal.wires);
               if (s !== null && f !== null) reading = { string: s, fret: f };
             }
             previous[i] = reading;
@@ -423,7 +483,16 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     }
     calRef.current = result;
     startNeckRef.current = followRef.current;
+    measureRef.current = performance.now();
+    setFretState({ state: "waiting", found: 0, total: LAST_READ_FRET });
     setCalibrated(true);
+  }
+
+  /** Measure the fret wires again (new light, the guitar moved a lot). */
+  function measureFrets() {
+    if (!calRef.current) return;
+    measureRef.current = performance.now();
+    setFretState({ state: "waiting", found: 0, total: LAST_READ_FRET });
   }
 
   async function changeControl(values: Parameters<typeof setCameraControl>[1]) {
@@ -471,5 +540,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     pullback,
     setPullback,
     neckState,
+    fretState,
+    measureFrets,
   };
 }

@@ -104,6 +104,11 @@ export type Calibration = {
   fret: CalibrationFret;
   /** The clicks, reordered: nut × low E, nut × high e, fret × low E, fret × high e. */
   corners: Vec2[];
+  /** Measured fret wires (lib/fretDetection.ts): u of wires 0…LAST_READ_FRET in
+   *  this calibration's neck plane, and which were measured rather than filled
+   *  in. Absent until measured; the 12-TET model stands in meanwhile. */
+  wires?: number[];
+  found?: boolean[];
 };
 
 export type CalibrationError = "degenerate" | "shape" | "proportion";
@@ -144,7 +149,12 @@ const END_WIDTH_RATIO_RANGE = [0.4, 2.5];
  * an existing calibration, and re-guessing the order from screen position
  * could flip the strings if the neck tilts a long way.
  */
-export function calibrate(clicks: Vec2[], fret: CalibrationFret, ordered = false): Calibration | CalibrationError {
+export function calibrate(
+  clicks: Vec2[],
+  fret: CalibrationFret,
+  ordered = false,
+  measured?: Pick<Calibration, "wires" | "found">,
+): Calibration | CalibrationError {
   if (clicks.length !== 4) return "degenerate";
   const corners = ordered ? clicks : orderCorners(clicks);
   const [nutLow, nutHigh, fretLow, fretHigh] = corners;
@@ -192,7 +202,9 @@ export function calibrate(clicks: Vec2[], fret: CalibrationFret, ordered = false
   ].map((p) => depth(toImage, p));
   if (!edge.every((d) => d > 0) && !edge.every((d) => d < 0)) return "shape";
 
-  return { toNeck, toImage, fret, corners };
+  // Measured wires live in the neck plane, so a moved calibration (neck
+  // following) keeps them as they are.
+  return { toNeck, toImage, fret, corners, ...measured };
 }
 
 export function isCalibration(result: Calibration | CalibrationError): result is Calibration {
@@ -224,13 +236,34 @@ export function stringAt(v: number, previous: number | null = null): number | nu
   return Math.min(STRINGS - 1, Math.max(0, Math.round(s)));
 }
 
+/** u of wire n: measured when the calibration has it, equal temperament otherwise. */
+export function wireAt(n: number, wires?: number[]): number {
+  return wires?.[n] ?? wireU(n);
+}
+
+/**
+ * Continuous fret position of u (2.5 = halfway between wires 2 and 3): from
+ * measured wires when given — linear within each fret space, extrapolated by
+ * the end spaces past the ends — else from the 12-TET formula.
+ */
+export function fretPositionIn(u: number, wires?: number[]): number {
+  if (!wires || wires.length < 2) return fretPosition(u);
+  const last = wires.length - 1;
+  if (u <= wires[0]) return (u - wires[0]) / (wires[1] - wires[0]);
+  for (let n = 1; n <= last; n++) {
+    if (u <= wires[n]) return n - 1 + (u - wires[n - 1]) / (wires[n] - wires[n - 1]);
+  }
+  return last + (u - wires[last]) / (wires[last] - wires[last - 1]);
+}
+
 /**
  * Fret a fingertip at u is pressing: between wires n−1 and n is fret n
  * (fingers press just behind a wire). null behind the nut or past
- * LAST_READ_FRET. `previous` as in stringAt.
+ * LAST_READ_FRET. `previous` as in stringAt. `wires`: measured positions
+ * (Calibration.wires), when there are any.
  */
-export function fretAt(u: number, previous: number | null = null): number | null {
-  const n = fretPosition(u);
+export function fretAt(u: number, previous: number | null = null, wires?: number[]): number | null {
+  const n = fretPositionIn(u, wires);
   if (!(n > -0.3) || n > LAST_READ_FRET) return null;
   if (previous !== null && n > previous - 1 - HYSTERESIS && n < previous + HYSTERESIS) return previous;
   return Math.max(1, Math.ceil(n));
@@ -253,6 +286,6 @@ export function pressPoint(tip: Vec2, dip: Vec2, pullback = PRESS_PULLBACK): Vec
 }
 
 /** Is a neck-plane point over the fretboard (with a margin), up to LAST_READ_FRET? */
-export function onNeck(p: Vec2): boolean {
-  return p.x > -0.03 && p.x < wireU(LAST_READ_FRET) && p.y > -0.25 && p.y < 1.25;
+export function onNeck(p: Vec2, wires?: number[]): boolean {
+  return p.x > -0.03 && p.x < wireAt(LAST_READ_FRET, wires) && p.y > -0.25 && p.y < 1.25;
 }
