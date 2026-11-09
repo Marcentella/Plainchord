@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Camera, CameraOff, Check, Crosshair, Laptop, Loader2, Lock, RotateCcw, Ruler, X } from "lucide-react";
 import ChordDiagram, { type FingerMark } from "@/components/ChordDiagram";
 import CalibrationGuide from "@/components/CalibrationGuide";
+import ChordProgressionInput from "@/components/ChordProgressionInput";
 import { useT } from "@/i18n/LocaleProvider";
 import type { TKey } from "@/i18n/t";
 import type { Chord } from "@/lib/chords";
@@ -38,7 +39,23 @@ function subscribePointer(onChange: () => void) {
  * close behaviour as components/TunerModal.tsx; the pipeline is
  * lib/useFingerCamera.ts, shared with /dev/camera.
  */
-export default function CameraCheckModal({ open, onClose, chords }: { open: boolean; onClose: () => void; chords: Chord[] }) {
+export default function CameraCheckModal({
+  open,
+  onClose,
+  chords,
+  progression,
+  onProgressionChange,
+  chordLimit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  chords: Chord[];
+  /** The /acordes progression, editable here too: closing the check to change
+   *  a chord meant turning the camera on and calibrating all over again. */
+  progression: string;
+  onProgressionChange: (value: string) => void;
+  chordLimit: number;
+}) {
   const t = useT();
   const notation = useNotation();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -266,7 +283,18 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
           >
             {/* Hidden until the stream starts: an empty <video> still takes
                 its default size, which pushed the placeholder text off-centre. */}
-            <video ref={videoRef} playsInline muted className={`block w-full ${mirror} ${running ? "" : "hidden"}`} />
+            {/* suppressHydrationWarning: some browser extensions (video
+                downloaders and the like) stamp crossorigin="anonymous" on every
+                <video> before React hydrates, which React reports as a
+                server/client mismatch. Nothing on this element is rendered
+                differently on the server; this only silences that one case. */}
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              suppressHydrationWarning
+              className={`block w-full ${mirror} ${running ? "" : "hidden"}`}
+            />
             <canvas ref={canvasRef} className={`pointer-events-none absolute inset-0 h-full w-full ${mirror}`} />
             {!running && (
               <div className="flex aspect-video flex-col items-center justify-center gap-2 p-6 text-center text-sm text-white/80">
@@ -280,6 +308,17 @@ export default function CameraCheckModal({ open, onClose, chords }: { open: bool
         </div>
 
         <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="camera-progression" className="text-xs text-muted">
+              {t("camera.progressionLabel")}
+            </label>
+            <ChordProgressionInput
+              id="camera-progression"
+              value={progression}
+              onChange={onProgressionChange}
+              chordLimit={chordLimit}
+            />
+          </div>
           {chords.length > 1 && (
             <div className="flex flex-wrap gap-1" role="group" aria-label={t("camera.chordLabel")}>
               {chords.map((c) => (

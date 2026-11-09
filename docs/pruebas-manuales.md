@@ -129,10 +129,24 @@ poca luz y una lámpara blanca.
   hacia abajo se suelta la fijación y se marca como cuerda equivocada. En el diagrama, los dedos
   equivocados sobre lugares del acorde ya no se dibujan encima.
 
+### 2026-11-09 — Cejilla con la regla nueva, desfase de cuerda y uso del modal
+- **Cejilla:** "funciona mejor ahora" con la punta exigida en la cuerda superior de la barra.
+- **Diagrama:** dejar el punto del diagrama sin marca cuando un dedo equivocado cae ahí "siempre se lee bien".
+- **Desfase de una cuerda:** con los trastes ya medidos, el usuario lo atribuye a los límites de la
+  detección de la mano (la punta se ubica a distinta altura del dedo), no al mapeo del mástil.
+  Mejorarlo de verdad pediría trabajo manual: etiquetar imágenes de manos pisando cuerdas y
+  reentrenar o ajustar un modelo (trabajo futuro, fuera del alcance de la demo).
+- **Uso:** para cambiar de acorde había que cerrar la revisión, editar la progresión, abrirla,
+  activar la cámara y calibrar de nuevo.
+- **Cambio:** la progresión se edita dentro del modal (mismo campo que en /acordes, sin cerrar la cámara).
+- **Texto:** las lecturas en español estaban en primera persona ("no lo veo…"); ahora impersonales
+  ("no se ve…"), como lo escribiría una persona.
+- **Aviso de React en desarrollo:** "hydration mismatch" por `crossorigin="anonymous"` en el
+  `<video>`. El HTML del servidor no lo trae: lo agrega una extensión del navegador antes de que
+  React hidrate. Silenciado solo en ese elemento.
+
 ---
 
 ## Pruebas pendientes
-- Desfase de una cuerda: repetir Am, G, D ahora que los trastes se miden, y anotar si persiste.
-- Cejilla (Fa) completa con la regla nueva: ¿se fija con la punta en la 6ª y se suelta al bajarla?
-- Diagrama con un dedo equivocado sobre el lugar de otro: ¿se lee bien la figura?
+- Editar la progresión dentro del modal con la cámara activa (¿se mantiene la calibración?).
 - Otra cámara y otra luz, para la demo (la del lugar de la demo, si se conoce).

@@ -131,6 +131,7 @@
   "camera.fretsModel": "The frets couldn't be measured in this light; using the calculated ones.",
   "camera.calibrateFirst": "Calibrate the neck to compare your fingers with the chord.",
   "camera.chordLabel": "Chord",
+  "camera.progressionLabel": "Progression",
   "camera.finger1": "Index",
   "camera.finger2": "Middle",
   "camera.finger3": "Ring",

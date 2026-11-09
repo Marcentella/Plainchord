@@ -394,7 +394,14 @@ export default function ChordLibrary() {
             {t("camera.open")}
           </button>
         </div>
-        <CameraCheckModal open={cameraOpen} onClose={() => setCameraOpen(false)} chords={cameraChords} />
+        <CameraCheckModal
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          chords={cameraChords}
+          progression={input}
+          onProgressionChange={setInput}
+          chordLimit={CHORD_LIMIT}
+        />
         {playAlong.status !== "idle" && (
           <div className="flex flex-col items-center gap-1 text-center text-sm text-muted">
             {playAlong.status === "requesting" && (

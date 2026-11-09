@@ -147,7 +147,7 @@ export default function DevCamera() {
       )}
       {cam.calibrated && cam.follow && cam.neckState.state === "lost" && (
         <p className="text-sm text-difficulty-dificil" role="status">
-          Perdí el mástil: vuelve a ponerlo donde estaba, o recalibra.
+          Se perdió el mástil: vuelve a ponerlo donde estaba, o recalibra.
         </p>
       )}
 
