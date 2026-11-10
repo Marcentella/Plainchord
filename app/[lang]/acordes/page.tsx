@@ -340,16 +340,13 @@ export default function ChordLibrary() {
           })}
           chordLimit={CHORD_LIMIT}
         />
-      </div>
-
-      {/* Own centered block (sibling of the input box, not nested inside
-          it) — this is what the difficulty toggle used to be on its own;
-          grouping the suggestions link in with it must not pull it into
-          the input box's left-aligned column. */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex flex-wrap items-center justify-center gap-4">
+        {/* Helpers for the input live in the input's own column, on its
+            left edge — not in the tools row below, where they made one
+            strip wider than the input with four different looks. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <button
             onClick={() => setShowSuggestions((v) => !v)}
+            aria-expanded={showSuggestions}
             className="text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out"
           >
             {showSuggestions
@@ -363,35 +360,76 @@ export default function ChordLibrary() {
           >
             {t("guide.howToReadDiagram")}
           </Link>
+        </div>
+        {showSuggestions && (
+          <div className="flex flex-wrap gap-2">
+            {COMMON_PROGRESSIONS.map((p, i) => {
+              // Dimmed unless it's the progression loaded right now (same
+              // chords, any spacing or case), so the row stays quiet.
+              const loaded = parseProgression(p).join(" ").toLowerCase() === allTokens.join(" ").toLowerCase();
+              return (
+                <button
+                  key={p}
+                  // Staggered over the first six; the rest arrive with the sixth.
+                  style={{ animationDelay: `${Math.min(i, 5) * 30}ms` }}
+                  aria-pressed={loaded}
+                  onClick={() => {
+                    forceFullReplaceRef.current = true;
+                    setCanonicalInput(p);
+                  }}
+                  className={`enter-up rounded border px-3 py-1 text-sm transition hover-fine:border-accent hover-fine:opacity-100 active:scale-[0.97] duration-[160ms] ease-out ${
+                    loaded ? "border-accent" : "border-line opacity-50"
+                  }`}
+                >
+                  {convertProgression(p, "american", notation)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Below the input, on its edges: the two practice tools as one
+          matching pair (they both start something), and the difficulty
+          view as a switch at the far end, since it changes what the
+          diagrams show rather than starting anything. */}
+      <div className="flex w-full max-w-xl flex-col items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={micActive ? playAlong.stop : playAlong.start}
+              disabled={!micActive && playAlong.index < 0}
+              title={!micActive && playAlong.index < 0 ? t("playAlong.noChords") : undefined}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:hover-fine:border-line disabled:active:scale-100 ${micActive ? "border-difficulty-dificil text-difficulty-dificil" : "border-line"}`}
+            >
+              {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden className="text-accent" />}
+              {micActive ? t("playAlong.stop") : t("playAlong.start")}
+            </button>
+            <button
+              onClick={() => setCameraOpen(true)}
+              disabled={cameraChords.length === 0}
+              title={cameraChords.length === 0 ? t("camera.noChords") : undefined}
+              className="flex items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-sm font-medium transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:hover-fine:border-line disabled:active:scale-100"
+            >
+              <Camera size={14} aria-hidden className="text-accent" />
+              {t("camera.open")}
+            </button>
+          </div>
           <button
+            role="switch"
+            aria-checked={showDifficulty}
             onClick={() => setShowDifficulty((v) => !v)}
-            className="rounded border border-line px-3 py-1 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+            className="group flex items-center gap-2 text-sm text-muted transition hover-fine:text-foreground"
           >
-            {showDifficulty
-              ? t("home.hideDifficulty")
-              : t("home.showDifficulty")}
-          </button>
-          {/* Text + icon, not another bordered pill: the mic is the one
-              control here that starts something happening, and it reads as
-              an action in the accent color without adding a third outlined
-              shape to the row. */}
-          <button
-            onClick={micActive ? playAlong.stop : playAlong.start}
-            disabled={!micActive && playAlong.index < 0}
-            title={!micActive && playAlong.index < 0 ? t("playAlong.noChords") : undefined}
-            className={`flex items-center gap-1.5 text-sm font-medium ${micActive ? "text-difficulty-dificil" : "text-accent"} transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100`}
-          >
-            {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden />}
-            {micActive ? t("playAlong.stop") : t("playAlong.start")}
-          </button>
-          <button
-            onClick={() => setCameraOpen(true)}
-            disabled={cameraChords.length === 0}
-            title={cameraChords.length === 0 ? t("camera.noChords") : undefined}
-            className="flex items-center gap-1.5 text-sm font-medium text-accent transition hover-fine:underline active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:no-underline disabled:active:scale-100"
-          >
-            <Camera size={14} aria-hidden />
-            {t("camera.open")}
+            {t("home.difficultySwitch")}
+            <span
+              aria-hidden
+              className={`relative h-5 w-9 rounded-full border transition-colors duration-[160ms] ${showDifficulty ? "border-accent bg-accent" : "border-line"}`}
+            >
+              <span
+                className={`absolute top-1/2 left-0.5 size-3.5 -translate-y-1/2 rounded-full transition-[translate,background-color] duration-[160ms] ease-out ${showDifficulty ? "translate-x-4 bg-dot-text" : "bg-muted"}`}
+              />
+            </span>
           </button>
         </div>
         <CameraCheckModal
@@ -452,30 +490,6 @@ export default function ChordLibrary() {
             ? t("playAlong.now", { chord: formatChord(playAlongTargets[playAlong.index]!.name, notation) })
             : ""}
         </p>
-        {showSuggestions && (
-          <div className="flex flex-wrap justify-center gap-2">
-            {COMMON_PROGRESSIONS.map((p) => {
-              // Dimmed unless it's the progression loaded right now (same
-              // chords, any spacing or case), so the row stays quiet.
-              const loaded = parseProgression(p).join(" ").toLowerCase() === allTokens.join(" ").toLowerCase();
-              return (
-                <button
-                  key={p}
-                  aria-pressed={loaded}
-                  onClick={() => {
-                    forceFullReplaceRef.current = true;
-                    setCanonicalInput(p);
-                  }}
-                  className={`rounded border px-3 py-1 text-sm transition hover-fine:border-accent hover-fine:opacity-100 active:scale-[0.97] duration-[160ms] ease-out ${
-                    loaded ? "border-accent" : "border-line opacity-50"
-                  }`}
-                >
-                  {convertProgression(p, "american", notation)}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Fixed-width columns (not flex-wrap) so every row gets the same
