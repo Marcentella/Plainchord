@@ -69,7 +69,7 @@ export default function NavMenu() {
         <Menu size={16} aria-hidden />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-10 mt-2 flex min-w-40 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
+        <div className="absolute left-0 top-full z-10 mt-2 origin-top-left transition-[opacity,scale,background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.97] flex min-w-40 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
           {ITEMS.map(({ page, labelKey, Icon }) => (
             <Link
               key={page}

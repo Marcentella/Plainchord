@@ -1,64 +1,23 @@
 import Link from "next/link";
-import ChordDiagram from "@/components/ChordDiagram";
 import LandingHero from "@/components/LandingHero";
-import ChordName from "@/components/ChordName";
-import TransitionBadge from "@/components/TransitionBadge";
-import { findChord } from "@/lib/chords";
-import { transitionDifficulty } from "@/lib/transitionDifficulty";
+import LandingSteps from "@/components/LandingSteps";
 import { getT } from "@/i18n";
+import type { TKey } from "@/i18n/t";
 import type { Locale } from "@/i18n/locales";
 import { alternates, href } from "@/i18n/routes";
 
-// Placeholder landing (v2 "calma" sketch in Figma) until the real design
-// pass: one action, a suggested order for beginners, and what PlainChord
-// deliberately leaves out. Every visual is a real component, so a redesign
-// only touches styling and copy.
+// "Noise to quiet": the hero opens on the
+// clutter beginners know and dissolves it on scroll; below it, what fell
+// away, the suggested path, and one way into the library. Every visual is a
+// real component or the real difficulty data.
 
-const G = findChord("G")!;
-const D = findChord("D")!;
-const EXAMPLE_CHANGES = [
-  ["G", "D"],
-  ["D", "Em"],
-  ["Em", "C"],
-] as const;
-
-const STEPS = [
-  { title: "landing.step1Title", body: "landing.step1Body" },
-  {
-    title: "landing.step2Title",
-    body: "landing.step2Body",
-    visual: (
-      <div className="flex gap-6">
-        <ChordDiagram chord={G} />
-        <ChordDiagram chord={D} />
-      </div>
-    ),
-  },
-  {
-    title: "landing.step3Title",
-    body: "landing.step3Body",
-    visual: (
-      <ul className="flex flex-col gap-3">
-        {EXAMPLE_CHANGES.map(([a, b]) => (
-          <li key={a + b} className="flex items-center gap-5">
-            <span className="w-24 text-lg font-medium">
-              <ChordName name={a} /> → <ChordName name={b} />
-            </span>
-            <TransitionBadge difficulty={transitionDifficulty(findChord(a)!, findChord(b)!)} />
-          </li>
-        ))}
-      </ul>
-    ),
-  },
-  { title: "landing.step4Title", body: "landing.step4Body" },
-  {
-    title: "landing.step5Title",
-    body: "landing.step5Body",
-    link: { page: "tab", label: "landing.step5Link" },
-  },
-] as const;
-
-const LEFT_OUT = ["landing.leftOut1", "landing.leftOut2", "landing.leftOut3", "landing.leftOut4"] as const;
+// Each thing left out, paired with the clutter card it stands for in the hero.
+const LEFT_OUT: [TKey, TKey][] = [
+  ["landing.leftOut1", "landing.noise9"],
+  ["landing.leftOut2", "landing.noise3"],
+  ["landing.leftOut3", "landing.noise1"],
+  ["landing.leftOut4", "landing.noise12"],
+];
 
 export async function generateMetadata({ params }: PageProps<"/[lang]">) {
   return { alternates: alternates("home", (await params).lang as Locale) };
@@ -69,62 +28,46 @@ export default async function Landing({ params }: PageProps<"/[lang]">) {
   const lang = (await params).lang as Locale;
   const t = getT(lang);
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col px-6">
-      <section className="flex flex-col gap-8 pb-24 pt-16 sm:pt-24">
-        <h1 className="max-w-4xl text-balance text-5xl font-medium leading-[1.05] tracking-tight sm:text-7xl">
-          {t("landing.title")}
-        </h1>
-        <p className="max-w-xl text-lg leading-relaxed text-muted sm:text-xl">{t("landing.subtitle")}</p>
-        <LandingHero />
-      </section>
+    <>
+      <LandingHero />
 
-      {/* Numbered because it IS a sequence — a suggested order, not a course. */}
-      <section className="border-t border-line py-20">
-        <h2 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("landing.startTitle")}</h2>
-        <p className="mt-3 max-w-xl text-lg text-muted">{t("landing.startIntro")}</p>
-        <ol className="mt-12">
-          {STEPS.map((step, i) => (
-            <li
-              key={step.title}
-              className="grid gap-6 border-t border-line py-10 sm:grid-cols-[2.5rem_minmax(0,26rem)_1fr] sm:gap-10"
-            >
-              <span className="text-xl font-medium text-muted tabular-nums">{i + 1}</span>
-              <div className="flex flex-col gap-2">
-                <h3 className="text-2xl font-medium tracking-tight">{t(step.title)}</h3>
-                <p className="leading-relaxed text-muted">{t(step.body)}</p>
-                {"link" in step && (
-                  <Link href={href(step.link.page, lang)} className="mt-1 w-fit text-accent hover-fine:underline">
-                    {t(step.link.label)}
-                  </Link>
-                )}
-              </div>
-              {"visual" in step && <div>{step.visual}</div>}
-            </li>
-          ))}
-        </ol>
-      </section>
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-6">
+        <section className="grid min-h-svh content-start gap-12 py-28 lg:grid-cols-[minmax(0,26rem)_1fr] lg:gap-20">
+          <div className="flex flex-col gap-4">
+            <h2 className="text-balance text-[1.875rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.5rem]">{t("landing.leftOutTitle")}</h2>
+            <p className="text-pretty text-lg leading-relaxed text-muted">{t("landing.leftOutBody")}</p>
+          </div>
+          <ul className="flex flex-col">
+            {LEFT_OUT.map(([plain, noise]) => (
+              <li key={plain} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-8 gap-y-3 border-b border-line py-9">
+                <span className="text-balance text-xl tracking-tight sm:text-[1.75rem]">{t(plain)}</span>
+                <span aria-hidden className="landing-noise-card landing-noise-card--struck">
+                  {t(noise)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <section className="grid gap-10 border-t border-line py-20 sm:grid-cols-[minmax(0,22rem)_1fr]">
-        <div className="flex flex-col gap-3">
-          <h2 className="text-3xl font-medium tracking-tight sm:text-4xl">{t("landing.leftOutTitle")}</h2>
-          <p className="text-lg text-muted">{t("landing.leftOutBody")}</p>
-        </div>
-        <ul className="flex flex-col gap-2 text-2xl tracking-tight sm:text-3xl">
-          {LEFT_OUT.map((key) => (
-            <li key={key}>{t(key)}</li>
-          ))}
-        </ul>
-      </section>
+        <section className="flex min-h-svh flex-col gap-12 py-28">
+          <div className="flex max-w-2xl flex-col gap-4">
+            <h2 className="text-balance text-[1.875rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.5rem]">{t("landing.pathTitle")}</h2>
+            <p className="text-pretty text-lg leading-relaxed text-muted">{t("landing.pathIntro")}</p>
+          </div>
+          <LandingSteps />
+        </section>
 
-      <section className="flex flex-col items-start gap-8 border-t border-line py-24">
-        <h2 className="text-4xl font-medium tracking-tight sm:text-6xl">{t("landing.closeTitle")}</h2>
-        <Link
-          href={href("chords", lang)}
-          className="rounded-xl bg-accent px-6 py-4 text-lg font-medium text-dot-text transition active:scale-[0.97] duration-[160ms] ease-out"
-        >
-          {t("landing.closeCta")}
-        </Link>
-      </section>
-    </div>
+        <section className="flex min-h-[70svh] flex-col items-start gap-6 py-28">
+          <h2 className="max-w-3xl text-balance text-[1.875rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.5rem]">{t("landing.closeTitle")}</h2>
+          <p className="text-lg text-muted">{t("landing.closeBody")}</p>
+          <Link
+            href={href("chords", lang)}
+            className="mt-2 rounded-xl bg-accent px-6 py-4 text-lg font-medium text-dot-text transition hover-fine:-translate-y-px active:scale-[0.97] duration-[160ms] ease-out"
+          >
+            {t("landing.cta")}
+          </Link>
+        </section>
+      </div>
+    </>
   );
 }

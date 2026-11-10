@@ -50,7 +50,7 @@ export default function TabHistoryMenu({
         <History size={16} aria-hidden />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-10 mt-2 flex w-72 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
+        <div className="absolute right-0 top-full z-10 mt-2 origin-top-right transition-[opacity,scale,background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.97] flex w-72 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
           {history.length === 0 ? (
             <p className="px-2 py-1.5 text-sm text-muted">{t("tabHistory.empty")}</p>
           ) : (

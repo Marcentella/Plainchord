@@ -75,6 +75,7 @@ export default function ChordProgressionInput({
   onChange,
   placeholder,
   chordLimit,
+  hintWhileTyping = false,
 }: {
   id: string;
   value: string;
@@ -84,6 +85,10 @@ export default function ChordProgressionInput({
    * processed. Purely visual here; the actual cutoff lives in the
    * chord-limit slicing in app/page.tsx, this just mirrors it. */
   chordLimit: number;
+  /** Show the autocomplete row only while the field has focus and the chord
+   *  being typed isn't already complete. The landing's prefilled example
+   *  otherwise greets a first-time visitor with an unasked "⇥ C7". */
+  hintWhileTyping?: boolean;
 }) {
   const t = useT();
   const notation = useNotation();
@@ -264,13 +269,26 @@ export default function ChordProgressionInput({
           order for free while hidden, with no extra `pointer-events`/
           `tabIndex` handling needed. */}
       <div
-        className={`flex items-center gap-2 ${suggestion ? "visible" : "invisible"}`}
+        className={`flex items-center gap-2 ${
+          suggestion && (!hintWhileTyping || (focused && !tokenIsExactMatch))
+            ? "visible"
+            : // Phones: a reserved-but-empty row read as a stray gap between
+              // the field and the stacked button, so there it collapses;
+              // the keyboard is up while typing anyway, so the shift is
+              // hidden behind it. Wider screens keep the reserved space.
+              hintWhileTyping
+              ? "invisible max-sm:hidden"
+              : "invisible"
+        }`}
       >
         <span className="text-xs text-muted">{t("home.tabHint")}</span>
         {/* Tab has no equivalent on a mobile keyboard, so tapping this
             does the exact same accept-or-cycle as pressing Tab. */}
         <button
           type="button"
+          // Keeps focus in the field: a tap that blurred it first would
+          // hide this row (hintWhileTyping) before the click landed.
+          onMouseDown={(e) => e.preventDefault()}
           onClick={acceptOrCycle}
           aria-label={
             suggestion

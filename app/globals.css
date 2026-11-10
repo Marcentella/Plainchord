@@ -158,8 +158,8 @@
   --color-difficulty-media: var(--difficulty-media);
   --color-difficulty-dificil: var(--difficulty-dificil);
   --color-dot-text: var(--dot-text);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-urbanist);
+  --font-mono: var(--font-dm-mono);
 }
 
 body {
@@ -181,7 +181,7 @@ body {
   background-attachment: fixed;
   background-blend-mode: normal, multiply;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 .dark body {
@@ -634,4 +634,261 @@ dialog.tuner-dialog::backdrop {
 .tuner-select option:checked {
   background: var(--accent);
   color: var(--dot-text);
+}
+
+/* Landing — "noise to quiet".
+   The hero's clutter wall is decoration (aria-hidden): grayscale, blurred,
+   low contrast, so only the centre column reads. It dissolves as the page
+   scrolls — a scroll-driven animation, so no JS and no scroll listener;
+   browsers without animation-timeline (Firefox today) and reduced motion
+   just keep the faded wall, which is the calm resting state anyway. */
+.landing-noise {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.landing-noise-grid {
+  position: absolute;
+  inset: -1rem;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 1rem;
+  opacity: 0.32;
+  filter: blur(2px) grayscale(1);
+}
+
+.dark .landing-noise-grid {
+  opacity: 0.5;
+}
+
+/* Kept plain so the struck copies in "Lo que dejamos fuera" can reuse it. */
+.landing-noise-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--muted);
+  border-radius: 0.625rem;
+  background: var(--background);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 1.125rem;
+  text-align: center;
+}
+
+.landing-noise-card--struck {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+  opacity: 0.55;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  filter: grayscale(1);
+}
+
+.landing-noise-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 46% 50% at 50% 50%, var(--background) 55%, transparent 100%);
+}
+
+/* Phones: two columns of the same wall, so it still reads as a crowd. */
+@media (max-width: 639px) {
+  .landing-noise-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 5.5rem;
+  }
+  /* Tighter than desktop's: on a phone the column covers most of the
+     width, so a wide veil hid the whole wall and the "noise" never showed. */
+  .landing-noise-veil {
+    background: radial-gradient(ellipse 62% 42% at 50% 52%, var(--background) 45%, transparent 100%);
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .landing-noise {
+      animation: landing-noise-fade linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 75vh;
+    }
+    .landing-noise-grid .landing-noise-card {
+      animation: landing-noise-drift linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 75vh;
+    }
+  }
+}
+
+@keyframes landing-noise-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes landing-noise-drift {
+  to {
+    transform: translate(var(--dx), var(--dy)) scale(0.9);
+  }
+}
+
+/* Hero answer: each diagram's dots (and barre) set themselves down one
+   finger at a time when a chord appears. */
+.finger-in svg > g,
+.loop-fingers svg > g {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Short and tightly staggered: it answers typing, so it has to keep up. */
+.finger-in svg > g {
+  animation: finger-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.finger-in svg > g:nth-of-type(2) { animation-delay: 50ms; }
+.finger-in svg > g:nth-of-type(3) { animation-delay: 100ms; }
+.finger-in svg > g:nth-of-type(4) { animation-delay: 150ms; }
+.finger-in svg > g:nth-of-type(5) { animation-delay: 200ms; }
+
+@keyframes finger-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes finger-in-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Step-card loops. Paused until the row is on screen (LandingSteps sets
+   data-on), three rounds, then rest; hovering a card keeps it going. The
+   resting frame (no animation) is the finished state: needle centred, dots
+   down, arrow drawn. */
+.landing-steps [class*="loop-"],
+.landing-steps .loop-fingers svg > g {
+  animation-duration: 3.2s;
+  animation-iteration-count: 3;
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  animation-fill-mode: both;
+  animation-play-state: paused;
+}
+.landing-steps[data-on] [class*="loop-"],
+.landing-steps[data-on] .loop-fingers svg > g {
+  animation-play-state: running;
+}
+.landing-step:hover [class*="loop-"],
+.landing-step:hover .loop-fingers svg > g {
+  animation-iteration-count: infinite;
+}
+
+.loop-needle {
+  transform-box: view-box;
+  transform-origin: 80px 86px;
+  animation-name: loop-needle;
+}
+@keyframes loop-needle {
+  0% { transform: rotate(-40deg); }
+  35% { transform: rotate(14deg); }
+  55% { transform: rotate(-6deg); }
+  70%, 100% { transform: rotate(0deg); }
+}
+
+.loop-note {
+  fill: var(--difficulty-facil);
+  animation-name: loop-note;
+}
+@keyframes loop-note {
+  0%, 60% { fill: var(--muted); }
+  72%, 100% { fill: var(--difficulty-facil); }
+}
+
+.landing-steps .loop-fingers svg > g { animation-name: loop-finger; }
+.loop-fingers svg > g:nth-of-type(2) { animation-delay: 150ms; }
+.loop-fingers svg > g:nth-of-type(3) { animation-delay: 300ms; }
+.loop-fingers svg > g:nth-of-type(4) { animation-delay: 450ms; }
+@keyframes loop-finger {
+  0% { opacity: 0; transform: scale(0.6); }
+  14%, 86% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.loop-arrow {
+  stroke-dasharray: 60;
+  animation-name: loop-arrow;
+}
+@keyframes loop-arrow {
+  0%, 10% { stroke-dashoffset: 60; }
+  55%, 100% { stroke-dashoffset: 0; }
+}
+
+/* Four pills lit in turn, one per 0.8s of the 3.2s round. */
+.landing-steps .loop-play {
+  animation-name: loop-play;
+  animation-timing-function: steps(1, end);
+}
+.loop-play-check {
+  opacity: 0;
+}
+.landing-steps .loop-play .loop-play-check {
+  animation: inherit;
+  animation-name: loop-play-check;
+}
+@keyframes loop-play {
+  0% { border-color: var(--accent); color: var(--accent); }
+  25%, 100% { border-color: var(--line); color: var(--foreground); }
+}
+@keyframes loop-play-check {
+  0% { opacity: 1; }
+  25%, 100% { opacity: 0; }
+}
+
+.landing-steps .loop-playhead {
+  animation-name: loop-playhead;
+  animation-timing-function: linear;
+}
+@keyframes loop-playhead {
+  from { transform: translateX(0); }
+  to { transform: translateX(14ch); }
+}
+
+/* Reduced motion: loops rest, and a new chord's dots only fade in (no
+   scaling): gentler, not gone — the fade still says the chord changed. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-steps [class*="loop-"],
+  .landing-steps .loop-fingers svg > g {
+    animation: none;
+  }
+  .finger-in svg > g {
+    animation-name: finger-in-fade;
+  }
+}
+
+/* Something that opens right under the control that asked for it (the
+   suggested progressions, the camera's settings): a short drop into place.
+   A keyframe, not a transition, so a per-item animation-delay can stagger it
+   without also delaying the element's own hover transitions; fill-mode
+   backwards only, so once it ends the element's own styles (a dimmed pill's
+   opacity) take over again. Reduced motion: the fade alone. */
+.enter-up {
+  animation: enter-up 180ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter-up {
+    animation-name: enter-fade;
+  }
 }
