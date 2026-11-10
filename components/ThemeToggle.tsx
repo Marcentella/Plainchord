@@ -1,43 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { flashThemeTransition } from "@/lib/flashThemeTransition";
 import { useT } from "@/i18n/LocaleProvider";
 
 export default function ThemeToggle() {
   const t = useT();
-  // Starts false on both server and client so hydration always matches —
-  // no mismatch means no stale label. Synced to the real value (set by the
-  // inline theme script in layout.tsx) right after mount, which is a normal
-  // client render and so is guaranteed to update the DOM text.
-  const [dark, setDark] = useState(false);
 
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
+  // The <html> class is the only source of truth: the inline theme script in
+  // layout.tsx sets it before first paint. Reading it on click (instead of
+  // mirroring it in state synced after mount) is what lets the icon below be
+  // right from the first frame, with no sun/moon flash on reload.
   function toggle() {
-    const next = !dark;
+    const next = !document.documentElement.classList.contains("dark");
     flashThemeTransition();
-    setDark(next);
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
   }
 
-  const Icon = dark ? SunIcon : MoonIcon;
-
   // Icon-only, no text label — sun/moon is understood without one (same
   // call HeySpinner and most other apps make), and it keeps this button a
   // fixed size regardless of screen width instead of needing a responsive
-  // show/hide breakpoint.
+  // show/hide breakpoint. Both icons render; the `dark:` variant shows the
+  // right one, so server HTML and first paint already agree with the theme.
   return (
     <button
       onClick={toggle}
       aria-label={t("themeToggle.ariaLabel")}
       className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
     >
-      <Icon size={16} aria-hidden />
+      <MoonIcon size={18} aria-hidden className="dark:hidden" />
+      <SunIcon size={18} aria-hidden className="hidden dark:block" />
     </button>
   );
 }
