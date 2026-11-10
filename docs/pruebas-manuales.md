@@ -3,7 +3,8 @@
 Pruebas hechas con hardware real (guitarra, cámara, micrófono, teléfono), en orden. Cada entrada:
 qué se probó, con qué equipo, qué se observó, y qué cambió en el código por eso. Las pruebas
 automáticas viven en `lib/*.test.ts` (`node --test lib/*.test.ts`); esto es lo que solo se puede
-ver con una guitarra en la mano.
+ver con una guitarra en la mano. Las limitaciones que quedan y el trabajo futuro están en
+[camara-limitaciones.md](camara-limitaciones.md).
 
 **Equipo de las pruebas** (salvo que se diga otra cosa): PC Windows 11 con Chrome; cámara web USB
 (1280×720, ~15 fps con poca luz); interfaz de audio Focusrite (guitarra en la entrada 2, canal

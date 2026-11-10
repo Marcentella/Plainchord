@@ -5,6 +5,8 @@
 > modal in /acordes. Mic + camera fusion is future work for the defense. Prior work to cite: Guitar-Learning
 > (github.com/DecoudJuan/Guitar-Learning), JamCam, Burns & Wanderley NIME 2006, ISMIR 2010 audio+video chord
 > identification, TapToTab (arXiv 2409.08618).
+> Limitations (fingertip shift from the hand model, 2D can't see pressing) and the training path
+> (GuiFiR dataset, IEEE Access 2026): `docs/camara-limitaciones.md`. Real-device test log: `docs/pruebas-manuales.md`.
 
 # Thesis Plan: Audio to Tab
 
