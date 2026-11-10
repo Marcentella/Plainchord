@@ -2,22 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, Compass, Guitar, BookOpen, Rows3, Music } from "lucide-react";
+import { BookOpenIcon, CompassIcon, GuitarIcon, ListIcon, MusicNotesIcon, RowsIcon } from "@phosphor-icons/react";
 import { useT } from "@/i18n/LocaleProvider";
 import { href } from "@/i18n/routes";
 import { useLocale } from "@/i18n/useLocale";
 import TunerModal from "@/components/TunerModal";
 
-// Guitar/BookOpen/Rows3: same lucide-react convention as every other icon in
-// the header (see CLAUDE.md — no emoji). Rows3 stands in for tab notation's
+// Guitar/BookOpen/Rows: Phosphor icons like every other icon in the header,
+// never emoji. Rows stands in for tab notation's
 // stacked string lines, the same way it already reads for anyone who's seen
 // a "rows" layout icon elsewhere. Compass for the guide: it's where you
 // get your bearings, and BookOpen is already the glossary's.
 const ITEMS = [
-  { page: "guide", labelKey: "nav.guide", Icon: Compass },
-  { page: "chords", labelKey: "nav.chords", Icon: Guitar },
-  { page: "glossary", labelKey: "nav.glossary", Icon: BookOpen },
-  { page: "tab", labelKey: "nav.tab", Icon: Rows3 },
+  { page: "guide", labelKey: "nav.guide", Icon: CompassIcon },
+  { page: "chords", labelKey: "nav.chords", Icon: GuitarIcon },
+  { page: "glossary", labelKey: "nav.glossary", Icon: BookOpenIcon },
+  { page: "tab", labelKey: "nav.tab", Icon: RowsIcon },
 ] as const;
 
 /**
@@ -66,7 +66,7 @@ export default function NavMenu() {
         aria-expanded={open}
         className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
       >
-        <Menu size={16} aria-hidden />
+        <ListIcon size={18} aria-hidden />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-10 mt-2 origin-top-left transition-[opacity,scale,background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.97] flex min-w-40 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
@@ -92,7 +92,7 @@ export default function NavMenu() {
             }}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover-fine:text-accent"
           >
-            <Music size={16} aria-hidden />
+            <MusicNotesIcon size={18} aria-hidden />
             {t("nav.tuner")}
           </button>
         </div>

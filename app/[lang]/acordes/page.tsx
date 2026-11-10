@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Camera, Check, Code, Loader2, Mic, Square } from "lucide-react";
+import { CameraIcon, CheckIcon, CircleNotchIcon, CodeIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import ChordDiagram from "@/components/ChordDiagram";
 import CameraCheckModal from "@/components/CameraCheckModal";
 import ChordNotFound from "@/components/ChordNotFound";
@@ -402,7 +402,7 @@ export default function ChordLibrary() {
               title={!micActive && playAlong.index < 0 ? t("playAlong.noChords") : undefined}
               className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:hover-fine:border-line disabled:active:scale-100 ${micActive ? "border-difficulty-dificil text-difficulty-dificil" : "border-line"}`}
             >
-              {micActive ? <Square size={14} aria-hidden /> : <Mic size={14} aria-hidden className="text-accent" />}
+              {micActive ? <StopIcon size={16} aria-hidden /> : <MicrophoneIcon size={16} aria-hidden className="text-accent" />}
               {micActive ? t("playAlong.stop") : t("playAlong.start")}
             </button>
             <button
@@ -411,7 +411,7 @@ export default function ChordLibrary() {
               title={cameraChords.length === 0 ? t("camera.noChords") : undefined}
               className="flex items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-sm font-medium transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:text-muted disabled:hover-fine:border-line disabled:active:scale-100"
             >
-              <Camera size={14} aria-hidden className="text-accent" />
+              <CameraIcon size={16} aria-hidden className="text-accent" />
               {t("camera.open")}
             </button>
           </div>
@@ -444,7 +444,7 @@ export default function ChordLibrary() {
           <div className="flex flex-col items-center gap-1 text-center text-sm text-muted">
             {playAlong.status === "requesting" && (
               <p className="flex items-center gap-1.5">
-                <Loader2 size={14} className="animate-spin text-accent" aria-hidden />
+                <CircleNotchIcon size={16} className="animate-spin text-accent" aria-hidden />
                 {t("tuner.requesting")}
               </p>
             )}
@@ -469,7 +469,7 @@ export default function ChordLibrary() {
           // wrong chord is one click away too.
           <div className="fixed bottom-4 right-4 z-50 w-64 rounded-lg border border-muted/30 bg-background p-3 shadow-lg">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted">
-              <Code size={14} aria-hidden />
+              <CodeIcon size={16} aria-hidden />
               Demo
             </p>
             <div className="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
@@ -656,7 +656,7 @@ export default function ChordLibrary() {
                 // "now"; same never-color-only rule as the tuner.
                 <div className="absolute inset-x-0 top-full mt-1.5 flex justify-center" aria-hidden>
                   {isJustHeard || isPlayed ? (
-                    <Check size={16} strokeWidth={2.5} className="text-difficulty-facil" />
+                    <CheckIcon size={18} weight="bold" className="text-difficulty-facil" />
                   ) : (
                     <span className="mt-1.5 h-0.5 w-12 rounded-full bg-accent" />
                   )}

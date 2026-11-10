@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { History, Trash2 } from "lucide-react";
+import { ClockCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useT } from "@/i18n/LocaleProvider";
 import type { TabHistoryEntry } from "@/lib/tabHistory";
 
@@ -47,7 +47,7 @@ export default function TabHistoryMenu({
         aria-expanded={open}
         className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
       >
-        <History size={16} aria-hidden />
+        <ClockCounterClockwiseIcon size={18} aria-hidden />
       </button>
       {open && (
         <div className="absolute right-0 top-full z-10 mt-2 origin-top-right transition-[opacity,scale,background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.97] flex w-72 flex-col gap-0.5 rounded-lg border border-line bg-background p-1.5 shadow-lg">
@@ -91,7 +91,7 @@ export default function TabHistoryMenu({
                     aria-label={t("tabHistory.deleteAriaLabel", { title })}
                     className="shrink-0 text-muted transition hover-fine:text-difficulty-dificil active:scale-[0.97] duration-[160ms] ease-out"
                   >
-                    <Trash2 size={14} aria-hidden />
+                    <TrashIcon size={16} aria-hidden />
                   </button>
                 </div>
               );

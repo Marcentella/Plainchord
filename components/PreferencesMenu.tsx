@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
+import { GearIcon } from "@phosphor-icons/react";
 import { flashThemeTransition } from "@/lib/flashThemeTransition";
 import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/i18n/LocaleProvider";
@@ -209,7 +209,7 @@ export default function PreferencesMenu() {
         aria-expanded={open}
         className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
       >
-        <Settings size={16} aria-hidden />
+        <GearIcon size={18} aria-hidden />
       </button>
       {open && (
         <div className="absolute right-0 top-full z-10 mt-2 origin-top-right transition-[opacity,scale,background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.97] flex w-60 flex-col gap-4 rounded-lg border border-line bg-background p-4 shadow-lg">

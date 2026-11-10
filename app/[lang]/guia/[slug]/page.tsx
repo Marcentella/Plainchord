@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon } from "@phosphor-icons/react/ssr";
 import GuideBlocks from "@/components/guide/GuideBlocks";
 import { GUIDE_ORDER, guideArticle, guideCategories, guideNeighbors } from "@/lib/guide";
 import { getT } from "@/i18n";
@@ -55,7 +55,7 @@ export default async function GuideArticlePage({ params }: PageProps<"/[lang]/gu
           <details className="group relative shrink-0">
             <summary className="flex cursor-pointer list-none items-center gap-1 transition-colors hover-fine:text-accent [&::-webkit-details-marker]:hidden">
               {t("guide.contents")}
-              <ChevronDown size={14} aria-hidden className="transition-transform group-open:rotate-180" />
+              <CaretDownIcon size={16} aria-hidden className="transition-transform group-open:rotate-180" />
             </summary>
             <nav className="absolute right-0 top-full z-10 mt-2 flex w-64 flex-col gap-3 rounded-lg border border-line bg-background p-3 shadow-lg">
               {guideCategories(lang).map((category) => (
@@ -90,7 +90,7 @@ export default async function GuideArticlePage({ params }: PageProps<"/[lang]/gu
           {previous ? (
             <Link href={href("guide", lang, previous.id)} className="flex flex-col gap-0.5 transition-colors hover-fine:text-accent">
               <span className="flex items-center gap-1 text-xs text-muted">
-                <ArrowLeft size={12} aria-hidden />
+                <ArrowLeftIcon size={14} aria-hidden />
                 {t("guide.previous")}
               </span>
               <span className="font-medium">{previous.title}</span>
@@ -105,7 +105,7 @@ export default async function GuideArticlePage({ params }: PageProps<"/[lang]/gu
             >
               <span className="flex items-center gap-1 text-xs text-muted">
                 {t("guide.next")}
-                <ArrowRight size={12} aria-hidden />
+                <ArrowRightIcon size={14} aria-hidden />
               </span>
               <span className="font-medium">{next.title}</span>
             </Link>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { CheckIcon } from "@phosphor-icons/react";
 import ChordDiagram from "@/components/ChordDiagram";
 import ChordName from "@/components/ChordName";
 import TransitionBadge from "@/components/TransitionBadge";
@@ -59,7 +59,7 @@ function PlayAlong() {
       {PLAY.map((name, i) => (
         <span key={name} className="loop-play flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-base font-medium" style={{ animationDelay: `${i * 0.8}s` }}>
           <ChordName name={name} />
-          <Check size={14} className="loop-play-check" />
+          <CheckIcon size={16} className="loop-play-check" />
         </span>
       ))}
     </div>

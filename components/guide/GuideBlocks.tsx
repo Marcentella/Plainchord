@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Lightbulb, TriangleAlert } from "lucide-react";
+import { ArrowRightIcon, LightbulbIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import GuideVisual from "@/components/guide/GuideVisual";
 import TryTuner from "@/components/guide/TryTuner";
 import { splitBold, type GuideBlock } from "@/lib/guide";
@@ -41,7 +41,7 @@ export default function GuideBlocks({ blocks, locale, t }: { blocks: GuideBlock[
       case "mnemonic":
       case "mistake": {
         const mnemonic = block.type === "mnemonic";
-        const Icon = mnemonic ? Lightbulb : TriangleAlert;
+        const Icon = mnemonic ? LightbulbIcon : WarningIcon;
         return (
           <aside key={i} className="flex flex-col gap-1.5 rounded-lg border border-line p-4 leading-relaxed">
             <p
@@ -66,7 +66,7 @@ export default function GuideBlocks({ blocks, locale, t }: { blocks: GuideBlock[
         ) : (
           <Link key={i} href={href(block.to, locale)} className={LINK_CLASS}>
             {t(LINK_LABEL[block.to])}
-            <ArrowRight size={14} aria-hidden />
+            <ArrowRightIcon size={16} aria-hidden />
           </Link>
         );
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Mic, MicOff, Square, X } from "lucide-react";
+import { CircleNotchIcon, MicrophoneIcon, MicrophoneSlashIcon, StopIcon, XIcon } from "@phosphor-icons/react";
 import { useT } from "@/i18n/LocaleProvider";
 import { useLocale } from "@/i18n/useLocale";
 import { micErrorFor, openMic, type MicInput } from "@/lib/micInput";
@@ -252,7 +252,7 @@ export default function RecordTabModal({
           aria-label={t("record.close")}
           className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
         >
-          <X size={16} aria-hidden />
+          <XIcon size={18} aria-hidden />
         </button>
       </div>
 
@@ -290,7 +290,7 @@ export default function RecordTabModal({
               onClick={start}
               className="inline-flex items-center justify-center gap-2 rounded border border-line px-4 py-2 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
             >
-              <Mic size={16} aria-hidden />
+              <MicrophoneIcon size={18} aria-hidden />
               {t(phase === "noNotes" ? "record.retry" : "record.start")}
             </button>
           </div>
@@ -298,7 +298,7 @@ export default function RecordTabModal({
 
         {(phase === "requesting" || phase === "processing") && (
           <div className="flex flex-col items-center gap-3 py-4 text-center" role="status">
-            <Loader2 size={28} className="text-accent animate-spin" aria-hidden />
+            <CircleNotchIcon size={32} className="text-accent animate-spin" aria-hidden />
             <p className="text-sm text-muted">{t(phase === "requesting" ? "tuner.requesting" : "record.processing")}</p>
           </div>
         )}
@@ -332,7 +332,7 @@ export default function RecordTabModal({
               onClick={() => void finish()}
               className="inline-flex items-center gap-2 rounded border border-line px-4 py-2 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
             >
-              <Square size={14} aria-hidden />
+              <StopIcon size={16} aria-hidden />
               {t("record.stop")}
             </button>
           </div>
@@ -340,7 +340,7 @@ export default function RecordTabModal({
 
         {(phase === "denied" || phase === "unavailable") && (
           <div className="flex flex-col items-center gap-3 text-center">
-            <MicOff size={28} className="text-difficulty-dificil" aria-hidden />
+            <MicrophoneSlashIcon size={32} className="text-difficulty-dificil" aria-hidden />
             <p className="text-sm text-muted">
               {t(phase === "denied" ? "tuner.permissionDenied" : "tuner.noMicrophone")}
             </p>

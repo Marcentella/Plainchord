@@ -21,7 +21,7 @@ import { useT } from "@/i18n/LocaleProvider";
 import { useLocale } from "@/i18n/useLocale";
 import type { TFunction } from "@/i18n/t";
 import type { Locale } from "@/i18n/locales";
-import { ArrowDownToLine } from "lucide-react";
+import { ArrowLineDownIcon } from "@phosphor-icons/react";
 
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 
@@ -233,7 +233,7 @@ const HARMONIC_LABELS: Partial<Record<TechniqueSymbol, string>> = {
  * enumerated by hand. Plain "1/4"-style text, not the ¼ ½ ¾ Unicode glyphs —
  * those render as genuinely tiny, hard-to-read shapes at small sizes (this
  * app already avoids exactly this class of font-rendering inconsistency
- * elsewhere, see CLAUDE.md's lucide-react-not-emoji rule and the bend
+ * elsewhere: drawn icons, never emoji or glyphs, and the bend
  * arrow's own use of plain SVG shapes over a Unicode arrow character).
  */
 function bendLabel(amount: number): string {
@@ -980,8 +980,8 @@ export default function TabRenderer({
         // info, the note's other techniques open from their own marks (see
         // withTechniques). Plain SVG shapes throughout, not a Unicode arrow
         // character: those render inconsistently across platforms/fonts,
-        // exactly what this app already avoids elsewhere (see CLAUDE.md's
-        // lucide-react icon rule).
+        // exactly what this app already avoids elsewhere (drawn icons,
+        // never emoji or glyphs).
         function renderBendArrow(colIdx: number, x: number, notes: TabNote[], direction: "up" | "down") {
           if (notes.length === 0) return null;
           const edgeY =
@@ -1416,7 +1416,7 @@ export default function TabRenderer({
           }}
           className="fixed right-4 bottom-4 z-20 flex items-center gap-1.5 rounded border border-line bg-background px-4 py-2 text-sm text-foreground shadow-lg hover:border-accent focus:outline-2 focus:outline-accent focus:outline-offset-2"
         >
-          <ArrowDownToLine size={16} aria-hidden />
+          <ArrowLineDownIcon size={18} aria-hidden />
           {t("tab.autoScroll")}
         </button>
       )}

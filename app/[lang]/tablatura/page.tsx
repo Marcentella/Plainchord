@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FolderOpen, Loader2, Mic, Pause, Play, RotateCcw, Square, Upload, Volume2, VolumeX } from "lucide-react";
+import { ArrowCounterClockwiseIcon, CircleNotchIcon, FolderOpenIcon, MicrophoneIcon, PauseIcon, PlayIcon, SpeakerHighIcon, SpeakerXIcon, StopIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { parseTab, MAX_BEATS } from "@/lib/parseTab";
 import type { Tab } from "@/lib/tab";
 import TabRenderer, { type TabRendererHandle } from "@/components/TabRenderer";
@@ -79,7 +79,7 @@ function ImportingSpinner() {
   const t = useT();
   return (
     <>
-      <Loader2 className="size-8 text-accent animate-spin" aria-hidden="true" />
+      <CircleNotchIcon className="size-8 text-accent animate-spin" aria-hidden="true" />
       <span className="sr-only">{t("tab.importingStatus")}</span>
     </>
   );
@@ -347,7 +347,7 @@ export default function Tablatura() {
                 way — this only needs to sit on top, not intercept anything. */}
             {isDraggingFile && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/90 pointer-events-none">
-                <Upload className="size-6 text-accent" aria-hidden="true" />
+                <UploadSimpleIcon className="size-6 text-accent" aria-hidden="true" />
                 <p className="text-sm text-accent">{t("tab.dropHint")}</p>
               </div>
             )}
@@ -380,7 +380,7 @@ export default function Tablatura() {
                 disabled={isImporting}
                 className="inline-flex items-center gap-1 text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
               >
-                <Mic className="size-3.5" aria-hidden="true" />
+                <MicrophoneIcon className="size-3.5" aria-hidden="true" />
                 {t("tab.recordLink")}
               </button>
             )}
@@ -444,7 +444,7 @@ export default function Tablatura() {
                     onClick={() => setExpanded(true)}
                     className="inline-flex items-center gap-1.5 text-sm text-accent transition hover-fine:opacity-70 active:scale-[0.97] duration-[160ms] ease-out"
                   >
-                    <FolderOpen className="size-4" aria-hidden="true" />
+                    <FolderOpenIcon className="size-4" aria-hidden="true" />
                     {t("tab.reimportButton")}
                   </button>
                 )}
@@ -465,11 +465,11 @@ export default function Tablatura() {
                 className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
               >
                 {isLoading ? (
-                  <Loader2 size={16} className="animate-spin" aria-hidden />
+                  <CircleNotchIcon size={18} className="animate-spin" aria-hidden />
                 ) : isPlaying ? (
-                  <Pause size={16} aria-hidden />
+                  <PauseIcon size={18} aria-hidden />
                 ) : (
-                  <Play size={16} aria-hidden />
+                  <PlayIcon size={18} aria-hidden />
                 )}
               </button>
               <button
@@ -479,7 +479,7 @@ export default function Tablatura() {
                 aria-label={t("tab.stop")}
                 className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
               >
-                <Square size={16} aria-hidden />
+                <StopIcon size={18} aria-hidden />
               </button>
               <button
                 type="button"
@@ -488,7 +488,7 @@ export default function Tablatura() {
                 aria-pressed={muted}
                 className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
               >
-                {muted ? <VolumeX size={16} aria-hidden /> : <Volume2 size={16} aria-hidden />}
+                {muted ? <SpeakerXIcon size={18} aria-hidden /> : <SpeakerHighIcon size={18} aria-hidden />}
               </button>
               <label className="flex items-center gap-1.5 text-muted">
                 {t("tab.bpmLabel")}
@@ -510,7 +510,7 @@ export default function Tablatura() {
                   aria-label={t("tab.resetBpmAriaLabel")}
                   className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <RotateCcw size={14} aria-hidden />
+                  <ArrowCounterClockwiseIcon size={16} aria-hidden />
                 </button>
               )}
               {!effectiveBpm && <span className="text-xs text-muted">{t("tab.bpmHint")}</span>}

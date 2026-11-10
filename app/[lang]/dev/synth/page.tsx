@@ -10,7 +10,7 @@
 // thread is deliberately busy -- before any of Step 1-3 gets built.
 
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, Square } from "lucide-react";
+import { PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 import type { OutMessage } from "@/lib/synth/synthWorker";
 import { useAudioPlayback } from "@/lib/useAudioPlayback";
 import { parseTab } from "@/lib/parseTab";
@@ -265,11 +265,11 @@ export default function SynthDevPage() {
           onClick={handlePlayPause}
           className="flex items-center gap-2 rounded bg-accent px-4 py-2 text-white"
         >
-          {playing ? <Pause size={16} /> : <Play size={16} />}
+          {playing ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
           {playing ? "Pausar" : "Reproducir"}
         </button>
         <button onClick={handleStop} className="flex items-center gap-2 rounded border border-line px-4 py-2">
-          <Square size={16} />
+          <StopIcon size={18} />
           Detener
         </button>
         <span className="text-sm text-muted">

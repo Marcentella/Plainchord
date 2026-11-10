@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Mic, MicOff, X } from "lucide-react";
+import { CheckIcon, CircleNotchIcon, MicrophoneIcon, MicrophoneSlashIcon, XIcon } from "@phosphor-icons/react";
 import { useT } from "@/i18n/LocaleProvider";
 import { formatNote } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
@@ -149,7 +149,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
           aria-label={t("tuner.close")}
           className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
         >
-          <X size={16} aria-hidden />
+          <XIcon size={18} aria-hidden />
         </button>
       </div>
 
@@ -181,7 +181,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
       <div className="mt-6 flex flex-col items-center gap-4">
         {micState === "idle" && (
           <div className="flex flex-col items-center gap-3 text-center">
-            <Mic size={28} className="text-muted" aria-hidden />
+            <MicrophoneIcon size={32} className="text-muted" aria-hidden />
             <p className="text-sm text-muted">{t("tuner.privacyNote")}</p>
             <button
               onClick={activateMic}
@@ -194,14 +194,14 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
 
         {micState === "requesting" && (
           <div className="flex flex-col items-center gap-3 text-center">
-            <Loader2 size={28} className="text-accent animate-spin" aria-hidden />
+            <CircleNotchIcon size={32} className="text-accent animate-spin" aria-hidden />
             <p className="text-sm text-muted">{t("tuner.requesting")}</p>
           </div>
         )}
 
         {(micState === "denied" || micState === "unavailable") && (
           <div className="flex flex-col items-center gap-3 text-center">
-            <MicOff size={28} className="text-difficulty-dificil" aria-hidden />
+            <MicrophoneSlashIcon size={32} className="text-difficulty-dificil" aria-hidden />
             <p className="text-sm text-muted">
               {t(micState === "denied" ? "tuner.permissionDenied" : "tuner.noMicrophone")}
             </p>
@@ -233,7 +233,7 @@ export default function TunerModal({ open, onClose }: { open: boolean; onClose: 
             <div className="flex min-h-8 items-center gap-1.5 text-sm">
               {reading ? (
                 <>
-                  {reading.accuracy === "inTune" && <Check size={16} className={ACCURACY_COLOR.inTune} aria-hidden />}
+                  {reading.accuracy === "inTune" && <CheckIcon size={18} className={ACCURACY_COLOR.inTune} aria-hidden />}
                   <span className={ACCURACY_COLOR[reading.accuracy]}>{directionLabel}</span>
                 </>
               ) : (

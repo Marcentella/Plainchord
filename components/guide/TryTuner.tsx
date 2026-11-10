@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import TunerModal from "@/components/TunerModal";
 import { useT } from "@/i18n/LocaleProvider";
 
@@ -14,7 +14,7 @@ export default function TryTuner({ className }: { className: string }) {
     <>
       <button onClick={() => setOpen(true)} className={className}>
         {t("guide.tryTuner")}
-        <ArrowRight size={14} aria-hidden />
+        <ArrowRightIcon size={16} aria-hidden />
       </button>
       <TunerModal open={open} onClose={() => setOpen(false)} />
     </>

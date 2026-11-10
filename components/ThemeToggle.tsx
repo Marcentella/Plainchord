@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { flashThemeTransition } from "@/lib/flashThemeTransition";
 import { useT } from "@/i18n/LocaleProvider";
 
@@ -25,7 +25,7 @@ export default function ThemeToggle() {
     localStorage.setItem("theme", next ? "dark" : "light");
   }
 
-  const Icon = dark ? Sun : Moon;
+  const Icon = dark ? SunIcon : MoonIcon;
 
   // Icon-only, no text label — sun/moon is understood without one (same
   // call HeySpinner and most other apps make), and it keeps this button a

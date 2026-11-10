@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCw } from "lucide-react";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import ChordDiagram from "@/components/ChordDiagram";
 import { FRETBOARD, FretboardGrid } from "@/components/Fretboard";
 import TabRenderer, { tabStringY } from "@/components/TabRenderer";
@@ -361,7 +361,7 @@ function Orientation() {
           </svg>
           <p className="max-w-36 text-center text-xs text-muted">{t("guide.fig.playingView")}</p>
         </div>
-        <RotateCw size={20} className="mb-16 shrink-0 text-muted" />
+        <ArrowClockwiseIcon size={22} className="mb-16 shrink-0 text-muted" />
         <div className="flex flex-col items-center gap-2">
           {/* standing up, facing you: exactly a chord diagram's grid */}
           <svg viewBox={`0 0 ${W} ${H - 20}`} width={110} className="text-foreground">

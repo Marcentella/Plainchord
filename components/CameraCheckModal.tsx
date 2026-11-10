@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Camera, CameraOff, Check, Crosshair, Laptop, Loader2, Lock, RotateCcw, Ruler, SlidersHorizontal, X } from "lucide-react";
+import { ArrowCounterClockwiseIcon, CameraIcon, CameraSlashIcon, CheckIcon, CircleNotchIcon, CrosshairIcon, LaptopIcon, LockIcon, RulerIcon, SlidersHorizontalIcon, XIcon } from "@phosphor-icons/react";
 import ChordDiagram, { type FingerMark } from "@/components/ChordDiagram";
 import CalibrationGuide from "@/components/CalibrationGuide";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -160,13 +160,13 @@ export default function CameraCheckModal({
           aria-label={t("camera.close")}
           className="rounded-full border border-line p-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
         >
-          <X size={16} aria-hidden />
+          <XIcon size={18} aria-hidden />
         </button>
       </div>
 
       {!hasFinePointer && (
         <div className="mt-6 flex flex-col items-center gap-3 px-2 pb-4 text-center">
-          <Laptop size={32} className="text-muted" aria-hidden />
+          <LaptopIcon size={36} className="text-muted" aria-hidden />
           <p className="max-w-md font-medium">{t("camera.desktopOnly")}</p>
           <p className="max-w-md text-sm text-muted">{t("camera.desktopOnlyWhy")}</p>
         </div>
@@ -182,11 +182,11 @@ export default function CameraCheckModal({
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {running || cam.status === "loading" ? (
               <button onClick={stop} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
-                <CameraOff size={16} aria-hidden /> {t("camera.stop")}
+                <CameraSlashIcon size={18} aria-hidden /> {t("camera.stop")}
               </button>
             ) : (
               <button onClick={cam.start} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
-                <Camera size={16} aria-hidden className="text-accent" /> {t("camera.start")}
+                <CameraIcon size={18} aria-hidden className="text-accent" /> {t("camera.start")}
               </button>
             )}
             {/* Same pill while the model and camera load, and on through the
@@ -200,7 +200,7 @@ export default function CameraCheckModal({
                 aria-busy
                 className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-muted tabular-nums"
               >
-                <Loader2 size={16} className="animate-spin text-accent" aria-hidden />
+                <CircleNotchIcon size={18} className="animate-spin text-accent" aria-hidden />
                 <span role="status">
                   {cam.status === "loading" && cam.progress < 1
                     ? t("camera.loading", { percent: String(Math.round(cam.progress * 100)) })
@@ -210,7 +210,7 @@ export default function CameraCheckModal({
             )}
             {running && cam.ready && (
               <button onClick={cam.startCalibration} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
-                {cam.calibrated ? <RotateCcw size={16} aria-hidden /> : <Crosshair size={16} aria-hidden className="text-accent" />}
+                {cam.calibrated ? <ArrowCounterClockwiseIcon size={18} aria-hidden /> : <CrosshairIcon size={18} aria-hidden className="text-accent" />}
                 {t(cam.calibrated ? "camera.recalibrate" : "camera.calibrate")}
               </button>
             )}
@@ -221,7 +221,7 @@ export default function CameraCheckModal({
                 aria-controls="camera-settings"
                 className={`ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 transition hover-fine:text-foreground active:scale-[0.97] duration-[160ms] ease-out ${settingsOpen ? "text-foreground" : "text-muted"}`}
               >
-                <SlidersHorizontal size={16} aria-hidden /> {t("camera.settings")}
+                <SlidersHorizontalIcon size={18} aria-hidden /> {t("camera.settings")}
               </button>
             )}
           </div>
@@ -272,7 +272,7 @@ export default function CameraCheckModal({
                     disabled={cam.fretState.state === "waiting"}
                     className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50"
                   >
-                    <Ruler size={16} aria-hidden /> {t("camera.measureFrets")}
+                    <RulerIcon size={18} aria-hidden /> {t("camera.measureFrets")}
                   </button>
                 )}
               </div>
@@ -337,9 +337,9 @@ export default function CameraCheckModal({
             {!running && (
               <div className="flex aspect-video flex-col items-center justify-center gap-2 p-6 text-center text-sm text-white/80">
                 {cam.status === "loading" ? (
-                  <Loader2 size={28} className="animate-spin" aria-hidden />
+                  <CircleNotchIcon size={32} className="animate-spin" aria-hidden />
                 ) : (
-                  <Camera size={28} aria-hidden />
+                  <CameraIcon size={32} aria-hidden />
                 )}
                 <p>{t("camera.intro")}</p>
                 <p className="text-xs text-white/60">{t("camera.privacy")}</p>
@@ -422,7 +422,7 @@ export default function CameraCheckModal({
                           ok ? "text-difficulty-facil" : unused ? "text-muted" : "text-difficulty-dificil"
                         }`}
                       >
-                        {cam.locked[c.finger - 1] && <Lock size={12} aria-label={t("camera.locked")} />}
+                        {cam.locked[c.finger - 1] && <LockIcon size={14} aria-label={t("camera.locked")} />}
                         {t(
                           ok
                             ? "camera.statusOk"
@@ -442,7 +442,7 @@ export default function CameraCheckModal({
                   // A quiet acknowledgment, not a reward: a short settle in,
                   // no bounce, no sound (opacity only under reduced motion).
                   <span className="inline-flex origin-left items-center gap-1.5 transition-[opacity,scale] duration-[240ms] ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.96]">
-                    <Check size={16} aria-hidden />
+                    <CheckIcon size={18} aria-hidden />
                     {t("camera.allInPlace")}
                   </span>
                 )}

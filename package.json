@@ -11,7 +11,7 @@
   "dependencies": {
     "@coderline/alphatab": "^1.8.4",
     "@mediapipe/tasks-vision": "^1.2.2",
-    "lucide-react": "^1.45.0",
+    "@phosphor-icons/react": "^2.1.10",
     "meyda": "^5.6.3",
     "next": "^16.4.5",
     "pitchy": "^4.1.0",

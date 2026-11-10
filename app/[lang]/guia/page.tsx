@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ChevronRight } from "lucide-react";
+import { BookOpenIcon, CaretRightIcon } from "@phosphor-icons/react/ssr";
 import { guideCategories } from "@/lib/guide";
 import { getT } from "@/i18n";
 import type { Locale } from "@/i18n/locales";
@@ -41,14 +41,14 @@ export default async function Guia({ params }: PageProps<"/[lang]/guia">) {
           href={href("glossary", lang)}
           className={`group flex min-h-11 items-center gap-2.5 rounded-lg border border-line bg-background py-3 text-sm transition-colors hover-fine:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${INSET}`}
         >
-          <BookOpen size={16} aria-hidden className="shrink-0 text-accent" />
+          <BookOpenIcon size={18} aria-hidden className="shrink-0 text-accent" />
           <span className="flex-1">
             <span className="text-muted">{t("guide.glossaryPointer")}</span>{" "}
             <span className="font-medium text-accent underline group-hover-fine:no-underline">
               {t("guide.glossaryLink")}
             </span>
           </span>
-          <ChevronRight size={16} aria-hidden className="shrink-0 text-muted transition-colors group-hover-fine:text-accent" />
+          <CaretRightIcon size={18} aria-hidden className="shrink-0 text-muted transition-colors group-hover-fine:text-accent" />
         </Link>
 
         <ol className="grid gap-6 lg:grid-cols-2">
@@ -87,7 +87,7 @@ export default async function Guia({ params }: PageProps<"/[lang]/guia">) {
                         </span>
                         <span className="text-[13px] text-muted">{article.summary}</span>
                       </span>
-                      <ChevronRight
+                      <CaretRightIcon
                         size={16}
                         aria-hidden
                         className="shrink-0 text-muted transition-colors group-hover-fine:text-accent"

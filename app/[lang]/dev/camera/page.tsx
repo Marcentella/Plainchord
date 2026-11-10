@@ -9,7 +9,7 @@
 // with their "c5 t3" captions, and the camera's own exposure controls.
 // Nothing is recorded, uploaded or saved.
 
-import { Camera, CameraOff, Crosshair, Loader2, RotateCcw } from "lucide-react";
+import { ArrowCounterClockwiseIcon, CameraIcon, CameraSlashIcon, CircleNotchIcon, CrosshairIcon } from "@phosphor-icons/react";
 import CalibrationGuide from "@/components/CalibrationGuide";
 import { CALIBRATION_FRETS, type CalibrationError, type CalibrationFret } from "@/lib/fretMapping";
 import type { CameraControlName } from "@/lib/handTracking";
@@ -64,14 +64,14 @@ export default function DevCamera() {
             onClick={cam.stop}
             className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent"
           >
-            <CameraOff size={16} aria-hidden /> Cerrar cámara
+            <CameraSlashIcon size={18} aria-hidden /> Cerrar cámara
           </button>
         ) : (
           <button
             onClick={cam.start}
             className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent"
           >
-            <Camera size={16} aria-hidden /> Abrir cámara
+            <CameraIcon size={18} aria-hidden /> Abrir cámara
           </button>
         )}
         {cam.status === "running" && (
@@ -79,7 +79,7 @@ export default function DevCamera() {
             onClick={cam.startCalibration}
             className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent"
           >
-            {cam.calibrated ? <RotateCcw size={16} aria-hidden /> : <Crosshair size={16} aria-hidden />}
+            {cam.calibrated ? <ArrowCounterClockwiseIcon size={18} aria-hidden /> : <CrosshairIcon size={18} aria-hidden />}
             {cam.calibrated ? "Recalibrar" : "Calibrar mástil"}
           </button>
         )}
@@ -118,7 +118,7 @@ export default function DevCamera() {
         </label>
         {cam.status === "loading" && (
           <span className="inline-flex items-center gap-2 text-muted" role="status">
-            <Loader2 size={14} className="animate-spin" aria-hidden />
+            <CircleNotchIcon size={16} className="animate-spin" aria-hidden />
             {cam.progress < 1 ? `Descargando modelo… ${Math.round(cam.progress * 100)}%` : "Iniciando…"}
           </span>
         )}
