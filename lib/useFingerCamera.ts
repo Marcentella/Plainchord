@@ -93,6 +93,10 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<CameraStatus>("idle");
+  // The video shows as soon as the camera is on, but the hand model's first
+  // detect() (GPU warm-up) holds things up for ~3 s after that; until it has
+  // returned once, calibrating isn't possible yet. False again on every start.
+  const [ready, setReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [delegate, setDelegate] = useState("—");
@@ -173,6 +177,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   async function start() {
     const token = ++tokenRef.current;
     setStatus("loading");
+    setReady(false);
     setProgress(0);
     setError("");
     const cleanups: (() => void)[] = [];
@@ -257,6 +262,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
       let inferenceTotal = 0;
       let lastHands = 0;
       let windowStart = performance.now();
+      let warmedUp = false;
 
       const stopLoop = startFrameLoop(video, (frameTime) => {
         now = frameTime;
@@ -266,6 +272,10 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
         const scale = Math.max(1, w / 640);
         const ctx = canvas.getContext("2d")!;
         const frame = tracker.detect(video, now);
+        if (!warmedUp) {
+          warmedUp = true;
+          setReady(true);
+        }
         const mirror = mirroredRef.current;
         const { caption, fingerColor, target } = optionsRef.current;
         ctx.clearRect(0, 0, w, h);
@@ -511,6 +521,8 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     videoRef,
     canvasRef,
     status,
+    /** True once the hand model has run on a frame: the camera is "running" a few seconds before this. */
+    ready,
     progress,
     error,
     delegate,

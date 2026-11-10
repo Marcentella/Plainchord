@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Camera, CameraOff, Check, Crosshair, Laptop, Loader2, Lock, RotateCcw, Ruler, X } from "lucide-react";
+import { Camera, CameraOff, Check, Crosshair, Laptop, Loader2, Lock, RotateCcw, Ruler, SlidersHorizontal, X } from "lucide-react";
 import ChordDiagram, { type FingerMark } from "@/components/ChordDiagram";
 import CalibrationGuide from "@/components/CalibrationGuide";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -60,6 +60,7 @@ export default function CameraCheckModal({
   const notation = useNotation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [chordName, setChordName] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // The chosen chord, or the first one again if the progression changed under it.
   const chord = chords.find((c) => c.name === chordName) ?? chords[0];
   const chordRef = useRef(chord);
@@ -174,74 +175,120 @@ export default function CameraCheckModal({
           cámara" is pressed, and the notice above takes its place. */}
       <div className={`mt-4 grid gap-4 md:grid-cols-[1fr_15rem] ${hasFinePointer ? "" : "hidden"}`}>
         <div className="flex min-w-0 flex-col gap-3">
+          {/* The steps in order (camera, then calibrate) as two pills; the
+              fine-tuning (which fret to calibrate on, mirror, measuring the
+              frets) waits behind "Ajustes": most people never need it, and
+              in the row it made calibrating read like a debug panel. */}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {running || cam.status === "loading" ? (
-              <button
-                onClick={stop}
-                className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
-              >
+              <button onClick={stop} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
                 <CameraOff size={16} aria-hidden /> {t("camera.stop")}
               </button>
             ) : (
-              <button
-                onClick={cam.start}
-                className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
-              >
-                <Camera size={16} aria-hidden /> {t("camera.start")}
+              <button onClick={cam.start} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
+                <Camera size={16} aria-hidden className="text-accent" /> {t("camera.start")}
               </button>
             )}
-            {running && (
+            {/* Same pill while the model and camera load, and on through the
+                few seconds after the video appears while the hand model warms
+                up (cam.ready): spinning, saying how far along it is, so the
+                next step is already in place (and the row doesn't jump) when
+                it becomes clickable. */}
+            {(cam.status === "loading" || (running && !cam.ready)) && (
               <button
-                onClick={cam.startCalibration}
-                className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+                disabled
+                aria-busy
+                className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-muted tabular-nums"
               >
-                {cam.calibrated ? <RotateCcw size={16} aria-hidden /> : <Crosshair size={16} aria-hidden />}
+                <Loader2 size={16} className="animate-spin text-accent" aria-hidden />
+                <span role="status">
+                  {cam.status === "loading" && cam.progress < 1
+                    ? t("camera.loading", { percent: String(Math.round(cam.progress * 100)) })
+                    : t("camera.starting")}
+                </span>
+              </button>
+            )}
+            {running && cam.ready && (
+              <button onClick={cam.startCalibration} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
+                {cam.calibrated ? <RotateCcw size={16} aria-hidden /> : <Crosshair size={16} aria-hidden className="text-accent" />}
                 {t(cam.calibrated ? "camera.recalibrate" : "camera.calibrate")}
               </button>
             )}
-            {running && cam.calibrated && (
+            {running && (
               <button
-                onClick={cam.measureFrets}
-                disabled={cam.fretState.state === "waiting"}
-                className="inline-flex items-center gap-2 rounded border border-line px-3 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50"
+                onClick={() => setSettingsOpen((v) => !v)}
+                aria-expanded={settingsOpen}
+                aria-controls="camera-settings"
+                className={`ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 transition hover-fine:text-foreground active:scale-[0.97] duration-[160ms] ease-out ${settingsOpen ? "text-foreground" : "text-muted"}`}
               >
-                <Ruler size={16} aria-hidden /> {t("camera.measureFrets")}
+                <SlidersHorizontal size={16} aria-hidden /> {t("camera.settings")}
               </button>
             )}
-            {running && (
-              <label className="flex items-center gap-2">
-                {t("camera.calibrationFret")}
-                <select
-                  value={cam.calFret}
-                  onChange={(e) => cam.setCalFret(Number(e.target.value) as CalibrationFret)}
-                  className="tuner-select rounded-md border border-line bg-background px-2 py-1 text-foreground"
-                >
-                  {CALIBRATION_FRETS.map((f) => (
-                    <option key={f} value={f}>
-                      {f === 12 ? t("camera.recommended", { fret: String(f) }) : f}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {running && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={cam.mirrored}
-                  onChange={(e) => cam.setMirrored(e.target.checked)}
-                  className="accent-accent"
-                />
-                {t("camera.mirror")}
-              </label>
-            )}
-            {cam.status === "loading" && (
-              <span className="inline-flex items-center gap-2 text-muted" role="status">
-                <Loader2 size={14} className="animate-spin text-accent" aria-hidden />
-                {cam.progress < 1 ? t("camera.loading", { percent: String(Math.round(cam.progress * 100)) }) : t("camera.starting")}
-              </span>
-            )}
           </div>
+          {/* Always mounted while the camera runs, so opening it can grow
+              the dialog smoothly: the 0fr -> 1fr grid row animates the
+              panel's own height (no fixed max-height to guess), the -mb-3
+              cancels the column's gap while it's shut, and inert keeps its
+              controls out of the tab order until it's open. */}
+          {running && (
+            <div
+              inert={!settingsOpen}
+              className={`grid transition-[grid-template-rows,margin] duration-[220ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                settingsOpen ? "grid-rows-[1fr]" : "-mb-3 grid-rows-[0fr]"
+              }`}
+            >
+            <div className="min-h-0 overflow-hidden">
+            <div
+              id="camera-settings"
+              className={`flex flex-col gap-3 rounded-lg border border-line p-3 text-sm transition-opacity duration-[220ms] ${settingsOpen ? "opacity-100" : "opacity-0"}`}
+            >
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <label className="flex items-center gap-2">
+                  {t("camera.calibrationFret")}
+                  <select
+                    value={cam.calFret}
+                    onChange={(e) => cam.setCalFret(Number(e.target.value) as CalibrationFret)}
+                    className="tuner-select rounded-md border border-line bg-background px-2 py-1 text-foreground"
+                  >
+                    {CALIBRATION_FRETS.map((f) => (
+                      <option key={f} value={f}>
+                        {f === 12 ? t("camera.recommended", { fret: String(f) }) : f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={cam.mirrored}
+                    onChange={(e) => cam.setMirrored(e.target.checked)}
+                    className="accent-accent"
+                  />
+                  {t("camera.mirror")}
+                </label>
+                {cam.calibrated && (
+                  <button
+                    onClick={cam.measureFrets}
+                    disabled={cam.fretState.state === "waiting"}
+                    className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out disabled:opacity-50"
+                  >
+                    <Ruler size={16} aria-hidden /> {t("camera.measureFrets")}
+                  </button>
+                )}
+              </div>
+              {cam.calibrated && cam.fretState.state !== "none" && (
+                <p className="text-muted" role="status">
+                  {cam.fretState.state === "waiting"
+                    ? t("camera.fretsWaiting")
+                    : cam.fretState.state === "measured"
+                      ? t("camera.fretsMeasured", { found: String(cam.fretState.found), total: String(cam.fretState.total) })
+                      : t("camera.fretsModel")}
+                </p>
+              )}
+            </div>
+            </div>
+            </div>
+          )}
 
           {(cam.status === "denied" || cam.status === "unavailable" || cam.status === "error") && (
             <p className="text-sm text-difficulty-dificil" role="status">
@@ -262,15 +309,6 @@ export default function CameraCheckModal({
             </div>
           )}
           {cam.calError && <p className="text-sm text-difficulty-dificil">{t(`camera.calError.${cam.calError}` as TKey)}</p>}
-          {cam.calibrated && cam.fretState.state !== "none" && (
-            <p className="text-sm text-muted" role="status">
-              {cam.fretState.state === "waiting"
-                ? t("camera.fretsWaiting")
-                : cam.fretState.state === "measured"
-                  ? t("camera.fretsMeasured", { found: String(cam.fretState.found), total: String(cam.fretState.total) })
-                  : t("camera.fretsModel")}
-            </p>
-          )}
           {cam.calibrated && cam.neckState.state === "lost" && (
             <p className="text-sm text-difficulty-dificil" role="status">
               {t("camera.lost")}
@@ -298,7 +336,11 @@ export default function CameraCheckModal({
             <canvas ref={canvasRef} className={`pointer-events-none absolute inset-0 h-full w-full ${mirror}`} />
             {!running && (
               <div className="flex aspect-video flex-col items-center justify-center gap-2 p-6 text-center text-sm text-white/80">
-                <Camera size={28} aria-hidden />
+                {cam.status === "loading" ? (
+                  <Loader2 size={28} className="animate-spin" aria-hidden />
+                ) : (
+                  <Camera size={28} aria-hidden />
+                )}
                 <p>{t("camera.intro")}</p>
                 <p className="text-xs text-white/60">{t("camera.privacy")}</p>
               </div>
@@ -342,31 +384,67 @@ export default function CameraCheckModal({
             <p className="text-sm text-muted">{t("camera.calibrateFirst")}</p>
           ) : (
             <>
-              <ul className="flex flex-col gap-1 text-sm">
-                {checks.map((c) => (
-                  <li key={c.finger} className={c.status === "unused" ? "text-muted" : ""}>
-                    {cam.locked[c.finger - 1] && (
-                      <Lock size={12} className="mr-1 inline align-[-1px] text-difficulty-facil" aria-label={t("camera.locked")} />
-                    )}
-                    <span className="font-medium">
-                      {c.finger} {t(FINGER_KEYS[c.finger - 1])}:
-                    </span>{" "}
-                    {c.status === "unused"
-                      ? t("camera.fingerUnused")
-                      : c.status === "notSeen"
-                        ? t("camera.fingerNotSeen", { expected: expectedText(c.expected!) })
-                        : c.status === "ok"
-                          ? t("camera.fingerOk", { position: position(c.detected!) })
-                          : t("camera.fingerOff", { position: position(c.detected!), expected: expectedText(c.expected!) })}
-                  </li>
-                ))}
+              {/* One fixed row per finger: its number and name, a status
+                  word, and a detail line that only changes with the chord
+                  (where the finger goes), plus where it is while it's off.
+                  The detail keeps two lines of room, so readings flickering
+                  between states never shift the rows. */}
+              <ul className="flex flex-col gap-2.5">
+                {checks.map((c) => {
+                  const ok = c.status === "ok";
+                  const unused = c.status === "unused";
+                  return (
+                    <li key={c.finger} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2.5">
+                      <span
+                        aria-hidden
+                        className={`flex size-6 items-center justify-center rounded-full border-[1.5px] text-xs font-bold ${
+                          ok
+                            ? "border-difficulty-facil bg-difficulty-facil text-background"
+                            : unused
+                              ? "border-line text-muted"
+                              : "border-difficulty-dificil text-difficulty-dificil"
+                        }`}
+                      >
+                        {c.finger}
+                      </span>
+                      <div className="flex min-w-0 flex-col">
+                        <span className={`text-sm font-medium leading-6 ${unused ? "text-muted" : ""}`}>{t(FINGER_KEYS[c.finger - 1])}</span>
+                        <span className="min-h-[2lh] text-xs leading-snug text-muted">
+                          {unused
+                            ? t("camera.targetNone")
+                            : c.detected && !ok
+                              ? t("camera.targetFrom", { position: position(c.detected!), expected: expectedText(c.expected!) })
+                              : t("camera.target", { expected: expectedText(c.expected!) })}
+                        </span>
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs font-medium leading-6 ${
+                          ok ? "text-difficulty-facil" : unused ? "text-muted" : "text-difficulty-dificil"
+                        }`}
+                      >
+                        {cam.locked[c.finger - 1] && <Lock size={12} aria-label={t("camera.locked")} />}
+                        {t(
+                          ok
+                            ? "camera.statusOk"
+                            : unused
+                              ? "camera.statusUnused"
+                              : c.status === "notSeen"
+                                ? "camera.statusNotSeen"
+                                : "camera.statusOff",
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
               <p className="flex min-h-5 items-center gap-1.5 text-sm text-difficulty-facil" role="status" aria-live="polite">
                 {everyFingerInPlace && (
-                  <>
+                  // A quiet acknowledgment, not a reward: a short settle in,
+                  // no bounce, no sound (opacity only under reduced motion).
+                  <span className="inline-flex origin-left items-center gap-1.5 transition-[opacity,scale] duration-[240ms] ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:scale-[0.96]">
                     <Check size={16} aria-hidden />
                     {t("camera.allInPlace")}
-                  </>
+                  </span>
                 )}
               </p>
             </>
