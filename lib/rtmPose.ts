@@ -1,7 +1,8 @@
 /**
  * RTMPose-m hand (MMPose; Apache 2.0) for the camera check's high-precision
  * mode: a heavier hand model whose fingertips land closer to where a guitarist
- * presses than MediaPipe's (measured in docs/camara-limitaciones.md). It only
+ * presses than MediaPipe's (measured in docs/camara-limitaciones.md).
+ * Served in half precision (27.6 MB instead of 55): same results on our recordings. It only
  * locates the 21 points inside a box, so MediaPipe keeps finding the hand and
  * following it every frame; RTMPose re-reads it every so often, and the
  * fingertip refiner trained on RTMPose's points (fingertip-refiner-rtm) takes

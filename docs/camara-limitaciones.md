@@ -152,7 +152,7 @@ Verificado repitiendo las grabaciones por el mismo código TypeScript de la app
 videos; la cifra honesta sigue siendo 85 %).
 
 **Modo de alta precisión (2026-11-12):** opción "Precisión: Alta" en los ajustes de la cámara.
-RTMPose-m hand (MMPose, Apache 2.0, 55 MB, `lib/rtmPose.ts`) vuelve a leer la mano que encontró
+RTMPose-m hand (MMPose, Apache 2.0, `lib/rtmPose.ts`; guardado en media precisión, 27,6 MB en vez de 55, con el mismo 94 % en las grabaciones) vuelve a leer la mano que encontró
 MediaPipe y el refinador entrenado con sus puntos corrige la punta; MediaPipe sigue la mano en cada
 fotograma igual que antes. Se descarga solo al elegirlo. ~0,8 s por corrección en un hilo.
 Repetición de las grabaciones por el código de la app con la demora real simulada (la respuesta
