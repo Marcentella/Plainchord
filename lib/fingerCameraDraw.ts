@@ -156,14 +156,21 @@ export function drawFingertip(
 
 /** Calibration clicks so far, numbered in click order. */
 export function drawClicks(ctx: CanvasRenderingContext2D, clicks: Vec2[], w: number, h: number, scale: number, mirrored: boolean) {
+  // A crosshair with an open centre: the clicked spot itself (a string at the
+  // nut or a fret) stays visible, so the user sees whether they hit it.
+  const gap = 3 * scale;
+  const arm = 9 * scale;
+  ctx.strokeStyle = GRID_COLOR;
+  ctx.lineWidth = 1.5 * scale;
   clicks.forEach((c, i) => {
+    const x = c.x * w;
+    const y = c.y * h;
     ctx.beginPath();
-    ctx.arc(c.x * w, c.y * h, 6 * scale, 0, Math.PI * 2);
-    ctx.fillStyle = GRID_COLOR;
-    ctx.fill();
-    ctx.strokeStyle = HALO;
-    ctx.lineWidth = 2 * scale;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      ctx.moveTo(x + dx * gap, y + dy * gap);
+      ctx.lineTo(x + dx * arm, y + dy * arm);
+    }
     ctx.stroke();
-    drawLabel(ctx, String(i + 1), c.x * w, c.y * h - 14 * scale, mirrored, 11 * scale);
+    drawLabel(ctx, String(i + 1), x, y - 16 * scale, mirrored, 11 * scale);
   });
 }
