@@ -257,14 +257,22 @@ export function fretPositionIn(u: number, wires?: number[]): number {
 }
 
 /**
+ * A fingertip read this far past a wire (in fret spaces) still counts as the
+ * fret behind it: fingers press right up against the wire, so a tip measured on
+ * or just over it is that fret, not the far back end of the next one.
+ */
+export const WIRE_SLACK = 0.15;
+
+/**
  * Fret a fingertip at u is pressing: between wires n−1 and n is fret n
  * (fingers press just behind a wire). null behind the nut or past
  * LAST_READ_FRET. `previous` as in stringAt. `wires`: measured positions
  * (Calibration.wires), when there are any.
  */
 export function fretAt(u: number, previous: number | null = null, wires?: number[]): number | null {
-  const n = fretPositionIn(u, wires);
-  if (!(n > -0.3) || n > LAST_READ_FRET) return null;
+  const raw = fretPositionIn(u, wires);
+  if (!(raw > -0.3) || raw > LAST_READ_FRET) return null;
+  const n = raw - WIRE_SLACK;
   if (previous !== null && n > previous - 1 - HYSTERESIS && n < previous + HYSTERESIS) return previous;
   return Math.max(1, Math.ceil(n));
 }

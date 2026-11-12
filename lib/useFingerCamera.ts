@@ -34,6 +34,7 @@ import {
   pressPoint,
   stringAt,
   fretPositionIn,
+  imageAt,
   wireAt,
   LAST_READ_FRET,
   type Calibration,
@@ -48,7 +49,13 @@ import type { Chord } from "./chords";
 import { micErrorFor } from "./micInput";
 import { cssColor, drawClicks, drawFingertip, drawGrid, drawNeckPoints, drawSkeleton } from "./fingerCameraDraw";
 import { detectFretWires } from "./fretDetection";
+import { TipOffsets } from "./fingerRefiner";
+import { createFingerRefiner, type FingerRefiner } from "./fingerRefinerModel";
+import { createRtmPose, type RtmPose } from "./rtmPose";
 
+/** "high": RTMPose + its refiner, a ~57 MB download and slower corrections, for fingers the normal mode misreads. */
+export type Precision = "normal" | "high";
+export type HighPrecisionStatus = "off" | "loading" | "ready" | "failed";
 export type CameraStatus = "idle" | "loading" | "running" | "denied" | "unavailable" | "error";
 export type CameraStats = { fps: number; inferenceMs: number; hands: number; width: number; height: number };
 export type NeckState = { state: "off" | "following" | "lost"; points: number; ms: number };
@@ -59,6 +66,12 @@ export type FretState = { state: "none" | "waiting" | "measured" | "model"; foun
 const FINGERTIPS = [8, 12, 16, 20];
 const FINGER_DIPS = [7, 11, 15, 19];
 const STATE_EVERY_MS = 200;
+// Fingertip refiner (lib/fingerRefiner.ts): versioned paths, like the hand model's.
+const REFINER_MODEL = "/models/fingertip-refiner-v1.onnx";
+// High precision: RTMPose re-reads the hand, then the refiner trained on its points.
+const RTM_MODEL = "/models/rtmpose-m-hand-v1.onnx";
+const REFINER_RTM_MODEL = "/models/fingertip-refiner-rtm-v1.onnx";
+const REFINER_RUNTIME = "/onnxruntime/1.31.1/";
 /** Fretting hand gone this long: forget its filtered positions instead of gliding from stale ones. */
 const LOST_HAND_MS = 300;
 /**
@@ -97,6 +110,9 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   // detect() (GPU warm-up) holds things up for ~3 s after that; until it has
   // returned once, calibrating isn't possible yet. False again on every start.
   const [ready, setReady] = useState(false);
+  const [refinerFailed, setRefinerFailed] = useState(false);
+  const [precision, setPrecision] = useState<Precision>("normal");
+  const [highStatus, setHighStatus] = useState<HighPrecisionStatus>("off");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [delegate, setDelegate] = useState("—");
@@ -117,6 +133,10 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   const [fretState, setFretState] = useState<FretState>({ state: "none", found: 0, total: LAST_READ_FRET });
 
   const trackerRef = useRef<HandTracker | null>(null);
+  const refinerRef = useRef<FingerRefiner | null>(null);
+  // High precision's two models, loaded the first time it is picked; null until both are in.
+  const highRef = useRef<{ rtm: RtmPose; refiner: FingerRefiner } | null>(null);
+  const precisionRef = useRef<Precision>("normal");
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const stopRef = useRef<() => void>(() => {});
   // Read every frame by the loop, which is created once per camera start.
@@ -153,6 +173,28 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     startNeckRef.current = follow && calRef.current !== null;
   }, [follow]);
 
+  // High precision: loaded the first time it is picked, kept afterwards.
+  useEffect(() => {
+    precisionRef.current = precision;
+    if (precision !== "high" || highRef.current) return;
+    let cancelled = false;
+    setHighStatus("loading");
+    Promise.all([createRtmPose(RTM_MODEL, REFINER_RUNTIME), createFingerRefiner(REFINER_RTM_MODEL, REFINER_RUNTIME)])
+      .then(([rtm, refiner]) => {
+        if (cancelled || highRef.current) {
+          rtm.close();
+          refiner.close();
+          return;
+        }
+        highRef.current = { rtm, refiner };
+        setHighStatus("ready");
+      })
+      .catch(() => !cancelled && setHighStatus("failed"));
+    return () => {
+      cancelled = true;
+    };
+  }, [precision]);
+
   function stop() {
     tokenRef.current++;
     stopRef.current();
@@ -170,6 +212,11 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
       stopRef.current();
       trackerRef.current?.close();
       trackerRef.current = null;
+      refinerRef.current?.close();
+      refinerRef.current = null;
+      highRef.current?.rtm.close();
+      highRef.current?.refiner.close();
+      highRef.current = null;
     },
     [],
   );
@@ -193,6 +240,17 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
         trackerRef.current ? Promise.resolve(trackerRef.current) : createHandTracker(setProgress),
       ]);
       trackerRef.current = tracker; // kept across stop/start: reloading the model is the slow part
+      // The refiner loads behind the camera, not in front of it: the check works
+      // without it (the hand model's own fingertips), just less precisely.
+      if (!refinerRef.current) {
+        createFingerRefiner(REFINER_MODEL, REFINER_RUNTIME)
+          .then((refiner) => {
+            if (refinerRef.current) refiner.close();
+            else refinerRef.current = refiner;
+            setRefinerFailed(false);
+          })
+          .catch(() => setRefinerFailed(true));
+      }
       if (token !== tokenRef.current) return;
 
       const video = videoRef.current!;
@@ -252,6 +310,10 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
       let now = 0;
       const stabilizer = new ReadingStabilizer();
       const fingerLock = new FingerLock();
+      const tipOffsets = new TipOffsets();
+      let refining = false;
+      // Which models the current offsets came from: switching precision drops them.
+      let offsetsFrom: Precision = "normal";
       // What the check sees: stable readings, with locked fingers held on their target.
       let shown: FingerReading[] = [null, null, null, null];
       let lockedState = [false, false, false, false];
@@ -377,10 +439,43 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
         const tips: Vec2[] = [];
         const positions: FingerPosition[] = [null, null, null, null];
         if (cal && smoothed) {
+          // Ask the refiner where the fingers really press. It answers a few
+          // frames later, so the answer is kept as an offset from the hand
+          // model's tip (TipOffsets) and one request runs at a time.
+          // High precision re-reads the hand with RTMPose first; MediaPipe keeps
+          // following it every frame either way.
+          const high = precisionRef.current === "high" ? highRef.current : null;
+          const path: Precision = high ? "high" : "normal";
+          if (path !== offsetsFrom) {
+            tipOffsets.reset();
+            offsetsFrom = path;
+          }
+          const refiner = high ? high.refiner : refinerRef.current;
+          if (refiner && main && !refining) {
+            refining = true;
+            fullGrabber.width = video.videoWidth;
+            fullGrabber.height = video.videoHeight;
+            fullCtx.drawImage(video, 0, 0);
+            const frame = fullCtx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+            const asked = FINGERTIPS.map((tip) => neckUV(cal, main.landmarks[tip]));
+            (high ? high.rtm.detect(frame, main.landmarks) : Promise.resolve(main.landmarks))
+              .then((hand) => refiner.refine(frame, cal, hand))
+              .then((answer) => {
+                // An answer from the models just switched away from no longer applies.
+                if (path === offsetsFrom) answer?.forEach((refined, i) => tipOffsets.update(i, asked[i], refined));
+              })
+              .catch(() => {})
+              .finally(() => {
+                refining = false;
+              });
+          }
           FINGERTIPS.forEach((tip, i) => {
-            const press = pressPoint(smoothed.landmarks[tip], smoothed.landmarks[FINGER_DIPS[i]], pullbackRef.current);
+            const refined = tipOffsets.apply(i, neckUV(cal, smoothed.landmarks[tip]));
+            const press = refined
+              ? imageAt(cal, refined.x, refined.y)
+              : pressPoint(smoothed.landmarks[tip], smoothed.landmarks[FINGER_DIPS[i]], pullbackRef.current);
             tips.push(press);
-            const neck = neckUV(cal, press);
+            const neck = refined ?? neckUV(cal, press);
             let reading: FingerReading = null;
             if (onNeck(neck, cal.wires)) {
               positions[i] = { string: neck.y * 5, fret: fretPositionIn(neck.x, cal.wires) };
@@ -417,6 +512,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
           });
           previous.fill(null);
           stabilizer.reset();
+          tipOffsets.reset();
           stable = [null, null, null, null];
         }
 
@@ -523,6 +619,12 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     status,
     /** True once the hand model has run on a frame: the camera is "running" a few seconds before this. */
     ready,
+    /** The fingertip refiner couldn't load: the check runs on the hand model's own, less precise fingertips. */
+    refinerFailed,
+    precision,
+    setPrecision,
+    /** High precision's models: still loading, ready, or failed (the normal mode carries on). */
+    highStatus,
     progress,
     error,
     delegate,

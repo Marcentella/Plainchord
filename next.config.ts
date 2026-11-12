@@ -31,6 +31,15 @@ const nextConfig: NextConfig = {
         source: "/mediapipe/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      // And for the fingertip refiner's runtime (~15 MB) and model (~2.5 MB).
+      {
+        source: "/onnxruntime/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/models/:file(.*\.onnx)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
       {
         source: "/models/:file(.*\.task)",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

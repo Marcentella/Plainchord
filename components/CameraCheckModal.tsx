@@ -13,7 +13,7 @@ import { CALIBRATION_FRETS, type CalibrationFret } from "@/lib/fretMapping";
 import { formatChord } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
 import { cssColor } from "@/lib/fingerCameraDraw";
-import { useFingerCamera } from "@/lib/useFingerCamera";
+import { useFingerCamera, type Precision } from "@/lib/useFingerCamera";
 
 const FINGER_KEYS: TKey[] = ["camera.finger1", "camera.finger2", "camera.finger3", "camera.finger4"];
 
@@ -258,6 +258,17 @@ export default function CameraCheckModal({
                   </select>
                 </label>
                 <label className="flex items-center gap-2">
+                  {t("camera.precision")}
+                  <select
+                    value={cam.precision}
+                    onChange={(e) => cam.setPrecision(e.target.value as Precision)}
+                    className="tuner-select rounded-md border border-line bg-background px-2 py-1 text-foreground"
+                  >
+                    <option value="normal">{t("camera.precisionNormal")}</option>
+                    <option value="high">{t("camera.precisionHigh")}</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={cam.mirrored}
@@ -276,6 +287,11 @@ export default function CameraCheckModal({
                   </button>
                 )}
               </div>
+              {cam.precision === "high" && cam.highStatus !== "ready" && (
+                <p className={cam.highStatus === "failed" ? "text-difficulty-dificil" : "text-muted"} role="status">
+                  {t(cam.highStatus === "failed" ? "camera.precisionFailed" : "camera.precisionLoading")}
+                </p>
+              )}
               {cam.calibrated && cam.fretState.state !== "none" && (
                 <p className="text-muted" role="status">
                   {cam.fretState.state === "waiting"
@@ -346,6 +362,11 @@ export default function CameraCheckModal({
               </div>
             )}
           </div>
+          {running && cam.refinerFailed && (
+            <p className="text-sm text-difficulty-dificil" role="status">
+              {t("camera.refinerFailed")}
+            </p>
+          )}
           <p className="text-xs text-muted">{t("camera.placement")}</p>
         </div>
 

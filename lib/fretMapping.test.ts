@@ -110,9 +110,13 @@ test("fretAt: between wires n-1 and n is fret n, up to the 20th", () => {
 });
 
 test("fretAt / stringAt: a point on a boundary keeps last frame's answer", () => {
-  const onWire3 = wireU(3);
-  assert.equal(fretAt(onWire3 + 0.0005), 4);
-  assert.equal(fretAt(onWire3 + 0.0005, 3), 3);
+  // A tip on or just past wire 3 is still fret 3 (fingers press against the wire);
+  // the boundary sits WIRE_SLACK fret spaces past it.
+  const pastWire3 = (spaces: number) => wireU(3) + spaces * (wireU(4) - wireU(3));
+  assert.equal(fretAt(pastWire3(0.05)), 3);
+  assert.equal(fretAt(pastWire3(0.2)), 4);
+  assert.equal(fretAt(pastWire3(0.2), 3), 3);
+  assert.equal(fretAt(pastWire3(0.1), 4), 4);
   const halfway = 2.5 / 5;
   assert.equal(stringAt(halfway + 0.01, 2), 2);
   assert.equal(stringAt(halfway + 0.01, null), 3);
