@@ -108,7 +108,7 @@
   "camera.error": "The camera couldn't start.",
   "camera.precision": "Precision",
   "camera.precisionNormal": "Normal",
-  "camera.precisionHigh": "High (30 MB download, slower corrections)",
+  "camera.precisionHigh": "High (slower)",
   "camera.precisionLoading": "Downloading the high-precision model… using normal in the meantime.",
   "camera.precisionFailed": "High precision couldn't load; staying on normal.",
   "camera.mirror": "Mirror",
