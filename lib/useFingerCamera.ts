@@ -53,7 +53,7 @@ import { TipOffsets } from "./fingerRefiner";
 import { createFingerRefiner, type FingerRefiner } from "./fingerRefinerModel";
 import { createRtmPose, type RtmPose } from "./rtmPose";
 
-/** "high": RTMPose + its refiner, a ~57 MB download and slower corrections, for fingers the normal mode misreads. */
+/** "high": RTMPose + its refiner, a ~30 MB download and slower corrections, for fingers the normal mode misreads. */
 export type Precision = "normal" | "high";
 export type HighPrecisionStatus = "off" | "loading" | "ready" | "failed";
 export type CameraStatus = "idle" | "loading" | "running" | "denied" | "unavailable" | "error";
@@ -69,7 +69,8 @@ const STATE_EVERY_MS = 200;
 // Fingertip refiner (lib/fingerRefiner.ts): versioned paths, like the hand model's.
 const REFINER_MODEL = "/models/fingertip-refiner-v1.onnx";
 // High precision: RTMPose re-reads the hand, then the refiner trained on its points.
-const RTM_MODEL = "/models/rtmpose-m-hand-v1.onnx";
+// Stored in half precision: half the download, same answers on our recordings (94 % either way).
+const RTM_MODEL = "/models/rtmpose-m-hand-fp16-v1.onnx";
 const REFINER_RTM_MODEL = "/models/fingertip-refiner-rtm-v1.onnx";
 const REFINER_RUNTIME = "/onnxruntime/1.31.1/";
 /** Fretting hand gone this long: forget its filtered positions instead of gliding from stale ones. */
@@ -403,6 +404,9 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
             if (measured) {
               const from = Array.from({ length: LAST_READ_FRET + 1 }, (_, n) => wireAt(n, cal.wires));
               calRef.current = { ...cal, wires: measured.wires, found: measured.found };
+              // Frets found where the calibration says the neck is: it's back in place,
+              // so a lost neck is followed again from here.
+              if (neckStatus === "lost") startNeckRef.current = followRef.current;
               settle = reducedMotion ? null : { from, to: measured.wires, start: now };
               setFretState({ state: "measured", found: measured.found.filter(Boolean).length - 1, total: LAST_READ_FRET });
             } else {

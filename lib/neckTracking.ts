@@ -15,6 +15,11 @@
  * 4. That motion moves the four calibration corners; the calibration's own
  *    perspective rides along unchanged.
  *
+ * 5. Lost (the neck left the view, or the hand hid it): every frame, the
+ *    calibration frame's points are searched for again around where the
+ *    neck last was, so putting the guitar back picks it up without
+ *    recalibrating (reacquire).
+ *
  * Every frame is matched against the calibration frame, not the previous
  * one, so the error doesn't pile up frame after frame. Coordinates here are
  * pixels of the (downscaled) tracking image.
@@ -199,9 +204,11 @@ export function findCorners(level: Level, region: Vec2[], exclude: Vec2[], keep:
  * `to`, coarse level first, each level refining the one above. null when
  * the window has no texture to lock onto or the point leaves the frame.
  */
-function lucasKanade(from: Pyramid, to: Pyramid, p: Vec2): Vec2 | null {
-  let gx = 0;
-  let gy = 0;
+/** `guess`: where to start looking in `to` (default: where p is), for a jump too big to find from p itself. */
+function lucasKanade(from: Pyramid, to: Pyramid, p: Vec2, guess: Vec2 = p): Vec2 | null {
+  // The guess enters at the coarsest level, which doubles it back up on the way down.
+  let gx = (guess.x - p.x) / 2 ** (from.length - 1);
+  let gy = (guess.y - p.y) / 2 ** (from.length - 1);
   for (let l = from.length - 1; l >= 0; l--) {
     const scale = 2 ** l;
     const px = p.x / scale;
@@ -453,6 +460,11 @@ export class NeckTracker {
   private previous: Pyramid;
   private referenceCorners: Vec2[];
   private random: () => number;
+  /** The calibration frame and the points first found in it: what reacquiring searches for. */
+  private reference: Pyramid;
+  private referencePoints: Vec2[];
+  /** Calibration frame -> where the neck last was, from the last good fit. */
+  private lastGood: Homography = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
   /** `corners`: the four calibration corners in the calibration frame; `exclude`: hand landmarks to keep features off. */
   constructor(frame: Gray, corners: Vec2[], exclude: Vec2[] = [], random: () => number = Math.random) {
@@ -460,6 +472,8 @@ export class NeckTracker {
     this.referenceCorners = corners;
     this.random = random;
     this.features = findCorners(this.previous[0], neckRegion(corners), exclude).map((p) => ({ reference: p, current: p }));
+    this.reference = this.previous;
+    this.referencePoints = this.features.map((f) => f.reference);
   }
 
   get featureCount(): number {
@@ -488,10 +502,8 @@ export class NeckTracker {
       kept.map((f) => f.current),
       this.random,
     );
-    if (!fit) {
-      this.features = kept;
-      return { corners: null, tracked: kept.length, inliers: 0 };
-    }
+    if (!fit) return this.reacquire(next, kept);
+    this.lastGood = fit.h;
     // Points that disagree with the neck's motion were on a finger or lost
     // their match: drop them for good.
     this.features = kept.filter((_, i) => fit.inliers[i]);
@@ -508,6 +520,40 @@ export class NeckTracker {
       }
     }
     return { corners, tracked: kept.length, inliers: inlierCount };
+  }
+
+  /**
+   * The frame-to-frame track failed: look for the calibration frame's points
+   * straight in this frame, starting from where the last good fit put each one.
+   * Lucas-Kanade's pyramid reaches a few dozen pixels, so a guitar put back
+   * roughly where it was is found; one somewhere else stays lost (recalibrate).
+   */
+  private reacquire(next: Pyramid, kept: Feature[]): TrackResult {
+    const found: Feature[] = [];
+    for (const reference of this.referencePoints) {
+      const guess = applyHomography(this.lastGood, reference);
+      const current = lucasKanade(this.reference, next, reference, guess);
+      if (!current) continue;
+      const back = lucasKanade(next, this.reference, current, reference);
+      if (!back || Math.hypot(back.x - reference.x, back.y - reference.y) > FORWARD_BACKWARD_MAX) continue;
+      found.push({ reference, current });
+    }
+    const fit = ransacSimilarity(
+      found.map((f) => f.reference),
+      found.map((f) => f.current),
+      this.random,
+    );
+    if (!fit) {
+      this.features = kept;
+      return { corners: null, tracked: kept.length, inliers: 0 };
+    }
+    this.lastGood = fit.h;
+    this.features = found.filter((_, i) => fit.inliers[i]);
+    return {
+      corners: this.referenceCorners.map((c) => applyHomography(fit.h, c)),
+      tracked: found.length,
+      inliers: this.features.length,
+    };
   }
 }
 

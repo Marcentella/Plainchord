@@ -161,6 +161,24 @@ test("NeckTracker: a hand sliding across the neck the other way doesn't drag the
   assert.ok(error < 0.6, `corners off by ${error.toFixed(2)} px with a hand over the neck`);
 });
 
+test("NeckTracker: a neck lost from view is picked up again when put back near where it was", () => {
+  const texture = makeTexture(7);
+  const tracker = new NeckTracker(render(texture, motionAt(0)), CORNERS, [], seededRandom(3));
+  for (let f = 1; f <= 8; f++) assert.ok(tracker.update(render(texture, motionAt(f / 4))).corners);
+  // Out of view for a while: every point is lost.
+  const blank: Gray = { data: new Float32Array(W * H).fill(90), width: W, height: H };
+  for (let f = 0; f < 5; f++) assert.equal(tracker.update(blank).corners, null);
+  assert.equal(tracker.featureCount, 0);
+  // Back, a little off from where it left (motionAt(2) when lost, now 2.6: ~4 px and a slight turn).
+  const result = tracker.update(render(texture, motionAt(2.6)));
+  assert.ok(result.corners, "not picked up again");
+  const error = cornerError(result.corners!, motionAt(2.6));
+  assert.ok(error < 0.8, `corners off by ${error.toFixed(2)} px after picking it up`);
+  // And it keeps following from there.
+  const next = tracker.update(render(texture, motionAt(2.8)));
+  assert.ok(next.corners && cornerError(next.corners, motionAt(2.8)) < 0.8);
+});
+
 test("NeckTracker: a frame with nothing like the neck reports it lost instead of guessing", () => {
   const tracker = new NeckTracker(render(makeTexture(7), motionAt(0)), CORNERS, [], seededRandom(3));
   const blank: Gray = { data: new Float32Array(W * H).fill(90), width: W, height: H };

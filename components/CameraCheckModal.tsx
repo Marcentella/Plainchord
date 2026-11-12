@@ -367,7 +367,7 @@ export default function CameraCheckModal({
               {t("camera.refinerFailed")}
             </p>
           )}
-          <p className="text-xs text-muted">{t("camera.placement")}</p>
+          <p className="text-xs text-muted">{t("camera.placement", { fret: String(cam.calFret) })}</p>
         </div>
 
         <div className="flex flex-col gap-3">
