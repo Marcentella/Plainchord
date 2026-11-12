@@ -146,8 +146,60 @@ poca luz y una lámpara blanca.
   `<video>`. El HTML del servidor no lo trae: lo agrega una extensión del navegador antes de que
   React hidrate. Silenciado solo en ese elemento.
 
+### 2026-11-11 — Grabaciones propias medidas (acordes quietos, webcam)
+- **Qué:** 14 videos de 10-15 s (1080p, 30 fps) en `Desktop/Plainchorddatavideos` (fuera del
+  repositorio): C, Am, G, D de frente con la toma habitual, con otra toma de la mano y en ángulo
+  3/4, más un C y un G armados mal a propósito. G con la digitación del usuario (medio en la 6ª,
+  índice en la 5ª, meñique en la 1ª). Medidos con `scripts/own-videos/evaluate.mjs`, que repite el
+  pipeline de la app fotograma a fotograma (calibración, trastes medidos, seguimiento del mástil,
+  suavizado, estabilizador y fijación). Se mide la segunda mitad de cada video.
+- **Resultado** (fotogramas con el acorde completo leído "bien"):
+
+  | Acorde | De frente | Otra toma | 3/4 |
+  |---|---|---|---|
+  | Am | 100 % | 90 % | 100 % |
+  | C | 76 % | 100 % | 100 % |
+  | D | 0 % (medio: traste 3 en vez de 2, en la 1ª) | 0 % | 100 % |
+  | G | 0 % (medio: 5ª en vez de 6ª) | 0 % (meñique no visto) | 0 % (medio: cuerda equivocada) |
+
+  C y G armados mal: **nunca** se leyeron como bien (en el C, el anular se marca en la cuerda
+  equivocada).
+- **Lectura:** las cuerdas interiores se leen bien; fallan los dedos en las cuerdas de los bordes
+  (6ª y 1ª) vistos de frente. El ángulo 3/4 arregló el D pero no el G: el dedo en la 6ª cuerda se
+  lee en la 5ª en los tres videos de G. Es el punto débil concreto.
+- **Punto de presión:** probado 0 / 0,05 / 0,15 / 0,25 en todos los videos; 0,15 sigue siendo el
+  mejor y ninguno arregla D ni G. No es un ajuste.
+- **Error encontrado en la medición:** sin seguimiento del mástil la cuadrícula se sale del
+  mástil al rasguear (la guitarra se mueve); hay que replicarlo para medir.
+
+### 2026-11-12 — Mismas grabaciones con el refinador de punta
+- **Qué:** las 14 grabaciones del 2026-11-11, repetidas por el código de la app con el refinador
+  (`lib/fingerRefiner*.ts`) y la regla del alambre. Detalle y método en
+  [camara-limitaciones.md](camara-limitaciones.md).
+- **Resultado** (acorde completo leído bien; red que no vio ese acorde):
+
+  | Acorde | De frente | Otra toma | 3/4 |
+  |---|---|---|---|
+  | Am | 100 % | 4 % (medio en la cuerda de al lado) | 100 % |
+  | C | 100 % | 95 % | 100 % |
+  | D | 100 % | 100 % | 100 % |
+  | G | 100 % | 31 % (meñique tapado) | 100 % |
+
+  Promedio 85 % (antes 56 %). C y G armados mal: nunca aceptados.
+- **Con el modelo final** (entrenado con todas las grabaciones, el que va en la app): 93 %; fallan
+  en parte D y G con la otra toma (54 % y 59 %).
+- **No probado todavía:** cámara en vivo en el navegador.
+
+### 2026-11-12 — Refinador en vivo (localhost, cámara USB)
+- **Carga:** el modelo y el runtime llegan con estado 200 (pestaña Red, filtro `onnx`).
+- **Lectura:** el G "se detecta mucho más fácil que antes" (antes no se leía nunca de frente).
+- **Cambio:** aviso bajo el video cuando la corrección de puntas no carga (`camera.refinerFailed`);
+  la revisión sigue funcionando con las puntas de MediaPipe.
+- **Sin revisar aún:** fluidez del video y demora al cambiar de acorde.
+
 ---
 
 ## Pruebas pendientes
+- Con el refinador en vivo: D de frente, fluidez del video y demora al cambiar de acorde.
 - Editar la progresión dentro del modal con la cámara activa (¿se mantiene la calibración?).
 - Otra cámara y otra luz, para la demo (la del lugar de la demo, si se conoce).
