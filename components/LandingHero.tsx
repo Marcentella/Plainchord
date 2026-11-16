@@ -53,7 +53,7 @@ export default function LandingHero() {
   const router = useRouter();
   const locale = useLocale();
   // Typed in the active notation; saved for the library in American.
-  const { text: input, setText: setInput, canonical, notation } = useNotationText("G D Em C", isChord);
+  const { text: input, setText: setInput, canonical, notation } = useNotationText("G - D - Em - C", isChord);
   // Every token keeps its slot, found or not: an unknown chord shows as its
   // own "no la tenemos" tile instead of silently vanishing (or leaving an
   // empty hole when nothing matched).

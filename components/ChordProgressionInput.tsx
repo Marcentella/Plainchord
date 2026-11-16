@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SEP, capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret } from "@/lib/progressionCaret";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { suggestChords } from "@/lib/chordSuggest";
 import { capitalizeRoot, type Notation } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
@@ -22,7 +24,9 @@ function splitLastToken(value: string): { before: string; token: string } {
 
 /** Typing at the end, once a separator closes a chord: its root goes
  * uppercase (am -> Am, fmaj7 -> Fmaj7, bb -> Bb; sol -> Sol in Latin) and the separator gets
- * tidied — a dash becomes " - ", a comma ", " — so "d-am" reads "D - Am".
+ * tidied — a space or a dash becomes " - ", a comma ", " — so "d am" and
+ * "d-am" both read "D - Am". Every progression reads the same way, typed or
+ * picked; lib/progressionCaret.ts makes each " - " act as one character.
  * A space typed right after a tidied separator is absorbed, not doubled.
  * Only at the end, so editing earlier text never rewrites under the caret;
  * deleting is never touched. */
@@ -31,7 +35,7 @@ function tidyClosed(prev: string, next: string, caretAtEnd: boolean, notation: N
   const body = next.replace(/[\s,\-–—]+$/, "");
   const run = next.slice(body.length);
   if (!run || !body) return next; // last keystroke wasn't a separator, or nothing to close
-  const sep = /[-–—]/.test(run) ? " - " : run.includes(",") ? ", " : " ";
+  const sep = run.includes(",") ? ", " : SEP;
   const { before, token } = splitLastToken(body);
   const root = capitalizeRoot(token, notation);
   return before + root + sep;
@@ -107,6 +111,17 @@ export default function ChordProgressionInput({
   const [cycling, setCycling] = useState(false);
   const [focused, setFocused] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Separators as one character (lib/progressionCaret.ts). A deletion this
+  // component makes itself sets the caret after React writes the new value.
+  const pendingCaret = useRef<number | null>(null);
+  useIsomorphicLayoutEffect(() => {
+    if (pendingCaret.current !== null) {
+      inputRef.current?.setSelectionRange(pendingCaret.current, pendingCaret.current);
+      pendingCaret.current = null;
+    }
+  });
 
   const { before, token } = splitLastToken(value);
   const suggestion = suggestions[index];
@@ -151,6 +166,61 @@ export default function ChordProgressionInput({
     onChange(next);
   }
 
+  // Native listeners, re-attached after every render (no deps) so they
+  // always see the current text:
+  // - beforeinput, not keydown: phone keyboards send no usable key code, but
+  //   they do send this. Backspace/Delete next to a " - " take it out whole;
+  //   a space or dash typed mid-text opens an empty slot after the chord
+  //   (at the end, onChange's tidyClosed adds the " - " and capitalizes the
+  //   chord it closes).
+  // - selectionchange on the input itself: a caret dropped anywhere (a tap on
+  //   a phone) moves to the end of the chord it landed on, the only place the
+  //   caret rests (lib/progressionCaret.ts).
+  // Every edit made here also capitalizes each chord except the one the
+  // caret is in, so "am" becomes "Am" as soon as the caret leaves it,
+  // wherever it is in the text (not only when closed at the end).
+  const cap = (chord: string) => capitalizeRoot(chord, notation);
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const edit = (next: string, caret: number) => {
+      const tidy = capitalizeChords(next, caret, cap);
+      pendingCaret.current = caret;
+      applyChange(tidy);
+      retarget(tidy);
+    };
+    const onBeforeInput = (e: InputEvent) => {
+      if (input.selectionStart !== input.selectionEnd) return;
+      const at = input.selectionStart ?? 0;
+      const dir = e.inputType === "deleteContentBackward" ? -1 : e.inputType === "deleteContentForward" ? 1 : 0;
+      if (dir) {
+        const done = deleteSeparator(value, at, dir);
+        if (!done) return;
+        e.preventDefault();
+        edit(done.value, done.caret);
+        return;
+      }
+      if (e.inputType !== "insertText" || (e.data !== " " && e.data !== "-") || at === value.length) return;
+      e.preventDefault();
+      const slot = openSlot(value, at);
+      if (slot) edit(slot.value, slot.caret);
+    };
+    const onSelectionChange = () => {
+      if (input.selectionStart !== input.selectionEnd) return;
+      const at = input.selectionStart ?? 0;
+      const snapped = snapCaret(input.value, at);
+      if (snapped !== at) input.setSelectionRange(snapped, snapped);
+      // The caret left a chord: tidy it now, not only at the end of the text.
+      if (capitalizeChords(value, snapped, cap) !== value) edit(value, snapped);
+    };
+    input.addEventListener("beforeinput", onBeforeInput);
+    input.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      input.removeEventListener("beforeinput", onBeforeInput);
+      input.removeEventListener("selectionchange", onSelectionChange);
+    };
+  });
+
   // If `value` changes without us having emitted it (picking a suggested
   // progression, clearing the field from elsewhere, etc.), our suggestion
   // state is for the OLD text — resync it, instead of leaving a stale chip
@@ -182,6 +252,29 @@ export default function ChordProgressionInput({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Every caret-moving key goes straight to a chord end itself. Left to the
+    // browser (a Ctrl+Arrow word jump, Home, Up), the caret would land on a
+    // chord's start for a frame before the snap pulled it back: a blink.
+    // Shift (extending a selection) stays native.
+    const toStart = e.key === "Home" || e.key === "ArrowUp" || (e.metaKey && e.key === "ArrowLeft");
+    const toEnd = e.key === "End" || e.key === "ArrowDown" || (e.metaKey && e.key === "ArrowRight");
+    const hop = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if ((toStart || toEnd || hop) && !e.shiftKey) {
+      const input = e.currentTarget;
+      const from = input.selectionStart ?? 0;
+      const to = toStart
+        ? snapCaret(value, 0)
+        : toEnd
+          ? value.length
+          : input.selectionStart !== input.selectionEnd
+            ? // A selection collapses to the end of the chord at its edge.
+              snapCaret(value, hop < 0 ? from : (input.selectionEnd ?? from))
+            : // Plain, Ctrl or Alt arrow: chord end to chord end.
+              stepCaret(value, from, hop as -1 | 1);
+      e.preventDefault();
+      input.setSelectionRange(to, to);
+      return;
+    }
     if (e.key === "Tab") {
       if (suggestions.length === 0) return; // nothing to accept — Tab moves focus as usual
       e.preventDefault();
@@ -222,17 +315,41 @@ export default function ChordProgressionInput({
           </span>
         </div>
         <input
+          ref={inputRef}
           id={id}
           value={value}
           onChange={(e) => {
             const input = e.target;
-            const next = tidyClosed(value, input.value, input.selectionEnd === input.value.length, notation);
+            const closed = tidyClosed(value, input.value, input.selectionEnd === input.value.length, notation);
+            // tidyClosed only rewrites at the end, so the caret is there then.
+            const caret = closed === input.value ? (input.selectionStart ?? closed.length) : closed.length;
+            const next = capitalizeChords(closed, caret, cap);
+            // A rewrite away from the caret would otherwise throw it to the end.
+            if (next !== input.value) pendingCaret.current = caret;
             applyChange(next);
             retarget(next);
           }}
           onKeyDown={handleKeyDown}
+          // Same snap as the selectionchange listener above, for browsers
+          // that don't fire selectionchange on the input itself (older Safari).
+          onSelect={(e) => {
+            const input = e.currentTarget;
+            if (input.selectionStart !== input.selectionEnd) return;
+            const at = input.selectionStart ?? 0;
+            const snapped = snapCaret(input.value, at);
+            if (snapped !== at) input.setSelectionRange(snapped, snapped);
+          }}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            // Leaving: slots opened with a space and left empty go away, and
+            // the chord that was being typed gets capitalized like the rest.
+            const tidy = capitalizeChords(dropEmptySlots(value), -1, cap);
+            if (tidy !== value) {
+              applyChange(tidy);
+              retarget(tidy);
+            }
+          }}
           // The real input is the only thing that actually scrolls
           // horizontally (native caret-follow behavior) — its text is
           // transparent now (see INPUT_ONLY), so the overlay drawing the

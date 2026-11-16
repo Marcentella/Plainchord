@@ -4,7 +4,7 @@
  * so both ask for the same raw signal and both release it the same way.
  */
 import type { Chord } from "./chords";
-import { OPEN_STRINGS } from "./chordDetection";
+import { strumAt, strumWave } from "./strum";
 
 export type MicInput = {
   analyser: AnalyserNode;
@@ -65,9 +65,7 @@ export function openDemoInput(fftSize: number): DemoInput {
   const bus = audioCtx.createGain();
   bus.connect(analyser);
   bus.connect(audioCtx.destination);
-  const real = new Float32Array(13);
-  const imag = Float32Array.from({ length: 13 }, (_, h) => (h ? 1 / h : 0));
-  const wave = audioCtx.createPeriodicWave(real, imag);
+  const wave = strumWave(audioCtx);
 
   return {
     analyser,
@@ -76,21 +74,7 @@ export function openDemoInput(fftSize: number): DemoInput {
       void audioCtx.close();
     },
     strum(chord) {
-      const start = audioCtx.currentTime;
-      chord.frets.forEach((fret, string) => {
-        if (fret < 0) return;
-        const t = start + string * 0.015; // low to high, like a downstroke
-        const osc = audioCtx.createOscillator();
-        osc.setPeriodicWave(wave);
-        osc.frequency.value = 440 * 2 ** ((OPEN_STRINGS[string] + fret - 69) / 12);
-        const env = audioCtx.createGain();
-        env.gain.setValueAtTime(0, t);
-        env.gain.linearRampToValueAtTime(0.15, t + 0.005);
-        env.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
-        osc.connect(env).connect(bus);
-        osc.start(t);
-        osc.stop(t + 2.5);
-      });
+      strumAt(audioCtx, wave, bus, chord, audioCtx.currentTime);
     },
   };
 }
