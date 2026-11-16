@@ -22,7 +22,18 @@ export function fretY(fret: number): number {
   return FRETBOARD.NUT_Y + (fret - 0.5) * FRETBOARD.FRET_H;
 }
 
-export function FretboardGrid({ hideString }: { hideString?: number } = {}) {
+/**
+ * The first fret a chord's diagram shows: 1 (from the nut) unless the chord
+ * reaches past the four drawn frets, then its lowest fretted note (C#m's
+ * barre at 4). Chord charts mark that with a number beside the first fret
+ * and no thick nut line.
+ */
+export function baseFret(frets: number[]): number {
+  const pressed = frets.filter((f) => f > 0);
+  return Math.max(...frets) > FRETBOARD.FRETS ? Math.min(...pressed) : 1;
+}
+
+export function FretboardGrid({ hideString, nut = true }: { hideString?: number; nut?: boolean } = {}) {
   const { STRING_X, NUT_Y, FRET_H, FRETS } = FRETBOARD;
   return (
     <>
@@ -47,7 +58,7 @@ export function FretboardGrid({ hideString }: { hideString?: number } = {}) {
           x2={STRING_X[5]}
           y2={NUT_Y + f * FRET_H}
           stroke="currentColor"
-          strokeWidth={f === 0 ? 3 : 1}
+          strokeWidth={f === 0 && nut ? 3 : 1}
         />
       ))}
     </>

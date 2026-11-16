@@ -10,6 +10,7 @@ import type { GuideVisual as Visual } from "@/lib/guide";
 import { formatNote } from "@/lib/notation";
 import { parseTab } from "@/lib/parseTab";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
+import { keyView, type HarmonicFunction } from "@/lib/keys";
 import { useT } from "@/i18n/LocaleProvider";
 import type { TKey } from "@/i18n/t";
 
@@ -49,6 +50,8 @@ export default function GuideVisual({ visual }: { visual: Visual }) {
       return <TabExample />;
     case "difficulty":
       return <DifficultyPairs pairs={visual.pairs} />;
+    case "key":
+      return <KeyChords keyName={visual.key} />;
   }
 }
 
@@ -434,6 +437,31 @@ function DifficultyPairs({ pairs }: { pairs: [string, string][] }) {
             <ChordDiagram chord={to} />
           </div>
         );
+      })}
+    </figure>
+  );
+}
+
+const KEY_ROOTS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FUNCTION_WORD: Record<HarmonicFunction, TKey> = { T: "keys.fnT", S: "keys.fnS", D: "keys.fnD" };
+
+/** A major key's six chords as the chord library's key section shows them: what each does, its numeral, its diagram. */
+function KeyChords({ keyName }: { keyName: string }) {
+  const t = useT();
+  const view = keyView(KEY_ROOTS.indexOf(keyName), false);
+  return (
+    <figure className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-6">
+      {view.chords.map((name, d) => {
+        const chord = findChord(name);
+        return chord ? (
+          <div key={name} className="flex flex-col items-center gap-1.5">
+            <span className="flex flex-col items-center text-sm font-medium leading-tight">
+              {t(FUNCTION_WORD[view.functions[d]])}
+              <span className="font-mono text-xs font-normal text-muted">{view.numerals[d]}</span>
+            </span>
+            <ChordDiagram chord={chord} size={84} />
+          </div>
+        ) : null;
       })}
     </figure>
   );

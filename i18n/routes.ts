@@ -36,6 +36,7 @@ export const SUBPAGES: Partial<Record<PageId, Record<string, string>>> = {
     "x-o-y-cejilla": "x-o-and-barre",
     tablatura: "reading-tabs",
     dificultad: "difficulty",
+    tonalidad: "keys",
   },
 };
 

@@ -2,7 +2,7 @@
 
 import type { Chord } from "@/lib/chords";
 import { findBarres } from "@/lib/chordShape";
-import { FRETBOARD, FretboardGrid, fretY } from "@/components/Fretboard";
+import { FRETBOARD, FretboardGrid, baseFret, fretY } from "@/components/Fretboard";
 import { useT } from "@/i18n/LocaleProvider";
 import { formatChord, formatNote } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
@@ -29,6 +29,9 @@ export type FingerMark = { string: number; fret: number; finger: number; match: 
  * diagram's own) where it is instead. Off the diagram's four frets, not
  * drawn (the text beside it still says where). `size` overrides the
  * default width.
+ *
+ * A chord past the fourth fret (C#m, G#m) is drawn from its lowest fret
+ * instead of the nut: a fret number beside the first row, no thick nut line.
  */
 export default function ChordDiagram({
   chord,
@@ -51,6 +54,9 @@ export default function ChordDiagram({
   // A string under a barre is drawn as part of the bar, not as its own
   // dot on top of it.
   const barredStrings = new Set(barres.flatMap((b) => b.strings));
+  // Where the four drawn frets start; every fret below is drawn relative to it.
+  const base = baseFret(chord.frets);
+  const rowY = (fret: number) => fretY(fret - base + 1);
 
   return (
     <figure className="flex flex-col items-center gap-1">
@@ -79,7 +85,14 @@ export default function ChordDiagram({
           ) : null,
         )}
 
-        <FretboardGrid />
+        <FretboardGrid nut={base === 1} />
+        {/* Which fret the first row is, when it isn't the nut's. The guide's
+            labelled diagram numbers every row instead (below). */}
+        {base > 1 && !labels && (
+          <text x={6} y={rowY(base) + 4} textAnchor="middle" fontSize={11} fontWeight="bold" style={{ fill: "var(--muted)" }}>
+            {base}
+          </text>
+        )}
 
         {labels && (
           <g textAnchor="middle" style={{ fill: "var(--muted)" }}>
@@ -95,7 +108,7 @@ export default function ChordDiagram({
             ))}
             {Array.from({ length: FRETBOARD.FRETS }, (_, f) => (
               <text key={`fret-${f}`} x={-10} y={fretY(f + 1) + 3} fontSize={9}>
-                {f + 1}
+                {f + base}
               </text>
             ))}
           </g>
@@ -111,7 +124,7 @@ export default function ChordDiagram({
         {barres.map((b) => {
           const from = Math.min(...b.strings);
           const to = Math.max(...b.strings);
-          const cy = fretY(b.fret);
+          const cy = rowY(b.fret);
           return (
             <g key={`barre-${b.finger}-${b.fret}`}>
               <rect
@@ -139,7 +152,7 @@ export default function ChordDiagram({
         {/* finger positions not already covered by a barre above */}
         {chord.frets.map((f, i) => {
           if (f <= 0 || barredStrings.has(i)) return null;
-          const cy = fretY(f);
+          const cy = rowY(f);
           return (
             <g key={`dot-${i}`}>
               <circle cx={STRING_X[i]} cy={cy} r={DOT_R} fill="var(--accent)" />
@@ -160,10 +173,10 @@ export default function ChordDiagram({
         })}
 
         {marks
-          .filter((m) => m.fret >= 1 && m.fret <= FRETBOARD.FRETS)
+          .filter((m) => m.fret >= base && m.fret < base + FRETBOARD.FRETS)
           .map((m) => {
             const cx = STRING_X[m.string];
-            const cy = fretY(m.fret);
+            const cy = rowY(m.fret);
             return m.match ? (
               <circle key={`mark-${m.finger}`} cx={cx} cy={cy} r={DOT_R + 3} fill="none" stroke="var(--difficulty-facil)" strokeWidth={2.5} />
             ) : (

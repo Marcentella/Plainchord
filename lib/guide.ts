@@ -8,7 +8,9 @@ export type GuideVisual =
   | { visual: "guitar-parts" | "frets" | "note-names" | "hand" | "orientation" | "tab" }
   | { visual: "strings"; octaves?: boolean }
   | { visual: "chord"; chord: string }
-  | { visual: "difficulty"; pairs: [string, string][] };
+  | { visual: "difficulty"; pairs: [string, string][] }
+  /** A major key's six chords with what each does (the key section's cards), e.g. { key: "G" }. */
+  | { visual: "key"; key: string };
 
 /**
  * One piece of an article, in reading order. Text supports **bold** and
