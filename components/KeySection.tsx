@@ -307,15 +307,29 @@ export default function KeySection({
               {view.shapes.map((shape) => {
                 const names = shape.map((d) => view.chords[d]);
                 const found = names.map(findChord);
+                // The row that is in the box right now, so nobody has to
+                // scroll up to check what a click loaded. Exact chords, in order.
+                const loaded = typed.length === names.length && typed.every((tok, i) => tok === names[i]);
                 return (
-                  <li key={shape.join()} className="flex items-center gap-2 border-t border-line last:border-b">
+                  <li key={shape.join()} className="relative flex items-center gap-2 border-t border-line last:border-b">
+                    {/* The loaded row's mark: a bar just outside the row (so
+                        nothing shifts or narrows), growing from its middle
+                        when the row loads and shrinking back when something
+                        else does. */}
+                    <span
+                      aria-hidden
+                      className={`absolute -left-3 top-3 bottom-3 w-0.5 rounded-full bg-accent transition-transform duration-[240ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+                        loaded ? "scale-y-100" : "scale-y-0"
+                      }`}
+                    />
                     {/* Fixed tracks, chord / change / chord …, the same in
                         every row, so chords, badges and numerals line up
                         down the list. Four chords at most. */}
                     <button
                       disabled={found.some((c) => !c)}
                       onClick={() => edit(names.join(" - "), true)}
-                      className="grid min-w-0 flex-1 grid-cols-[repeat(3,2.75rem_2.5rem)_2.75rem] items-center gap-y-1 py-4 text-left transition hover-fine:enabled:text-accent disabled:cursor-not-allowed sm:grid-cols-[repeat(3,3.75rem_4rem)_3.75rem]"
+                      aria-pressed={loaded}
+                      className={`${loaded ? "text-accent" : ""} grid min-w-0 flex-1 grid-cols-[repeat(3,2.75rem_2.5rem)_2.75rem] items-center gap-y-1 py-4 text-left transition hover-fine:enabled:text-accent disabled:cursor-not-allowed sm:grid-cols-[repeat(3,3.75rem_4rem)_3.75rem]`}
                     >
                       {names.map((n, i) => (
                         <Fragment key={i}>
