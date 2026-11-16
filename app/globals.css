@@ -636,102 +636,57 @@ dialog.tuner-dialog::backdrop {
   color: var(--dot-text);
 }
 
-/* Landing — "noise to quiet".
-   The hero's clutter wall is decoration (aria-hidden): grayscale, blurred,
-   low contrast, so only the centre column reads. It dissolves as the page
-   scrolls — a scroll-driven animation, so no JS and no scroll listener;
-   browsers without animation-timeline (Firefox today) and reduced motion
-   just keep the faded wall, which is the calm resting state anyway. */
-.landing-noise {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
+/* Landing — "We left out the noise" (LandingCompare). */
+.landing-fake::before {
+  content: attr(data-text);
 }
 
-.landing-noise-grid {
-  position: absolute;
-  inset: -1rem;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
-  gap: 1rem;
-  opacity: 0.32;
-  filter: blur(2px) grayscale(1);
+/* A blank ad slot: diagonal stripes in the theme's line colour. */
+.landing-compare-ad {
+  background: repeating-linear-gradient(-45deg, var(--line) 0 10px, var(--background) 10px 20px);
 }
 
-.dark .landing-noise-grid {
-  opacity: 0.5;
+/* The one sweep on first sight; dragging drops the class, so the divider
+   follows the pointer without lag. */
+.landing-compare-sweep {
+  transition: clip-path 1.4s cubic-bezier(0.65, 0, 0.35, 1), left 1.4s cubic-bezier(0.65, 0, 0.35, 1);
 }
-
-/* Kept plain so the struck copies in "Lo que dejamos fuera" can reuse it. */
-.landing-noise-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--muted);
-  border-radius: 0.625rem;
-  background: var(--background);
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 1.125rem;
-  text-align: center;
-}
-
-.landing-noise-card--struck {
-  font-size: 0.875rem;
-  padding: 0.5rem 0.875rem;
-  opacity: 0.55;
-  text-decoration: line-through;
-  text-decoration-thickness: 2px;
-  filter: grayscale(1);
-}
-
-.landing-noise-veil {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 46% 50% at 50% 50%, var(--background) 55%, transparent 100%);
-}
-
-/* Phones: two columns of the same wall, so it still reads as a crowd. */
-@media (max-width: 639px) {
-  .landing-noise-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 5.5rem;
-  }
-  /* Tighter than desktop's: on a phone the column covers most of the
-     width, so a wide veil hid the whole wall and the "noise" never showed. */
-  .landing-noise-veil {
-    background: radial-gradient(ellipse 62% 42% at 50% 52%, var(--background) 45%, transparent 100%);
+@media (prefers-reduced-motion: reduce) {
+  .landing-compare-sweep {
+    transition: none;
   }
 }
 
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .landing-noise {
-      animation: landing-noise-fade linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 75vh;
-    }
-    .landing-noise-grid .landing-noise-card {
-      animation: landing-noise-drift linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 75vh;
-    }
-  }
+/* The real slider, invisible, laid over the frame. Its thumb is as tall as
+   the frame and 44px wide, centred on the drawn divider, so grabbing the
+   divider anywhere drags it. pan-y keeps vertical swipes scrolling the page. */
+.landing-compare-range {
+  appearance: none;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+  margin: 0;
 }
-
-@keyframes landing-noise-fade {
-  to {
-    opacity: 0;
-  }
+.landing-compare-range::-webkit-slider-runnable-track {
+  height: 100%;
+  background: transparent;
 }
-
-@keyframes landing-noise-drift {
-  to {
-    transform: translate(var(--dx), var(--dy)) scale(0.9);
-  }
+.landing-compare-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 44px;
+  height: 100%;
+  background: transparent;
+}
+.landing-compare-range::-moz-range-thumb {
+  width: 44px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+.landing-compare-range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
 }
 
 /* Hero answer: each diagram's dots (and barre) set themselves down one

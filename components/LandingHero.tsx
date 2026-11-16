@@ -13,40 +13,11 @@ import { canonicalToken, displayToken } from "@/lib/notation";
 import { useNotationText } from "@/lib/useNotation";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
 import { useT } from "@/i18n/LocaleProvider";
-import type { TKey } from "@/i18n/t";
 
 /** The landing shows a taste, not the whole library — four chords is a typical song section. */
 const PREVIEW_LIMIT = 4;
 
 const isChord = (canonical: string) => findChord(canonical) !== undefined;
-
-// The noise every other guitar site greets a beginner with, as a 6-column
-// wall. Generic on purpose: no real product's UI. `span` widens a card; the
-// drift (--dx/--dy, set below) pushes each card away from the centre as the
-// wall dissolves on scroll (globals.css, "Landing").
-const NOISE: { key: TKey; span?: 2 }[] = [
-  { key: "landing.noise1", span: 2 }, { key: "landing.noise2" }, { key: "landing.noise3" }, { key: "landing.noise4" }, { key: "landing.noise5" },
-  { key: "landing.noise6" }, { key: "landing.noise7", span: 2 }, { key: "landing.noise8" }, { key: "landing.noise9" }, { key: "landing.noise3" },
-  { key: "landing.noise10", span: 2 }, { key: "landing.noise11" }, { key: "landing.noise12", span: 2 }, { key: "landing.noise13" },
-  { key: "landing.noise14", span: 2 }, { key: "landing.noise15" }, { key: "landing.noise3" }, { key: "landing.noise16" }, { key: "landing.noise2" },
-  { key: "landing.noise5" }, { key: "landing.noise4" }, { key: "landing.noise9", span: 2 }, { key: "landing.noise11" }, { key: "landing.noise7" },
-];
-
-// Approximate grid position of each card (6 columns, spans counted), so the
-// drift direction can point away from the middle of the wall.
-const NOISE_POS = (() => {
-  let col = 0;
-  let row = 0;
-  return NOISE.map(({ span = 1 }) => {
-    if (col + span > 6) {
-      col = 0;
-      row++;
-    }
-    const pos = { x: col + span / 2 - 3, y: row - 2 };
-    col += span;
-    return pos;
-  });
-})();
 
 export default function LandingHero() {
   const t = useT();
@@ -92,22 +63,7 @@ export default function LandingHero() {
   }
 
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4.25rem)] items-center overflow-hidden px-6 py-16">
-      <div aria-hidden className="landing-noise">
-        <div className="landing-noise-grid">
-          {NOISE.map(({ key, span }, i) => (
-            <div
-              key={i}
-              className={`landing-noise-card ${span === 2 ? "col-span-2" : ""}`}
-              style={{ "--dx": `${NOISE_POS[i].x * 28}px`, "--dy": `${NOISE_POS[i].y * 36}px` } as React.CSSProperties}
-            >
-              {t(key)}
-            </div>
-          ))}
-        </div>
-        <div className="landing-noise-veil" />
-      </div>
-
+    <section className="flex min-h-[calc(100svh-4.25rem)] items-center px-6 py-16">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 text-center">
         <h1 className="text-balance text-[2.5rem] font-medium leading-[1.04] tracking-[-0.04em] sm:text-7xl">
           {t("landing.title")}
