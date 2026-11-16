@@ -7,6 +7,7 @@ import CameraCheckModal from "@/components/CameraCheckModal";
 import ChordNotFound from "@/components/ChordNotFound";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
 import TransitionBadge from "@/components/TransitionBadge";
+import KeySection from "@/components/KeySection";
 import { PROGRESSION_STORAGE_KEY, allChords, findChord, parseProgression } from "@/lib/chords";
 import { diffTokens } from "@/lib/diffTokens";
 import { transitionDifficulty } from "@/lib/transitionDifficulty";
@@ -14,7 +15,7 @@ import { cssDurationMs } from "@/lib/cssTiming";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { useChordPlayAlong } from "@/lib/useChordPlayAlong";
 import { useT } from "@/i18n/LocaleProvider";
-import { canonicalToken, convertProgression, displayToken, formatChord } from "@/lib/notation";
+import { canonicalToken, displayToken, formatChord } from "@/lib/notation";
 import { useNotationText } from "@/lib/useNotation";
 import Link from "next/link";
 import { useLocale } from "@/i18n/useLocale";
@@ -25,19 +26,6 @@ const CHORD_LIMIT = 16;
 /** The URL's query never changes without a navigation, so nothing to subscribe to. */
 const noSubscribe = () => () => {};
 
-// Literal, curated progressions — no transposition, no matching logic (see
-// FEATURES.md's "evaluado y pausado" note on why the dynamic version isn't
-// built). Every chord here already exists in data/chords.json so none of
-// these ever render as "no encontrado".
-const COMMON_PROGRESSIONS = [
-  "G - D - Em - C",
-  "C - G - Am - Em",
-  "Am - Dm - E7",
-  "D - A - G",
-  "E - A - B7",
-  "C - Am - Dm - G7",
-];
-
 // Filled into "home.progressionHint" rather than written into the
 // dictionary, so it reads Sol Re Mim Do in Latin notation.
 const HINT_EXAMPLE = ["G", "D", "Em", "C"];
@@ -47,7 +35,7 @@ const isChord = (canonical: string) => findChord(canonical) !== undefined;
 export default function ChordLibrary() {
   const t = useT();
   const locale = useLocale();
-  // `input` is the box's text in the active notation; COMMON_PROGRESSIONS,
+  // `input` is the box's text in the active notation; KeySection,
   // localStorage and every chord lookup stay American (see useNotationText).
   const {
     text: input,
@@ -57,7 +45,6 @@ export default function ChordLibrary() {
     notation,
   } = useNotationText("G - D - Em - C", isChord);
   const [showDifficulty, setShowDifficulty] = useState(true);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   // Gates the save effect below until the load effect has actually run —
   // without it, the save effect's first firing (mount, `input` still the
   // hardcoded default) would immediately overwrite whatever was just
@@ -174,14 +161,13 @@ export default function ChordLibrary() {
   // an "insert everything" diff — no separate mount-only case needed.
   const prevAllTokensRef = useRef<string[]>([]);
   // Set right before setInput() by anything that REPLACES the whole
-  // progression atomically (currently just the suggestion pills below) —
+  // progression atomically (a progression row in KeySection, below) —
   // never by typing. diffTokens deliberately treats any equal-length
   // change as a no-op, content or not (see its own comment/test: typing a
   // chord's name must never look like a remove+insert, or the exit/enter
   // animation would fire every keystroke). That's correct for typing, but
-  // it means clicking a suggestion the SAME length as the current
-  // progression (COMMON_PROGRESSIONS has both 3- and 4-chord entries)
-  // silently swapped every card's content in place with no animation at
+  // it means picking a progression the SAME length as the current one
+  // (KeySection lists both 3- and 4-chord shapes) silently swapped every card's content in place with no animation at
   // all, while a different-length pick correctly faded — an inconsistency
   // that only showed up on some clicks, not others. This flag lets the
   // diff block below skip diffTokens entirely for a real full replace,
@@ -325,7 +311,9 @@ export default function ChordLibrary() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-4 px-6 py-12">
+    // overflow-anchor: none — KeySection keeps itself still on screen when the
+    // grid above changes size; the browser's own anchoring fought it.
+    <div className="flex flex-1 flex-col items-center gap-4 px-6 py-12 [overflow-anchor:none]">
       <div className="w-full max-w-xl flex flex-col gap-2">
         <label htmlFor="progression" className="text-sm font-medium">
           {t("home.progressionLabel")}
@@ -344,15 +332,6 @@ export default function ChordLibrary() {
             left edge — not in the tools row below, where they made one
             strip wider than the input with four different looks. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <button
-            onClick={() => setShowSuggestions((v) => !v)}
-            aria-expanded={showSuggestions}
-            className="text-xs text-muted underline transition hover-fine:text-accent active:scale-[0.97] duration-[160ms] ease-out"
-          >
-            {showSuggestions
-              ? t("home.hideSuggestions")
-              : t("home.showSuggestions")}
-          </button>
           {/* Where beginners actually get stuck: right next to the diagrams. */}
           <Link
             href={href("guide", locale, "diagramas-de-acordes")}
@@ -361,32 +340,6 @@ export default function ChordLibrary() {
             {t("guide.howToReadDiagram")}
           </Link>
         </div>
-        {showSuggestions && (
-          <div className="flex flex-wrap gap-2">
-            {COMMON_PROGRESSIONS.map((p, i) => {
-              // Dimmed unless it's the progression loaded right now (same
-              // chords, any spacing or case), so the row stays quiet.
-              const loaded = parseProgression(p).join(" ").toLowerCase() === allTokens.join(" ").toLowerCase();
-              return (
-                <button
-                  key={p}
-                  // Staggered over the first six; the rest arrive with the sixth.
-                  style={{ animationDelay: `${Math.min(i, 5) * 30}ms` }}
-                  aria-pressed={loaded}
-                  onClick={() => {
-                    forceFullReplaceRef.current = true;
-                    setCanonicalInput(p);
-                  }}
-                  className={`enter-up rounded border px-3 py-1 text-sm transition hover-fine:border-accent hover-fine:opacity-100 active:scale-[0.97] duration-[160ms] ease-out ${
-                    loaded ? "border-accent" : "border-line opacity-50"
-                  }`}
-                >
-                  {convertProgression(p, "american", notation)}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Below the input, on its edges: the two practice tools as one
@@ -678,6 +631,15 @@ export default function ChordLibrary() {
           );
         })}
       </div>
+
+      <KeySection
+        tokens={allTokens}
+        chordLimit={CHORD_LIMIT}
+        onChange={(next, replace) => {
+          forceFullReplaceRef.current = !!replace;
+          setCanonicalInput(next);
+        }}
+      />
     </div>
   );
 }

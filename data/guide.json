@@ -11,6 +11,12 @@
       "es": { "title": "Lee lo que ves", "summary": "Cómo leer los diagramas, las tablaturas y las marcas de PlainChord." },
       "en": { "title": "Read what you see", "summary": "How to read chord diagrams, tabs and PlainChord's markings." },
       "articles": ["dedos", "diagramas-de-acordes", "x-o-y-cejilla", "tablatura", "dificultad"]
+    },
+    {
+      "id": "teoria",
+      "es": { "title": "Entiende lo que tocas", "summary": "Por qué unos acordes van juntos y cómo aprovecharlo." },
+      "en": { "title": "Understand what you play", "summary": "Why some chords belong together, and how to use it." },
+      "articles": ["tonalidad"]
     }
   ],
   "articles": {
@@ -353,6 +359,64 @@
           "type": "text",
           "es": "Un cambio Difícil no es para evitarlo: es el que conviene practicar solo y despacio antes de tocarlo dentro de la canción.",
           "en": "A Hard change isn't one to avoid: it's the one worth practicing on its own, slowly, before playing it inside the song."
+        },
+        { "type": "link", "to": "chords" }
+      ]
+    },
+    "tonalidad": {
+      "es": { "title": "Qué es una tonalidad", "summary": "La familia de acordes de una canción, y qué hace cada uno." },
+      "en": { "title": "What a key is", "summary": "A song's family of chords, and what each one does." },
+      "blocks": [
+        { "type": "visual", "visual": "key", "key": "G" },
+        {
+          "type": "text",
+          "es": "Casi todas las canciones usan una **familia** de acordes que suenan bien juntos. Esa familia es la **tonalidad**. Si una canción está en Sol, la mayoría de sus acordes salen de estos seis: Sol, Lam, Sim, Do, Re y Mim (G, Am, Bm, C, D, Em).",
+          "en": "Almost every song uses a **family** of chords that sound good together. That family is the **key**. If a song is in G, most of its chords come from these six: G, Am, Bm, C, D and Em."
+        },
+        {
+          "type": "text",
+          "es": "Cada acorde de la familia cumple un papel, y se oye. Hay solo tres:",
+          "en": "Each chord in the family has a job, and you can hear it. There are only three:"
+        },
+        {
+          "type": "text",
+          "es": "**Reposo:** suena a casa. Las canciones suelen empezar y terminar aquí. En Sol es Sol, y también Mim y Sim, que descansan parecido.",
+          "en": "**Rest:** it sounds like home. Songs often start and end here. In G it's G, and also Em and Bm, which rest in a similar way."
+        },
+        {
+          "type": "text",
+          "es": "**Preparación:** te aleja de casa, como dar un paso afuera. En Sol son Do y Lam.",
+          "en": "**Build-up:** it takes you away from home, like stepping outside. In G those are C and Am."
+        },
+        {
+          "type": "text",
+          "es": "**Tensión:** pide volver. Es el acorde que hace que un final se sienta como final. En Sol es Re.",
+          "en": "**Tension:** it asks to go back. It's the chord that makes an ending feel like an ending. In G it's D."
+        },
+        {
+          "type": "mnemonic",
+          "es": "Reposo, preparación, tensión, reposo: Sol, Do, Re, Sol. Así se mueven muchísimas canciones. Tócalo y escucha cómo el Re pide volver al Sol.",
+          "en": "Rest, build-up, tension, rest: G, C, D, G. That's how a huge number of songs move. Play it and hear how the D asks to go back to G."
+        },
+        {
+          "type": "text",
+          "es": "Si cambias de tonalidad, cambian los acordes, pero el camino es el mismo. En Do sería Do, Fa, Sol, Do: suena igual de «vuelta a casa», solo más agudo o más grave. Por eso puedes llevar una canción a la tonalidad donde sus acordes te resulten más cómodos.",
+          "en": "Change the key and the chords change, but the path stays the same. In C it would be C, F, G, C: it sounds just as much like coming home, only higher or lower. That's why you can move a song to whichever key has the chords that feel easiest to you."
+        },
+        {
+          "type": "text",
+          "es": "Algunas canciones tienen su casa en un acorde **menor**, como Lam, y suenan más tristes o serias. Usan los mismos acordes que Do, pero el reposo es Lam, y la tensión suele ser Mi7 (E7).",
+          "en": "Some songs have their home on a **minor** chord, like Am, and sound sadder or more serious. They use the same chords as C, but the rest is Am, and the tension is usually E7."
+        },
+        {
+          "type": "mistake",
+          "es": "Creer que un acorde de fuera de la familia está mal. Muchas canciones toman prestado uno o dos a propósito, para darles color. PlainChord los nombra («salvo Fa») para que sepas que es intencional.",
+          "en": "Thinking a chord from outside the family is a mistake. Many songs borrow one or two on purpose, for color. PlainChord names them (“except F”) so you know it's deliberate."
+        },
+        {
+          "type": "text",
+          "es": "Los números bajo cada acorde (I, IV, V…) solo dicen su lugar en la familia: I es la casa. No hace falta aprenderlos; sirven para reconocer el mismo camino en cualquier tonalidad.",
+          "en": "The numbers under each chord (I, IV, V…) only say its place in the family: I is home. You don't need to learn them; they help you spot the same path in any key."
         },
         { "type": "link", "to": "chords" }
       ]
