@@ -8,7 +8,7 @@ export default function ChordNotFound({ name }: { name: string }) {
   return (
     <figure className="flex flex-col items-center gap-1 w-[110px]">
       <Image
-        src="/notfound.png"
+        src="/notfound.webp"
         alt={t("chordNotFound.alt")}
         width={110}
         height={95}

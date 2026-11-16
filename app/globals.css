@@ -163,7 +163,7 @@
 }
 
 body {
-  /* ornamental.png (light gray, up to 50% alpha) multiplied with the palette
+  /* ornamental.webp (light gray, up to 50% alpha) multiplied with the palette
      color: barely there on dark palettes. On light palettes its grays would
      sit too close to the text, so a veil of the background color itself
      (the first layer) fades it further. --ornament-veil is that veil's
@@ -175,7 +175,7 @@ body {
       color-mix(in srgb, var(--background) var(--ornament-veil), transparent),
       color-mix(in srgb, var(--background) var(--ornament-veil), transparent)
     ),
-    url("/ornamental.png");
+    url("/ornamental.webp");
   background-size: auto, 760px 507px; /* tile at ~70% of the 1086×724 source */
   background-repeat: repeat;
   background-attachment: fixed;
@@ -644,6 +644,189 @@ dialog.tuner-dialog::backdrop {
 /* A blank ad slot: diagonal stripes in the theme's line colour. */
 .landing-compare-ad {
   background: repeating-linear-gradient(-45deg, var(--line) 0 10px, var(--background) 10px 20px);
+}
+
+/* The noise: a gamified app's own loud palette, deliberately not the
+   theme's (it's someone else's app). Only for what stays right of the
+   divider's resting 35%: anything showing beside the calm side at rest
+   (progress bar, premium card) uses the theme's accent instead, so the
+   loud colours don't leak into the page. Each loop has its own period so
+   they never settle into one rhythm. Every element's resting style is a
+   sensible still frame, so reduced motion just shows the screen. */
+.landing-noise {
+  --n-red: #ff5a5f;
+  --n-gold: #ffbf1f;
+  --n-orange: #ff8a1f;
+  --n-blue: #22b8e8;
+  --n-violet: #7b5cff;
+  --n-pink: #ff6fb5;
+}
+.noise-chunk {
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.22);
+}
+
+.noise-heart {
+  transform-origin: 50% 60%;
+  animation: noise-heart 4.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+@keyframes noise-heart {
+  0%, 55% { color: var(--n-red); transform: none; }
+  58% { transform: translateX(-2px) rotate(-14deg) scale(1.2); }
+  61% { transform: translateX(2px) rotate(14deg) scale(1.2); }
+  64% { transform: translateX(-1px) rotate(-6deg) scale(1.05); }
+  68%, 92% { color: var(--line); transform: scale(0.85); }
+  97% { color: var(--n-red); transform: scale(1.25); }
+  100% { color: var(--n-red); transform: none; }
+}
+.noise-minus {
+  color: var(--n-red);
+  opacity: 0;
+  animation: noise-minus 4.8s ease-out infinite;
+}
+@keyframes noise-minus {
+  0%, 60% { opacity: 0; transform: translateY(2px); }
+  64% { opacity: 1; }
+  85%, 100% { opacity: 0; transform: translateY(-14px); }
+}
+
+.noise-flicker {
+  transform-origin: 50% 90%;
+  animation: noise-flicker 0.45s ease-in-out infinite alternate;
+}
+@keyframes noise-flicker {
+  from { transform: scale(1) rotate(-5deg); }
+  to { transform: scale(1.12, 1.22) rotate(5deg); }
+}
+
+.noise-bell {
+  transform-origin: 50% 0;
+  animation: noise-bell 3.1s ease-in-out 0.8s infinite;
+}
+@keyframes noise-bell {
+  0%, 70%, 100% { rotate: 0deg; }
+  74% { rotate: 18deg; }
+  79% { rotate: -16deg; }
+  84% { rotate: 10deg; }
+  89% { rotate: -6deg; }
+}
+.noise-badge {
+  animation: noise-badge 3.1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.8s infinite;
+}
+@keyframes noise-badge {
+  0%, 72%, 100% { transform: scale(1); }
+  80% { transform: scale(1.5); }
+  88% { transform: scale(0.9); }
+}
+
+/* Progress bar: a lighter stripe on top and a shine that keeps passing. */
+.noise-progress {
+  position: relative;
+  overflow: hidden;
+}
+.noise-progress::before {
+  content: "";
+  position: absolute;
+  inset: 3px 8px auto;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.45);
+}
+.noise-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.6) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: noise-shine 2.2s ease-in-out infinite;
+}
+@keyframes noise-shine {
+  60%, 100% { transform: translateX(100%); }
+}
+
+/* "+50 XP" and its confetti share one beat. */
+.noise-xp {
+  transform: translate(-50%, -50%);
+  animation: noise-xp 3.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes noise-xp {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.5); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  16% { transform: translate(-50%, -50%) scale(1); }
+  60% { opacity: 1; transform: translate(-50%, -90%); }
+  76%, 100% { opacity: 0; transform: translate(-50%, -150%); }
+}
+.noise-confetti i {
+  position: absolute;
+  left: -3px;
+  top: -5px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--c);
+  transform: translate(var(--x), var(--y)) rotate(var(--r));
+  animation: noise-confetti 3.2s cubic-bezier(0.15, 0.8, 0.3, 1) infinite;
+}
+@keyframes noise-confetti {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.4); }
+  6% { opacity: 1; }
+  40% { opacity: 1; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(1); }
+  72%, 100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 48px)) rotate(calc(var(--r) * 2)) scale(1); }
+}
+
+.noise-toast {
+  animation: noise-toast 6.4s cubic-bezier(0.34, 1.4, 0.64, 1) 1.2s infinite;
+}
+@keyframes noise-toast {
+  0%, 6% { transform: translateX(calc(100% + 1rem)); }
+  14%, 64% { transform: none; }
+  72%, 100% { transform: translateX(calc(100% + 1rem)); }
+}
+
+.noise-wobble {
+  animation: noise-wobble 3.6s ease-in-out 0.5s infinite;
+}
+@keyframes noise-wobble {
+  0%, 78%, 100% { rotate: 0deg; }
+  82% { rotate: 5deg; }
+  86% { rotate: -7deg; }
+  90% { rotate: 5deg; }
+  95% { rotate: -4deg; }
+}
+
+.noise-cta {
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--n-violet) 60%, black);
+  animation: noise-cta 1.6s ease-in-out infinite;
+}
+@keyframes noise-cta {
+  0%, 100% { transform: none; }
+  50% { transform: scale(1.07); }
+}
+.noise-cta::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--n-violet);
+  border-radius: inherit;
+  opacity: 0;
+  animation: noise-cta-ring 1.6s ease-out infinite;
+}
+@keyframes noise-cta-ring {
+  from { opacity: 0.8; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.3, 1.7); }
+}
+
+/* Off screen, or with the divider all the way left, nothing runs. */
+.landing-noise-paused *,
+.landing-noise-paused *::before,
+.landing-noise-paused *::after {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-noise *,
+  .landing-noise *::before,
+  .landing-noise *::after {
+    animation: none !important;
+  }
 }
 
 /* The one sweep on first sight; dragging drops the class, so the divider
