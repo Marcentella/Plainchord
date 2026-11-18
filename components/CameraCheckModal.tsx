@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowCounterClockwiseIcon, CameraIcon, CameraSlashIcon, CheckIcon, CircleNotchIcon, CrosshairIcon, LaptopIcon, LockIcon, RulerIcon, SlidersHorizontalIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CameraIcon, CameraSlashIcon, CheckIcon, CircleNotchIcon, CrosshairIcon, HandIcon, LaptopIcon, LockIcon, MicrophoneIcon, MicrophoneSlashIcon, RulerIcon, SlidersHorizontalIcon, WaveformIcon, XIcon } from "@phosphor-icons/react";
 import ChordDiagram, { type FingerMark } from "@/components/ChordDiagram";
 import CalibrationGuide from "@/components/CalibrationGuide";
 import ChordProgressionInput from "@/components/ChordProgressionInput";
@@ -14,6 +14,10 @@ import { formatChord } from "@/lib/notation";
 import { useNotation } from "@/lib/useNotation";
 import { cssColor } from "@/lib/fingerCameraDraw";
 import { useFingerCamera, type Precision } from "@/lib/useFingerCamera";
+import { useStrumCheck } from "@/lib/useStrumCheck";
+import { cameraState, fuseStrum, stringIssues, type StringIssue, type Verdict } from "@/lib/chordFusion";
+import type { StringResult } from "@/lib/stringCheck";
+import { downloadWav } from "@/lib/wav";
 
 const FINGER_KEYS: TKey[] = ["camera.finger1", "camera.finger2", "camera.finger3", "camera.finger4"];
 
@@ -46,6 +50,7 @@ export default function CameraCheckModal({
   progression,
   onProgressionChange,
   chordLimit,
+  demo = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -55,6 +60,8 @@ export default function CameraCheckModal({
   progression: string;
   onProgressionChange: (value: string) => void;
   chordLimit: number;
+  /** /acordes?demo: synthesized strums instead of the mic. */
+  demo?: boolean;
 }) {
   const t = useT();
   const notation = useNotation();
@@ -83,6 +90,21 @@ export default function CameraCheckModal({
     },
   });
   const { stop } = cam;
+  // ?debug: every judged strum is saved as a WAV, for tuning on real takes.
+  const debug = useSyncExternalStore(
+    subscribeNothing,
+    () => new URLSearchParams(window.location.search).has("debug"),
+    () => false,
+  );
+  // The mic half: each strum is judged by sound, next to the camera's
+  // reading from the moment the strum started (fingers are placed first).
+  const mic = useStrumCheck({
+    target: () => chordRef.current,
+    onOnset: () => ({ readings: cam.stableReadings, positions: cam.latestPositions(), calibrated: cam.calibrated }),
+    demo,
+    debug,
+  });
+  const micListening = mic.status === "listening";
   // Server snapshot "true": the static page renders the full check, and a
   // phone swaps it for the notice on hydration (the dialog is closed then).
   const hasFinePointer = useSyncExternalStore(
@@ -98,6 +120,7 @@ export default function CameraCheckModal({
     return () => {
       dialog?.close();
       stop();
+      mic.stop();
     };
     // stop is a fresh closure each render; the dialog only cares about `open`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,7 +160,61 @@ export default function CameraCheckModal({
               : t("camera.calFretSecond"),
     });
   const running = cam.status === "running";
+  // The last strum: the camera's reading from the moment it started, the
+  // sound once it rang, and the one verdict the two make together.
+  const strum = mic.lastStrum;
+  const strumChecks = strum?.target && strum.snapshot.calibrated ? checkChord(strum.target, strum.snapshot.readings) : null;
+  const strumCamera = cameraState(strumChecks);
+  const issues =
+    strum?.target && strum.strings
+      ? stringIssues(strum.target, strum.strings, strum.snapshot.calibrated ? strum.snapshot.positions : null)
+      : [];
+  const verdict = strum ? fuseStrum(strumChecks, strum, issues) : null;
+  // Strings are named as on the instrument: 6 = low E.
+  const issueText = (issue: StringIssue) => {
+    const n = String(6 - issue.string);
+    const finger = issue.finger ? String(issue.finger) : "";
+    const fretted = (strum?.target?.frets[issue.string] ?? 0) > 0;
+    const key: TKey =
+      issue.kind === "ringsButShouldnt"
+        ? "camera.issue.ringsButShouldnt"
+        : issue.kind === "open"
+          ? finger ? "camera.issue.open" : "camera.issue.openNoFinger"
+          : fretted
+            ? finger ? "camera.issue.missingFretted" : "camera.issue.missingFrettedNoFinger"
+            : finger ? "camera.issue.missingOpen" : "camera.issue.missingOpenNoFinger";
+    return t(key, { n, finger });
+  };
+  const verdictIssues = verdict && (verdict.kind === "pressOrMute" || verdict.kind === "soundOnly") ? verdict.issues : [];
+  const verdictText = (v: Verdict) =>
+    v.kind === "fixFingers"
+      ? t("camera.verdict.fixFingers", { n: String(v.finger.finger), expected: expectedText(v.finger.expected!) })
+      : v.kind === "soundOnly"
+        ? v.matches
+          ? t("camera.verdict.soundOk")
+          : t("camera.verdict.soundWrong", { chord: formatChord(strum!.target?.name ?? "", notation) })
+        : v.kind === "pressOrMute" && v.issues.length
+          ? t("camera.verdict.pressOrMuteStrings")
+          : t(`camera.verdict.${v.kind}` as TKey);
+  const verdictGood = verdict?.kind === "correct" || (verdict?.kind === "soundOnly" && verdict.matches);
   const mirror = cam.mirrored ? "scale-x-[-1]" : "";
+  // ?debug: every judged strum is saved as a WAV, for tuning
+  // lib/stringCheck.ts on real takes; it stays on the device. The name says
+  // what was read (per string: s rang, m missing, o open, u can't tell,
+  // x quiet as it should, r rang but shouldn't) and where in the clip the
+  // judged window starts.
+  useEffect(() => {
+    if (!strum || !debug) return;
+    const read = strum.strings?.map((r, s) => `${6 - s}${STRING_CODE[r]}`).join("") ?? "";
+    const name = `plainchord-strum_${strum.target?.name ?? "none"}_${read}_heard-${strum.heard?.name ?? "none"}`;
+    if (!strum.clip) {
+      downloadWav(strum.samples, strum.sampleRate, `${name}.wav`);
+      return;
+    }
+    void strum.clip.then(({ samples, judgedAt }) =>
+      downloadWav(samples, strum.sampleRate, `${name}_judged-at-${(judgedAt / strum.sampleRate).toFixed(3)}s.wav`),
+    );
+  }, [strum, debug]);
 
   return (
     <dialog
@@ -214,7 +291,26 @@ export default function CameraCheckModal({
                 {t(cam.calibrated ? "camera.recalibrate" : "camera.calibrate")}
               </button>
             )}
-            {running && (
+            {/* Independent of the camera: sound alone already says whether the chord rang right. */}
+            {micListening ? (
+              <button onClick={mic.stop} className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out">
+                <MicrophoneSlashIcon size={18} aria-hidden /> {t("camera.micStop")}
+              </button>
+            ) : (
+              <button
+                onClick={mic.start}
+                disabled={mic.status === "requesting"}
+                className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 transition hover-fine:enabled:border-accent active:enabled:scale-[0.97] duration-[160ms] ease-out disabled:text-muted"
+              >
+                {mic.status === "requesting" ? (
+                  <CircleNotchIcon size={18} className="animate-spin text-accent" aria-hidden />
+                ) : (
+                  <MicrophoneIcon size={18} aria-hidden className="text-accent" />
+                )}
+                {t("camera.micStart")}
+              </button>
+            )}
+            {(running || micListening) && (
               <button
                 onClick={() => setSettingsOpen((v) => !v)}
                 aria-expanded={settingsOpen}
@@ -230,7 +326,7 @@ export default function CameraCheckModal({
               panel's own height (no fixed max-height to guess), the -mb-3
               cancels the column's gap while it's shut, and inert keeps its
               controls out of the tab order until it's open. */}
-          {running && (
+          {(running || micListening) && (
             <div
               inert={!settingsOpen}
               className={`grid transition-[grid-template-rows,margin] duration-[220ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
@@ -242,6 +338,24 @@ export default function CameraCheckModal({
               id="camera-settings"
               className={`flex flex-col gap-3 rounded-lg border border-line p-3 text-sm transition-opacity duration-[220ms] ${settingsOpen ? "opacity-100" : "opacity-0"}`}
             >
+              {mic.inputs.length > 0 && (
+                <label className="flex min-w-0 items-center gap-2">
+                  {t("camera.micInput")}
+                  <select
+                    value={mic.inputId ?? mic.inputs[0].id}
+                    onChange={(e) => mic.chooseInput(e.target.value)}
+                    className="tuner-select min-w-0 max-w-64 truncate rounded-md border border-line bg-background px-2 py-1 text-foreground"
+                  >
+                    {mic.inputs.map((input) => (
+                      <option key={input.id} value={input.id}>
+                        {input.label || input.id.slice(0, 8)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {running && (
+              <>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
                 <label className="flex items-center gap-2">
                   {t("camera.calibrationFret")}
@@ -301,6 +415,8 @@ export default function CameraCheckModal({
                       : t("camera.fretsModel")}
                 </p>
               )}
+              </>
+              )}
             </div>
             </div>
             </div>
@@ -309,6 +425,16 @@ export default function CameraCheckModal({
           {(cam.status === "denied" || cam.status === "unavailable" || cam.status === "error") && (
             <p className="text-sm text-difficulty-dificil" role="status">
               {t(cam.status === "denied" ? "camera.denied" : cam.status === "unavailable" ? "camera.unavailable" : "camera.error")}
+            </p>
+          )}
+          {(mic.status === "denied" || mic.status === "unavailable") && (
+            <p className="text-sm text-difficulty-dificil" role="status">
+              {t(mic.status === "denied" ? "camera.micDenied" : "camera.micUnavailable")}
+            </p>
+          )}
+          {micListening && mic.micSilent && (
+            <p className="text-sm text-muted" role="status">
+              {t("camera.micSilent")}
             </p>
           )}
           {cam.calibrating && (
@@ -366,6 +492,99 @@ export default function CameraCheckModal({
             <p className="text-sm text-difficulty-dificil" role="status">
               {t("camera.refinerFailed")}
             </p>
+          )}
+          {demo && chord && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => void mic.strum(chord)}
+                className="inline-flex items-center gap-2 rounded-full border border-dashed border-line px-3.5 py-1.5 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+              >
+                {t("camera.demoStrum", { chord: formatChord(chord.name, notation) })}
+              </button>
+              {/* The same chord with its highest fretted string left open, as
+                  if that finger were lifted: shows the per-string check
+                  without a guitar. */}
+              {chord.frets.some((f) => f > 0) && (
+                <button
+                  onClick={() => {
+                    const lifted = chord.frets.findLastIndex((f) => f > 0);
+                    void mic.strum({ ...chord, frets: chord.frets.map((f, s) => (s === lifted ? 0 : f)) });
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-dashed border-line px-3.5 py-1.5 text-sm transition hover-fine:border-accent active:scale-[0.97] duration-[160ms] ease-out"
+                >
+                  {t("camera.demoStrumLifted", { chord: formatChord(chord.name, notation) })}
+                </button>
+              )}
+            </div>
+          )}
+          {micListening && (
+            <div className="flex flex-col gap-1.5 rounded-lg border border-line p-3 text-sm" role="status" aria-live="polite">
+              {!strum ? (
+                <p className="text-muted">{t("camera.strumPrompt")}</p>
+              ) : (
+                // Keyed by strum, so each new one settles in even when it reads the same.
+                <div
+                  key={strum.id}
+                  className="flex flex-col gap-1.5 transition-opacity duration-[200ms] ease-out starting:opacity-0"
+                >
+                  <p className="text-xs text-muted">{t("camera.lastStrum")}</p>
+                  {verdict && (
+                    <p
+                      className={`font-medium ${
+                        verdictGood ? "text-difficulty-facil" : verdict.kind === "soundsRight" ? "" : "text-difficulty-dificil"
+                      }`}
+                    >
+                      {verdictText(verdict)}
+                    </p>
+                  )}
+                  {verdictIssues.length > 0 && (
+                    <ul className="flex flex-col gap-0.5 text-difficulty-dificil">
+                      {verdictIssues.map((issue) => (
+                        <li key={issue.string}>{issueText(issue)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {strum.strings && (
+                    <StringRow
+                      results={strum.strings}
+                      label={t("camera.stringsLabel")}
+                      describe={(s, r) => t(`camera.string.${r}` as TKey, { n: String(6 - s) })}
+                    />
+                  )}
+                  <p
+                    className={`flex items-center gap-1.5 text-xs ${
+                      strum.matches ? "text-difficulty-facil" : strum.heard ? "text-difficulty-dificil" : "text-muted"
+                    }`}
+                  >
+                    <WaveformIcon size={16} aria-hidden className="shrink-0" />
+                    {strum.matches && strum.target
+                      ? t("camera.heardMatch", { chord: formatChord(strum.target.name, notation) })
+                      : strum.heard && strum.target
+                        ? t("camera.heardOther", {
+                            heard: formatChord(strum.heard.name, notation),
+                            chord: formatChord(strum.target.name, notation),
+                          })
+                        : t("camera.heardNone")}
+                  </p>
+                  <p
+                    className={`flex items-center gap-1.5 text-xs ${
+                      strumCamera === "right" ? "text-difficulty-facil" : strumCamera === "wrong" ? "text-difficulty-dificil" : "text-muted"
+                    }`}
+                  >
+                    <HandIcon size={16} aria-hidden className="shrink-0" />
+                    {strumCamera === "off"
+                      ? t("camera.strumNoCamera")
+                      : strumCamera === "right"
+                        ? t("camera.strumFingersOk")
+                        : strumCamera === "unsure"
+                          ? t("camera.strumFingersUnseen")
+                          : t("camera.strumFingersOff", {
+                              count: String(strumChecks!.filter((c) => c.status === "wrongString" || c.status === "wrongFret" || c.status === "elsewhere").length),
+                            })}
+                  </p>
+                </div>
+              )}
+            </div>
           )}
           <p className="text-xs text-muted">{t("camera.placement", { fret: String(cam.calFret) })}</p>
         </div>
@@ -473,6 +692,62 @@ export default function CameraCheckModal({
         </div>
       </div>
     </dialog>
+  );
+}
+
+function subscribeNothing() {
+  return () => {};
+}
+
+/** One letter per string result, for ?debug's WAV file names. */
+const STRING_CODE: Record<StringResult, string> = {
+  sounds: "s",
+  missing: "m",
+  open: "o",
+  unknown: "u",
+  silent: "x",
+  ringsButShouldnt: "r",
+};
+
+/**
+ * Six small marks, 6th string first (the diagram's left to right): which
+ * strings rang. Green rang; red is a problem; dashed means the mic can't
+ * tell that string apart (it shares every harmonic with another string);
+ * faint is a string the chord leaves out, quiet as it should be.
+ */
+function StringRow({
+  results,
+  label,
+  describe,
+}: {
+  results: StringResult[];
+  label: string;
+  describe: (string: number, result: StringResult) => string;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted">
+      <span>{label}</span>
+      <ul className="flex gap-1">
+        {results.map((r, s) => (
+          <li
+            key={s}
+            title={describe(s, r)}
+            aria-label={describe(s, r)}
+            className={`flex size-5 items-center justify-center rounded-full border text-[0.7rem] tabular-nums ${
+              r === "sounds"
+                ? "border-difficulty-facil text-difficulty-facil"
+                : r === "silent"
+                  ? "border-line/60 text-muted/60"
+                  : r === "unknown"
+                    ? "border-dashed border-line text-muted"
+                    : "border-difficulty-dificil bg-difficulty-dificil text-background"
+            }`}
+          >
+            {6 - s}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

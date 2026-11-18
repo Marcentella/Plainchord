@@ -392,6 +392,7 @@ export default function ChordLibrary() {
           progression={input}
           onProgressionChange={setInput}
           chordLimit={CHORD_LIMIT}
+          demo={demo}
         />
         {playAlong.status !== "idle" && (
           <div className="flex flex-col items-center gap-1 text-center text-sm text-muted">

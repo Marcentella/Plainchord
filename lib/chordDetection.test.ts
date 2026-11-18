@@ -15,6 +15,7 @@ import {
   type PlayAlongState,
 } from "./chordDetection.ts";
 import type { Chord } from "./chords.ts";
+import { SAMPLE_RATE, rng, synthChord as synthAt } from "./testAudio.ts";
 
 // The real library, read from disk rather than imported via lib/chords.ts —
 // that module pulls the JSON through the "@/*" alias, which plain
@@ -25,42 +26,9 @@ const LIBRARY: Chord[] = JSON.parse(readFileSync(new URL("../data/chords.json", 
 const byName = (name: string) => LIBRARY.find((c) => c.name === name)!;
 
 const meyda = Meyda as unknown as MeydaLike;
-const SAMPLE_RATE = 48000;
-const OPEN_STRINGS = [40, 45, 50, 55, 59, 64];
-
-// Deterministic noise/phases, so a failure is reproducible run to run.
-function rng(seed: number) {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-}
-
-/**
- * A strummed chord, roughly: every sounding string with 12 harmonics, plus a
- * little noise. `amp` shapes the overtones so the tests don't only pass for
- * the one tone color the templates happen to resemble most.
- */
-function synthChord(
-  chord: Chord,
-  size = DETECTION.fftSize,
-  seed = 1,
-  amp: (harmonic: number, string: number) => number = (h) => 0.1 / h,
-): Float32Array {
-  const rand = rng(seed);
-  const out = new Float32Array(size);
-  chord.frets.forEach((fret, string) => {
-    if (fret < 0) return;
-    const hz = 440 * 2 ** ((OPEN_STRINGS[string] + fret - 69) / 12);
-    for (let h = 1; h <= 12; h++) {
-      const phase = rand() * 2 * Math.PI;
-      const a = amp(h, string);
-      for (let n = 0; n < size; n++) out[n] += a * Math.sin((2 * Math.PI * hz * h * n) / SAMPLE_RATE + phase);
-    }
-  });
-  for (let n = 0; n < size; n++) out[n] += (rand() - 0.5) * 0.01;
-  return out;
-}
+// Default size: the detector's own window.
+const synthChord = (chord: Chord, size = DETECTION.fftSize, seed?: number, amp?: (h: number, string: number) => number) =>
+  synthAt(chord, size, seed, amp);
 
 test("pitch classes come from the frets in standard tuning", () => {
   const pcs = (name: string) => [...new Set(chordPitchClasses(byName(name)))].sort((a, b) => a - b);

@@ -17,7 +17,8 @@ export type MicInput = {
 
 export type MicError = "denied" | "unavailable";
 
-export async function openMic(fftSize: number): Promise<MicInput> {
+/** `deviceId`: a specific input (an audio interface rather than the webcam's mic); the browser's default otherwise. */
+export async function openMic(fftSize: number, deviceId?: string): Promise<MicInput> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new DOMException("No microphone API in this browser", "NotFoundError");
   }
@@ -26,7 +27,12 @@ export async function openMic(fftSize: number): Promise<MicInput> {
   // suppression treats a held note or chord as background and fades it out.
   // Ask for the raw signal.
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+    },
   });
   const audioCtx = new AudioContext();
   const analyser = audioCtx.createAnalyser();
@@ -44,9 +50,20 @@ export async function openMic(fftSize: number): Promise<MicInput> {
   };
 }
 
+/**
+ * The audio inputs to pick from. Browsers only give their names once the
+ * page has had mic permission, so call this after a first openMic().
+ */
+export async function listInputs(): Promise<{ id: string; label: string }[]> {
+  const devices = (await navigator.mediaDevices?.enumerateDevices?.()) ?? [];
+  return devices.filter((d) => d.kind === "audioinput" && d.deviceId).map((d) => ({ id: d.deviceId, label: d.label }));
+}
+
 /** What to tell the user when openMic() throws: no mic at all, or permission refused. */
 export function micErrorFor(err: unknown): MicError {
-  return err instanceof DOMException && err.name === "NotFoundError" ? "unavailable" : "denied";
+  // OverconstrainedError: the chosen input was unplugged.
+  const name = (err as { name?: string } | null)?.name;
+  return name === "NotFoundError" || name === "OverconstrainedError" ? "unavailable" : "denied";
 }
 
 export type DemoInput = Omit<MicInput, "source"> & { strum: (chord: Chord) => void };

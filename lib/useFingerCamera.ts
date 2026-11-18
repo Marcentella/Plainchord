@@ -126,6 +126,9 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
   const [calError, setCalError] = useState<CalibrationError | null>(null);
   const [readings, setReadings] = useState<FingerReading[]>([null, null, null, null]);
   const [stableReadings, setStableReadings] = useState<FingerReading[]>([null, null, null, null]);
+  // Continuous fingertip positions from the latest frame (not React state:
+  // read on demand, e.g. at a strum's start, never rendered).
+  const positionsRef = useRef<FingerPosition[]>([null, null, null, null]);
   const [locked, setLocked] = useState<boolean[]>([false, false, false, false]);
   const [controls, setControls] = useState<CameraControls | null>(null);
   const [follow, setFollow] = useState(true);
@@ -491,6 +494,7 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
           });
           stable = stabilizer.update(previous, now);
         }
+        positionsRef.current = positions;
         // The lock runs every frame, hand or no hand: a locked finger that
         // drops out of view gets its grace period instead of vanishing.
         const chord = cal ? target?.() : undefined;
@@ -651,6 +655,8 @@ export function useFingerCamera(options: FingerCameraOptions = {}) {
     stableReadings,
     /** Which fingers are locked on their target (only with a `target` chord). */
     locked,
+    /** Where each fingertip is on the neck right now, continuous (string 2.5 = between D and G); null when off the neck. */
+    latestPositions: () => positionsRef.current,
     controls,
     changeControl,
     follow,

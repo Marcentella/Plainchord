@@ -80,7 +80,7 @@ function hann(size: number): Float64Array {
 }
 
 /** Magnitude spectrum of samples[from, from+size), Hann-windowed; out-of-range samples read as silence. */
-function spectrum(samples: Float32Array, from: number, size: number): Float64Array {
+export function spectrum(samples: Float32Array, from: number, size: number): Float64Array {
   const re = new Float64Array(size);
   const im = new Float64Array(size);
   const w = hann(size);

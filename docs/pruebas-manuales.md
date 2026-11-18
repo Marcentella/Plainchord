@@ -199,7 +199,46 @@ poca luz y una lámpara blanca.
 
 ---
 
+## Revisión combinada cámara + micrófono
+
+### 2026-11-16 — Paso 1: micrófono por rasgueo (modo demo)
+- **Probado:** `/acordes?demo`, revisión con cámara, botón "Rasguear C (demo)" con la cámara activa.
+- **Observado:** cada rasgueo sintetizado se reconoce como C; la cámara no se pone más lenta con el
+  micrófono encendido (el análisis de acorde corre una vez por rasgueo, no continuo).
+- **No probado todavía:** guitarra real por la Focusrite (un resultado por rasgueo, mismo acorde dos
+  veces seguidas), selector de entrada de audio, micrófono de la sala.
+
+### 2026-11-16 — Pasos 1 y 2 con guitarra real (Focusrite), acorde C
+- **Probado:** micrófono por rasgueo y veredicto combinado, en `/acordes` sin `?demo`, entrada
+  Focusrite elegida en Ajustes; levantar dedos, apagar cuerdas y otros errores a propósito.
+- **Observado:** cuando el error se oye claramente, la app también lo detecta. Errores sutiles que sí
+  detectó: levantar el dedo 2 en C, y rasguear con los dedos en el borde izquierdo del traste
+  (trasteo). Errores mínimos que todavía pasan como C: rasguear sin el dedo 1 (queda la 2ª al aire:
+  suena Cmaj7, "casi gemelo" de C que el detector acepta a propósito). Ese caso es el objetivo del
+  Paso 3 (revisión por cuerda).
+- **Cambio:** la tarjeta "Último rasgueo" pasa bajo el video; la columna derecha se llenaba y dejaba
+  cada vez menos espacio para desplazarse.
+
+### 2026-11-16 — Paso 3: revisión por cuerda, 4 rasgueos de C grabados (Focusrite, `?debug`)
+- **Probado:** C bien, C sin el dedo 1, C con el dedo 2 sobre la cuerda 3 (G), C sin el dedo 3. Clips
+  de ~3,4 s guardados con `?debug` (en `Plainchorddatavideos/Strums`, fuera del repo) y vueltos a
+  analizar sin conexión en la ventana juzgada y en ventanas posteriores.
+- **Observado, con los umbrales de los tests sintéticos (sin ajustar):**
+  - C bien: ninguna cuerda marcada; la 2 y la 1 quedan "no se puede distinguir" (octavas de otras).
+  - Sin el dedo 1: la cuerda 2 sale "al aire". El acorde completo igual se reconocía como C (0,922
+    contra Cmaj7 0,897): solo la revisión por cuerda lo detecta.
+  - Dedo 2 sobre la G: la cuerda 4 sale "al aire" y la 3 "no suena" (se oyó Dm7).
+  - Sin el dedo 3: la cuerda 5 sale "al aire". En la ventana juzgada la 3 salía además "no suena"
+    (falso): en ese clip la ventana empezaba justo en el rasgueo, con la púa aún cruzando las cuerdas.
+    Desde 0,1 s después, las cuatro tomas se leen bien.
+- **Cambio:** el juicio espera 450 ms después del inicio del rasgueo en vez de 300
+  (`lib/strumDetect.ts`). Más tarde no conviene: el C bien caía bajo el umbral del acorde completo
+  un segundo después del rasgueo.
+
+---
+
 ## Pruebas pendientes
+- Micrófono por rasgueo con un micrófono de sala (la Focusrite ya se probó).
 - Con el refinador en vivo: D de frente, fluidez del video y demora al cambiar de acorde.
 - Editar la progresión dentro del modal con la cámara activa (¿se mantiene la calibración?).
 - Otra cámara y otra luz, para la demo (la del lugar de la demo, si se conoce).
