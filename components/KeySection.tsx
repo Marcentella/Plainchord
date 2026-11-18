@@ -101,7 +101,7 @@ export default function KeySection({
   const pills: Key[] = [...KEYS.map((tonic) => ({ tonic, minor: false })), ...(fit?.minor ? [{ tonic: fit.tonic, minor: true }] : [])];
 
   // The card whose "which one?" popup is open (a degree), if any. It closes
-  // on a click elsewhere or Escape, and on its own once one copy is left.
+  // on a click elsewhere or Escape, and on its own once the last copy goes.
   const [popFor, setPopFor] = useState<number | null>(null);
   useEffect(() => {
     if (popFor === null) return;
@@ -177,6 +177,9 @@ export default function KeySection({
     // Exact: a card lights for its own chord only. Em7 isn't the Em card (it
     // would play a different chord), even though both belong to the key.
     const at = typed.flatMap((tok, i) => (tok === n ? [i] : []));
+    // An open popup stays open down to the last copy, so the corner keeps
+    // its "×N" toggle instead of swapping to "−" under the pointer.
+    const picking = popFor === d && at.length > 0;
     const corner =
       "absolute bottom-1.5 left-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border px-1.5 text-xs font-medium tabular-nums transition duration-[160ms] ease-out active:scale-[0.92]";
     return (
@@ -196,7 +199,7 @@ export default function KeySection({
           {chord ? <ChordDiagram chord={chord} size={90} /> : <ChordNotFound name={name(n)} />}
         </button>
 
-        {at.length === 1 && (
+        {at.length === 1 && !picking && (
           <button
             onClick={() => remove(at[0])}
             aria-label={t("keys.remove", { name: name(n) })}
@@ -206,7 +209,7 @@ export default function KeySection({
             <MinusIcon size={14} aria-hidden />
           </button>
         )}
-        {at.length > 1 && (
+        {(at.length > 1 || picking) && (
           <button
             onClick={() => setPopFor(popFor === d ? null : d)}
             aria-expanded={popFor === d}
@@ -216,7 +219,7 @@ export default function KeySection({
             ×{at.length}
           </button>
         )}
-        {popFor === d && at.length > 1 && (
+        {picking && (
           <div
             role="group"
             aria-label={t("keys.removeOneOf", { name: name(n) })}
@@ -226,7 +229,10 @@ export default function KeySection({
               at.includes(i) ? (
                 <button
                   key={i}
-                  onClick={() => remove(i)}
+                  onClick={() => {
+                    remove(i);
+                    if (at.length === 1) setPopFor(null);
+                  }}
                   aria-label={t("keys.removeNth", { name: name(tok), n: String(i + 1) })}
                   className="flex items-center gap-1 rounded-full border border-accent px-2.5 py-1 text-sm font-medium transition duration-[160ms] ease-out hover-fine:bg-accent hover-fine:text-dot-text active:scale-[0.95]"
                 >
