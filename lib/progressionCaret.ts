@@ -87,3 +87,11 @@ export function dropEmptySlots(value: string): string {
   const parts = value.split(SEP);
   return parts.filter((p, i) => p !== "" || i === 0 || i === parts.length - 1).join(SEP);
 }
+
+/**
+ * Pasted text ("E Em E7", "C, G, Am", "D-A") with its separators turned
+ * into " - ", so every chord is its own unit again; leading ones dropped.
+ */
+export function tidySeparators(value: string): string {
+  return value.replace(/^[\s,\-–—]+/, "").replace(/[\s,\-–—]+/g, SEP);
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret } from "./progressionCaret.ts";
+import { capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret, tidySeparators } from "./progressionCaret.ts";
 
 // "C - Em - D": C 0-1, sep 1-4, Em 4-6, sep 6-9, D 9-10. Chord ends: 1, 6, 10.
 const V = "C - Em - D";
@@ -46,4 +46,10 @@ test("leaving the box drops empty slots, keeps a trailing one", () => {
   assert.equal(dropEmptySlots("C -  - D"), "C - D");
   assert.equal(dropEmptySlots("C -  -  - D - "), "C - D - ");
   assert.equal(dropEmptySlots(V), V);
+});
+
+test("pasted chords get a separator each", () => {
+  assert.equal(tidySeparators("E Em E7"), "E - Em - E7");
+  assert.equal(tidySeparators(" C,  G,Am -D–F  "), "C - G - Am - D - F - ");
+  assert.equal(tidySeparators(V), V);
 });

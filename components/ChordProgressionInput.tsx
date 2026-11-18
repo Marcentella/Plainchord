@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SEP, capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret } from "@/lib/progressionCaret";
+import { SEP, capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret, tidySeparators } from "@/lib/progressionCaret";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { suggestChords } from "@/lib/chordSuggest";
 import { capitalizeRoot, type Notation } from "@/lib/notation";
@@ -320,6 +320,18 @@ export default function ChordProgressionInput({
           value={value}
           onChange={(e) => {
             const input = e.target;
+            // Pasted (or dropped) chords: every separator becomes " - ", or the
+            // whole paste would be one chord the caret can't get into.
+            if ((e.nativeEvent as InputEvent).inputType?.startsWith("insertFrom")) {
+              const tidied = tidySeparators(input.value);
+              const at = input.selectionStart ?? input.value.length;
+              const caret = snapCaret(tidied, tidySeparators(input.value.slice(0, at)).length);
+              const next = capitalizeChords(tidied, caret, cap);
+              pendingCaret.current = caret;
+              applyChange(next);
+              retarget(next);
+              return;
+            }
             const closed = tidyClosed(value, input.value, input.selectionEnd === input.value.length, notation);
             // tidyClosed only rewrites at the end, so the caret is there then.
             const caret = closed === input.value ? (input.selectionStart ?? closed.length) : closed.length;
