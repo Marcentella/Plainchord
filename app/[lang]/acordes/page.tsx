@@ -636,6 +636,7 @@ export default function ChordLibrary() {
       <KeySection
         tokens={allTokens}
         chordLimit={CHORD_LIMIT}
+        showDifficulty={showDifficulty}
         onChange={(next, replace) => {
           forceFullReplaceRef.current = !!replace;
           setCanonicalInput(next);

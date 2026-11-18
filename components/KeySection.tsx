@@ -69,10 +69,13 @@ export default function KeySection({
   tokens,
   onChange,
   chordLimit,
+  showDifficulty = true,
 }: {
   tokens: string[];
   onChange: (next: string, replace?: boolean) => void;
   chordLimit: number;
+  /** The page's "Mostrar dificultad" switch: off hides the badges here too. */
+  showDifficulty?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -345,7 +348,7 @@ export default function KeySection({
                           >
                             {name(n)}
                           </span>
-                          {found[i] && found[i + 1] && (
+                          {showDifficulty && found[i] && found[i + 1] && (
                             <span style={{ gridColumn: i * 2 + 2, gridRow: 1 }} className="justify-self-center">
                               <TransitionBadge difficulty={transitionDifficulty(found[i]!, found[i + 1]!)} />
                             </span>
