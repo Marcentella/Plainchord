@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SEP, capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret, tidySeparators } from "@/lib/progressionCaret";
+import { SEP, capitalizeChords, deleteSeparator, dropEmptySlots, openSlot, snapCaret, stepCaret, tidySeparators, typeAtStart } from "@/lib/progressionCaret";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { suggestChords } from "@/lib/chordSuggest";
 import { capitalizeRoot, type Notation } from "@/lib/notation";
@@ -199,6 +199,14 @@ export default function ChordProgressionInput({
         e.preventDefault();
         edit(done.value, done.caret);
         return;
+      }
+      if (e.inputType === "insertText" && e.data && at === 0) {
+        const front = typeAtStart(value, e.data);
+        if (front) {
+          e.preventDefault();
+          edit(front.value, front.caret);
+          return;
+        }
       }
       if (e.inputType !== "insertText" || (e.data !== " " && e.data !== "-") || at === value.length) return;
       e.preventDefault();
