@@ -109,6 +109,9 @@ export default function ChordProgressionInput({
     pickDefaultIndex(suggestChords(initial.token, notation), initial.token),
   );
   const [cycling, setCycling] = useState(false);
+  // Escape sets aside the suggestions until the next edit, so Tab moves
+  // focus out of the field again instead of cycling (no keyboard trap).
+  const [dismissed, setDismissed] = useState(false);
   const [focused, setFocused] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -124,7 +127,7 @@ export default function ChordProgressionInput({
   });
 
   const { before, token } = splitLastToken(value);
-  const suggestion = suggestions[index];
+  const suggestion = dismissed ? undefined : suggestions[index];
   const ghost = suggestion ? suggestion.name.slice(token.length) : "";
   // The typed token is itself a full, valid match (e.g. "e" -> "E") — the
   // ghost suffix is empty then, so this underline is the only visible sign
@@ -157,6 +160,7 @@ export default function ChordProgressionInput({
     setSuggestions(found);
     setIndex(pickDefaultIndex(found, token));
     setCycling(false);
+    setDismissed(false);
   }
 
   /** Every edit this component makes goes through here, so the resync
@@ -283,8 +287,13 @@ export default function ChordProgressionInput({
       input.setSelectionRange(to, to);
       return;
     }
+    if (e.key === "Escape" && suggestion) {
+      e.preventDefault(); // inside a dialog, the first Escape only does this
+      setDismissed(true);
+      return;
+    }
     if (e.key === "Tab") {
-      if (suggestions.length === 0) return; // nothing to accept — Tab moves focus as usual
+      if (!suggestion) return; // nothing to accept, or dismissed: Tab moves focus as usual
       e.preventDefault();
       acceptOrCycle();
       return;
@@ -436,6 +445,8 @@ export default function ChordProgressionInput({
         >
           ⇥ {suggestion?.name ?? ""}
         </button>
+        {/* Phones have no Esc key, and no Tab trap either. */}
+        <span className="text-xs text-muted max-sm:hidden">{t("home.escHint")}</span>
       </div>
     </div>
   );

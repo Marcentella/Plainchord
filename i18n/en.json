@@ -15,6 +15,7 @@
   "home.chordLimit": "Showing the first {limit} chords; the rest of the progression isn't shown.",
   "home.difficultySwitch": "Difficulty",
   "home.tabHint": "Autocomplete:",
+  "home.escHint": "Esc to cancel",
   "home.acceptSuggestionAria": "Accept suggestion {name}, tap again to see another option",
   "chordDiagram.ariaLabel": "Chord diagram for {name}",
   "chordNotFound.alt": "Chord not found",

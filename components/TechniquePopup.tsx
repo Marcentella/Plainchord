@@ -14,6 +14,7 @@ export default function TechniquePopup({
   note,
   anchor,
   closing,
+  takeFocus,
   onRequestClose,
   onExited,
   onMouseEnter,
@@ -24,6 +25,8 @@ export default function TechniquePopup({
   anchor: { x: number; top: number; bottom: number };
   /** True while fading out — still mounted, opacity animating to 0. */
   closing: boolean;
+  /** Click/keyboard-opened: focus moves into the panel so the arrow keys scroll it (not the page), and Escape hands focus back to the note. A hover preview never steals focus. */
+  takeFocus: boolean;
   /** Starts the fade-out (Escape / outside click). Doesn't unmount anything by itself — TabRenderer owns that, via onExited below, once the fade genuinely finishes. */
   onRequestClose: () => void;
   /** The fade-out's own transition has completed — safe to actually remove this from the DOM now. */
@@ -44,12 +47,24 @@ export default function TechniquePopup({
   // mouseleave on the now-covered note, closing a hover-opened popup
   // before anyone could see it. A panel-only ref check never covers
   // anything, so this can't happen.
+  const returnFocusRef = useRef<HTMLElement | SVGElement | null>(null);
+  // Re-runs when a click moves the same mounted popup to another note.
+  useEffect(() => {
+    if (!takeFocus) return;
+    const active = document.activeElement as HTMLElement | SVGElement | null;
+    if (active !== panelRef.current) returnFocusRef.current = active;
+    panelRef.current?.focus({ preventScroll: true });
+  }, [takeFocus, anchor.x, anchor.top]);
+
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) onRequestClose();
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onRequestClose();
+      if (e.key !== "Escape") return;
+      onRequestClose();
+      // Only Escape: an outside click already put focus where the user clicked.
+      returnFocusRef.current?.focus?.({ preventScroll: true });
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -89,6 +104,7 @@ export default function TechniquePopup({
       ref={panelRef}
       role="dialog"
       aria-modal="true"
+      tabIndex={-1}
       // Plain opacity fade, no transform: this opens on hover, potentially
       // many times per session while browsing a tab — the "tens of
       // times/day" tier calls for near-imperceptible motion, not a modal-
@@ -109,10 +125,19 @@ export default function TechniquePopup({
       // popup that isn't meant to move at all.
       // themed-scrollbar (app/globals.css): themed thin scrollbar, replacing
       // the OS-default one.
-      className={`themed-scrollbar fixed z-50 flex w-72 flex-col gap-4 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-4 shadow-lg transition-opacity duration-[150ms] ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 ${closing ? "opacity-0" : "opacity-100"}`}
+      className={`themed-scrollbar fixed z-50 outline-none flex w-72 flex-col gap-4 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-4 shadow-lg transition-opacity duration-[150ms] ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 ${closing ? "opacity-0" : "opacity-100"}`}
       style={{ left, top, maxHeight }}
       onTransitionEnd={(e) => {
         if (e.propertyName === "opacity" && closing) onExited();
+      }}
+      // The panel sits at the end of the DOM, so a native Tab from here would
+      // jump past the rest of the tab to the footer. Handing focus back to
+      // the note first (no preventDefault) lets the browser's own Tab carry
+      // on from there: next technique forward, previous one with Shift.
+      onKeyDown={(e) => {
+        if (e.key !== "Tab" || !returnFocusRef.current) return;
+        onRequestClose();
+        returnFocusRef.current.focus({ preventScroll: true });
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

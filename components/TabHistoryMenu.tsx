@@ -19,6 +19,7 @@ export default function TabHistoryMenu({
   const t = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Same dismissal pattern as PreferencesMenu/NavMenu: outside click or Escape.
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function TabHistoryMenu({
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
         aria-label={t("tabHistory.ariaLabel")}
         aria-expanded={open}
@@ -74,6 +76,8 @@ export default function TabHistoryMenu({
                     setOpen(false);
                   }}
                   onKeyDown={(e) => {
+                    // Keys bubbling up from the delete button are its own.
+                    if (e.target !== e.currentTarget) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       onSelect(entry);
@@ -89,6 +93,8 @@ export default function TabHistoryMenu({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      // This row is about to unmount; keep focus somewhere real.
+                      buttonRef.current?.focus();
                       onDelete(entry.id);
                     }}
                     aria-label={t("tabHistory.deleteAriaLabel", { title })}

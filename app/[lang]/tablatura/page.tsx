@@ -245,9 +245,12 @@ export default function Tablatura() {
     // currently on screen — state.tab is an independent value copy, so the
     // visible render is unaffected either way; only a future reload would
     // stop finding it.
+    // The row goes at once: Firefox's IndexedDB commit can take a second.
+    // The re-read afterwards brings it back if the delete actually failed.
+    setHistory((entries) => entries.filter((entry) => entry.id !== id));
     deleteTabFromHistory(id)
-      .then(refreshHistory)
-      .catch(() => {});
+      .catch(() => {})
+      .then(refreshHistory);
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {

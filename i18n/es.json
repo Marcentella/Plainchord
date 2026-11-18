@@ -15,6 +15,7 @@
   "home.chordLimit": "Se muestran los primeros {limit} acordes; el resto de la progresión no se muestra.",
   "home.difficultySwitch": "Dificultad",
   "home.tabHint": "Autocompletar:",
+  "home.escHint": "Esc para cancelar",
   "home.acceptSuggestionAria": "Aceptar sugerencia {name}, tocar de nuevo para ver otra opción",
   "chordDiagram.ariaLabel": "Diagrama del acorde {name}",
   "chordNotFound.alt": "Acorde no encontrado",

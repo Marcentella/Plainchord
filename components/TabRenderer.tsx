@@ -831,13 +831,10 @@ export default function TabRenderer({
     cancelHoverClose();
     const rect = target.getBoundingClientRect();
     setClosing(false);
+    // A click/keyboard-opened popup takes focus itself (TechniquePopup's
+    // takeFocus), which also leaves the note unfocused, so a later Space
+    // reaches the page's play/pause shortcut instead of re-opening it.
     setSelected({ note, anchor: { x: rect.x, top: rect.top, bottom: rect.bottom }, openedVia, triggerId });
-    // Only for a deliberate click/keyboard-activate, not a hover preview —
-    // same reason as commitSeek's own blur: leaves nothing focused to catch
-    // a later, unrelated Space press meant for the global play/pause
-    // shortcut. Less harmful here than on the rail (it would just re-open
-    // the same popup, not move playback), but the same fix either way.
-    if (openedVia === "click") target.blur();
   }
 
   return (
@@ -1392,6 +1389,7 @@ export default function TabRenderer({
           note={selected.note}
           anchor={selected.anchor}
           closing={closing}
+          takeFocus={selected.openedVia === "click"}
           onRequestClose={() => setClosing(true)}
           onExited={() => {
             setSelected(null);
