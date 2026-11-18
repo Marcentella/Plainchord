@@ -237,8 +237,29 @@ poca luz y una lámpara blanca.
 
 ---
 
+## Detección de acordes con micrófono común (KPI-03, PE-10)
+
+### 2026-11-18 — Micrófono de la cámara web, 28 acordes × 3 rasgueos (producción)
+- **Probado:** tarjeta "Último rasgueo" de la revisión con cámara (cámara apagada, solo micrófono), micrófono de la webcam sobre el monitor a ~75 cm; rasgueo mixto con dedos y púa.
+- **Resultado:** 74 de 84 rasgueos (88 %, meta ≥ 85 % cumplida); 24 de 28 acordes en al menos 2 de 3.
+- **Fallos:** Am 1/3 (tomado como C7), A7 1/3 (mejor candidato, apenas bajo el umbral), Am7 1/3 (C, C7 o Cadd9; tiene las mismas notas que C6), D7 2/3 (rasgueo débil con dedos), Dm7 0/3 (tomado como F; mismas notas que F6).
+- **Observado:** las cejillas de B y los acordes sus se reconocen con facilidad. En "Tocar junto" Am y Am7 también cuestan; un rasgueo fuerte ayuda.
+- **Diferencia con la señal directa (83 %, 14/10):** cambió el método de lectura (por rasgueo, 450 ms después), así que la mejora no se atribuye solo al micrófono. G7, B y Bb, que fallaban en octubre, pasaron 3/3.
+
+## Navegación con teclado (KPI-05)
+
+### 2026-11-18 — 13 tareas solo con teclado, Firefox de escritorio
+- **Probado:** inicio, menú, preferencias, tema, campo de progresión, sección de tonalidades, afinador, tocar junto, revisión con cámara, glosario, tablatura, guía y pie de página, solo con Tab, Mayús+Tab, Enter, Espacio, flechas y Esc.
+- **Resultado:** 10 tareas completas y 3 parciales; foco visible en todo momento.
+- **Fallas, corregidas el mismo día y vueltas a probar en localhost:**
+  - El campo de progresión usaba Tab para autocompletar y alternar sugerencias, así que el foco no salía del campo (trampa de teclado). Ahora Esc descarta las sugerencias y el siguiente Tab sale; se muestra "Esc para cancelar".
+  - En el historial de tablaturas, Enter sobre eliminar abría la tablatura en vez de borrarla. Además, en Firefox el borrado tardaba un segundo en verse; ahora la fila se quita al instante.
+  - La ventana de una técnica no recibía el foco, así que las flechas movían la página. Ahora lo recibe, Esc lo devuelve a la nota y Tab pasa a la técnica siguiente en vez de saltar al pie de página.
+- **Limitación:** la calibración de la cámara exige hacer clic en cuatro puntos del video; no tiene alternativa con teclado.
+- **Observado:** abrir un menú no cierra el que está abierto (hay que cerrarlo con Esc antes). El permiso de micrófono y cámara es una ventana de Firefox, alcanzable con teclado por un recorrido poco evidente. El riel bajo la tablatura permite avanzar y retroceder en ella con el teclado.
+
 ## Pruebas pendientes
-- Micrófono por rasgueo con un micrófono de sala (la Focusrite ya se probó).
+- Micrófono por rasgueo con un teléfono (la Focusrite y la webcam ya se probaron).
 - Con el refinador en vivo: D de frente, fluidez del video y demora al cambiar de acorde.
 - Editar la progresión dentro del modal con la cámara activa (¿se mantiene la calibración?).
 - Otra cámara y otra luz, para la demo (la del lugar de la demo, si se conoce).
